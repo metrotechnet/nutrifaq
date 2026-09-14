@@ -1,165 +1,33 @@
-# Nutria Agent – Documentation
-# 🚨 Dépannage: Erreur CORS Firebase App Check
+# App Check CORS troubleshooting
 
-Ce document explique comment diagnostiquer et résoudre les problèmes de CORS liés à Firebase App Check pour le projet **Nutria Agent**. Suivez ces étapes pour garantir une configuration correcte lors du déploiement ou du développement.
+This document is kept as historical reference. The current NutriFAQ project does not enforce Firebase App Check in the browser or backend, so the original CORS problem is not active in the current setup.
 
-## Problème
-```
-Access to fetch at 'https://content-firebaseappcheck.googleapis.com/...'
-from origin 'https://imx-translator.web.app' has been blocked by CORS policy
-```
+## Current behavior
 
-## Cause
-Le domaine `imx-translator.web.app` n'est pas enregistré comme application web autorisée dans Firebase Console.
+Requests from the frontend are sent without App Check headers, which avoids the Firebase App Check CORS flow entirely.
 
-## ✅ Solution étape par étape
+## If you later re-enable App Check
 
-### 1. Enregistrer l'application web dans Firebase
+Check the following:
 
-1. **Aller à Firebase Console:**
-   - https://console.firebase.google.com/
-   - Sélectionnez projet: `imx-translator`
+1. Firebase project and App Check are configured correctly.
+2. The web app is registered in Firebase.
+3. reCAPTCHA keys match the Hosting domain.
+4. The frontend and backend use the same project ID.
+5. The browser does not block the App Check script due to a domain mismatch.
 
-2. **Ajouter une application web:**
-   - Cliquez sur l'icône **</>** (Web) dans la page d'accueil
-   - OU allez dans **Project Settings** > **General** > **Your apps**
-   - Cliquez **"Add app"** > **Web**
-   
-3. **Configurer l'app:**
-   - **App nickname**: IMX Translator (ou autre nom)
-   - **Firebase Hosting**: ✅ Cochez cette option
-   - **Choose site**: Sélectionnez `imx-translator`
-   - Cliquez **"Register app"**
+## Common causes when re-enabling
 
-4. **Copier la configuration:**
-   ```javascript
-   const firebaseConfig = {
-     apiKey: "AIzaSyCa9xbAeLgwOula7_zxQwKjvshTrKIOTWQ",
-     authDomain: "imx-translator.firebaseapp.com",
-     projectId: "imx-translator",
-     storageBucket: "imx-translator.appspot.com",
-     messagingSenderId: "...",
-     appId: "..."
-   };
-   ```
-   
-   ⚠️ Notez le **appId** - vous en aurez besoin!
+- domain not added to reCAPTCHA allowlist
+- project ID mismatch between frontend and backend
+- app not registered in Firebase on the correct project
+- stale cached browser assets after config changes
 
-### 2. Activer App Check pour cette app
+## Suggested local fix
 
-1. **Dans Firebase Console:**
-   - Allez à **Project Settings** > **App Check**
-   - Si pas encore activé, cliquez **"Get started"**
+If you want to avoid App Check while debugging, keep the client flag disabled and do not register the middleware in `app.py`.
 
-2. **Configurer reCAPTCHA v3:**
-   - Sous votre app web, cliquez **"⋮"** > **Edit**
-   - Provider: **reCAPTCHA v3**
-   - Site key: `6Lf_H3ksAAAAAKOeJrorLgPS8XEJJEP4OEwH2P1U`
-   - Cliquez **"Save"**
+## Reference
 
-### 3. Vérifier les domaines reCAPTCHA
-
-1. **Aller à reCAPTCHA Admin:**
-   - https://www.google.com/recaptcha/admin
-   - Sélectionnez votre site avec la clé: `6Lf_H3ksAAAAAKOeJrorLgPS8XEJJEP4OEwH2P1U`
-
-2. **Vérifier les domaines:**
-   - **Domaines autorisés** doit inclure:
-     ```
-     imx-translator.web.app
-     imx-translator.firebaseapp.com
-     localhost
-     ```
-   
-3. **Si domaines manquants:**
-   - Cliquez **Settings**
-   - Ajoutez les domaines manquants
-   - Sauvegardez
-
-### 4. Mettre à jour .env avec l'App ID
-
-Ajoutez dans votre `.env`:
-```bash
-FIREBASE_APP_ID=1:XXXXXXXXX:web:YYYYYYYY
-FIREBASE_MESSAGING_SENDER_ID=XXXXXXXXX
-```
-
-### 5. Redéployer le frontend
-
-```powershell
-cd translator-agent
-.\deploy-frontend.bat
-```
-
-### 6. Attendre 5 minutes
-
-Firebase App Check peut prendre quelques minutes pour propager les changements.
-
----
-
-## 🔄 Solution temporaire: Désactiver App Check
-
-Si vous devez déployer rapidement en attendant la configuration:
-
-**Dans `.env`:**
-```bash
-# Désactiver temporairement App Check
-APP_CHECK_ENABLED=false
-```
-
-**Redéployer:**
-```powershell
-.\build-backend.bat
-.\deploy-backend.bat
-.\deploy-frontend.bat
-```
-
-⚠️ **N'oubliez pas de réactiver en production!**
-
----
-
-## ✅ Vérification
-
-Une fois configuré, ouvrez https://imx-translator.web.app et vérifiez la console (F12):
-
-**Messages attendus:**
-```
-[App Check] Firebase initialized
-[App Check] Initialized with reCAPTCHA v3
-```
-
-**Pas d'erreurs CORS!**
-
----
-
-## 🐛 Autres problèmes possibles
-
-### Erreur: "reCAPTCHA placeholder element must be an element or id"
-
-**Solution:** Le site key reCAPTCHA est invalide ou le domaine n'est pas autorisé.
-
-### Erreur: "App Check token expired"
-
-**Solution:** Normale - les tokens expirent. App Check les rafraîchit automatiquement.
-
-### Erreur: "Invalid App Check token"
-
-**Causes possibles:**
-- `FIREBASE_PROJECT_ID` différent entre frontend et backend
-- App Check pas activé dans Firebase Console
-- Token expiré (vérifier l'horloge système)
-
----
-
-## 📞 Support
-
-Si le problème persiste:
-1. Vérifiez les logs Firebase Console > App Check
-2. Testez avec `APP_CHECK_DEBUG=true` pour voir les tokens
-3. Utilisez un debug token pour tester localement
-
-## 🔗 Liens utiles
-
-- [Firebase Console - App Check](https://console.firebase.google.com/project/imx-translator/appcheck)
-- [reCAPTCHA Admin](https://www.google.com/recaptcha/admin)
-- [Firebase App Check Docs](https://firebase.google.com/docs/app-check/web/recaptcha-provider)
+- Firebase App Check docs: https://firebase.google.com/docs/app-check
+- reCAPTCHA docs: https://developers.google.com/recaptcha/docs/v3

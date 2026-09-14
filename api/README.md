@@ -1,121 +1,88 @@
-# Nutria Agent – Documentation
-# API Module Structure
+# API module overview
 
-This directory contains the modularized backend API for the **Nutria Agent** application. It describes the structure and purpose of each module for maintainability and clarity.
+This folder contains the backend logic for NutriFAQ. The app is launched from `app.py` and the API routes are organized under `api/routes`.
 
-This directory contains the modularized backend API for the IMX Agent application.
+## Current backend layout
 
-## Directory Structure
-
-```
+```text
 api/
-├── __init__.py                 # Module initialization
-├── models.py                   # Pydantic data models (QueryRequest, TranslateRequest)
-├── agents.py                   # Agent configuration and access control
-├── config.py                   # Configuration loading and merging
-├── sessions.py                 # Conversation session management
-├── logging.py                  # Question/response logging with comments and likes
-├── utils.py                    # Utility functions
-└── routes/                     # API endpoint routes
-    ├── __init__.py
-    ├── query.py                # Main query endpoint (streaming RAG)
-    ├── translation.py          # Translation and transcription endpoints
-    ├── tts.py                  # Text-to-speech endpoint
-    ├── report.py                # Report endpoints (logs, reports)
-    ├── agents.py               # Agent configuration endpoints
-    ├── sessions.py             # Session management endpoints
-    └── pipeline.py             # Google Drive indexing pipeline
+├── app_check.py
+├── config.py
+├── graph_layer.py
+├── index_chromadb.py
+├── logging.py
+├── models.py
+├── orchestrator.py
+├── query_chromadb.py
+├── refusal_engine.py
+├── sessions.py
+├── translate.py
+├── update_gdrive.py
+├── utils.py
+├── README.md
+├── routes/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── datasets.py
+│   ├── query.py
+│   ├── report.py
+│   ├── sessions.py
+│   ├── translation.py
+│   ├── tts.py
+│   └── update.py
+└── config/
+    ├── agent_config.json
+    ├── common_config.json
+    ├── prompts.json
+    ├── refusal_patterns.json
+    └── refusal_responses.json
 ```
 
-## Module Descriptions
+## Route modules
 
-### Core Modules
+### `routes/query.py`
+Handles user questions and the main retrieval workflow.
 
-**models.py**
-- Contains Pydantic models for API request validation
-- `QueryRequest`: Question/query parameters
-- `TranslateRequest`: Translation parameters
+### `routes/translation.py`
+Handles language detection, translation endpoints, and translation helpers.
 
-**agents.py**
-- Agent configuration loading and caching
-- Access key validation
-- Agent metadata retrieval
+### `routes/tts.py`
+Provides text-to-speech requests.
 
-**config.py**
-- Configuration file loading (common.json, nutria/config.json, etc.)
-- Deep merging of configuration dictionaries
-- Agent-specific configuration handling
+### `routes/report.py`
+Handles logging/reporting endpoints and feedback-related actions.
 
-**sessions.py**
-- Conversation session storage and management
-- Session timeout handling
-- Message history tracking
+### `routes/config.py`
+Serves configuration data for frontend and runtime settings.
 
-**logging.py**
-- Question and response logging to JSON
-- Comment and like/dislike functionality
-- Medical disclaimer detection
+### `routes/sessions.py`
+Tracks conversation/session state.
 
-**utils.py**
-- Shared utility functions and constants
+### `routes/update.py`
+Processes data refresh and update tasks.
 
-### Route Modules
+## Main app entry
 
-**routes/query.py**
-- `POST /query` - Main streaming RAG endpoint
-- Handles conversation history, refusals, and link extraction
-
-**routes/translation.py**
-- `GET /api/languages` - List supported languages
-- `POST /api/translate` - Text translation (streaming)
-- `POST /api/transcribe_audio` - Audio transcription (Whisper)
-- `POST /api/translate_audio` - Audio translation (Whisper + GPT)
-
-**routes/tts.py**
-- `POST /api/tts` - Text-to-speech conversion (OpenAI TTS)
-
-**routes/report.py**
-- `POST /api/add_comment` - Add comment to question
-- `POST /api/like_answer` - Like/dislike answer
-- `GET /api/download_log` - Download question log
-- `GET /log_report` - View log report
-
-**routes/agents.py**
-- `GET /api/get_config` - Get agent configuration
-
-**routes/sessions.py**
-- `POST /api/reset_session` - Reset conversation session
-- `GET /api/session_info` - Get session information
-
-**routes/pipeline.py**
-- `POST /update` - Trigger Google Drive document indexing
-
-## Usage
-
-The main `app.py` file imports and registers all route modules:
+The root app file registers the routing modules and exposes the FastAPI instance used by uvicorn:
 
 ```python
-from api.routes import query, translation, tts, report, config, sessions, update
-
 app.include_router(query.router, tags=["query"])
 app.include_router(translation.router, tags=["translation"])
-# ... etc
+app.include_router(tts.router, tags=["tts"])
+app.include_router(report.router, tags=["report"])
+app.include_router(config_routes.router, tags=["config"])
+app.include_router(sessions.router, tags=["sessions"])
+app.include_router(update.router, tags=["update"])
 ```
 
-## Benefits of This Structure
+## App Check note
 
-1. **Separation of Concerns** - Each module has a single, clear responsibility
-2. **Maintainability** - Easier to locate and modify specific functionality
-3. **Testability** - Individual modules can be tested in isolation
-4. **Scalability** - New features can be added as new route modules
-5. **Readability** - Smaller, focused files are easier to understand
-6. **Reusability** - Core functions (agents, config, sessions) can be imported anywhere
+Firebase App Check is intentionally disabled for this project. The backend App Check middleware file remains in the repo for reference, but it is not registered in `app.py`.
 
-## Migration Notes
+## Run locally
 
-The original 764-line `app.py` has been refactored into:
-- 1 main app file (79 lines)
-- 7 core module files
-- 7 route module files
+```powershell
+python app.py
+```
 
-All functionality remains the same, just better organized.
+Or via debug config in VS Code: `Python: API (FastAPI)`.
