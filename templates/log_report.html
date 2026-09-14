@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Report</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { background: #f8f9fa; }
+        .table-container { margin: 40px auto; max-width: 1200px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); padding: 32px; }
+        th, td { vertical-align: middle !important; }
+        .comment-btn { border: none; background: #e9ecef; border-radius: 50%; padding: 8px; cursor: pointer; }
+        .comment-btn:hover { background: #d1e7dd; }
+        .qa-block {
+            border: 1.5px solid #dee2e6;
+            border-radius: 8px;
+            background: #fcfcfc;
+            padding: 24px 16px;
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="table-container">
+        <h2 class="mb-4">Q/A Log Report</h2>
+        <div id="log-table-wrapper">
+            <div class="text-center my-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div>Loading log...</div>
+            </div>
+        </div>
+    </div>
+    <script>
+    // Backend URL: injected at deploy time, or auto-detect for local dev
+    const BACKEND_URL = '{{BACKEND_URL}}' !== '' && !('{{BACKEND_URL}}'.includes('{{')) 
+        ? '{{BACKEND_URL}}' 
+        : (window.location.hostname === 'localhost' && window.location.port === '3000' ? 'http://localhost:8080' : '');
+
+    async function fetchLog(key) {
+        const res = await fetch(`${BACKEND_URL}/api/download_log?key=${encodeURIComponent(key)}`);
+        if (!res.ok) throw new Error('Failed to fetch log');
+        return await res.json();
+    }
+
+    function renderQABlocks(log) {
+        if (!Array.isArray(log) || log.length === 0) {
+            document.getElementById('log-table-wrapper').innerHTML = '<div class="alert alert-info">No log entries found.</div>';
+            return;
+        }
+        let html = '';
+        for (const entry of log) {
+            html += `<div class="qa-block">
+                <div class="row mb-2">
+                    <div class="col-12 col-md-2 qa-label">Question</div>
+                    <div class="col-12 col-md-10" style="white-space:pre-wrap;">${entry.question || ''}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-12 col-md-2 qa-label">Réponse</div>
+                    <div class="col-12 col-md-10" style="white-space:pre-wrap;">${entry.response || ''}</div>
+                </div>
+                <div class="row">
+                    <div class="col-12 col-md-2 qa-label">User Like/Dislike</div>
+                    <div class="col-12 col-md-10 qa-actions">
+                        ${Array.isArray(entry.likes) && entry.likes.some(l=>l.like===true) ? '<i class="bi bi-hand-thumbs-up-fill like-icon text-success"></i>' : ''}
+                        ${Array.isArray(entry.likes) && entry.likes.some(l=>l.like===false) ? '<i class="bi bi-hand-thumbs-down-fill dislike-icon text-danger"></i>' : ''}
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-12 col-md-2 qa-label">
+                        Commentaires
+                        <div class="mt-2">
+                            <button class="edit-comments-btn btn btn-sm btn-outline-secondary rounded-circle p-0" style="width:32px;height:32px;" data-id="${entry.question_id||entry.id}" title="Editer">
+                                <i class="bi bi-pencil" style="font-size:1.2em;"></i>
+                            </button>
+                            <button class="save-comments-btn btn btn-sm btn-success rounded-circle p-0 d-none" style="width:32px;height:32px;" data-id="${entry.question_id||entry.id}" title="Enregistrer">
+                                <i class="bi bi-check-lg" style="font-size:1.2em;"></i>
+                            </button>
+                            <button class="cancel-comments-btn btn btn-sm btn-secondary rounded-circle p-0 d-none" style="width:32px;height:32px;" data-id="${entry.question_id||entry.id}" title="Annuler">
+                                <i class="bi bi-x-lg" style="font-size:1.2em;"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-10">
+                        <ul class="comment-list" id="comment-list-${entry.question_id||entry.id}">${(entry.comments||[]).map(c=>`<li>${c.comment||c}</li>`).join('')}</ul>
+                        <div class="edit-comments-area mt-2 d-none" id="edit-comments-area-${entry.question_id||entry.id}">
+                            <textarea class="form-control mb-2" rows="3" id="edit-comments-textarea-${entry.question_id||entry.id}"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        document.getElementById('log-table-wrapper').innerHTML = html;
+        setupCommentButtons();
+    }
+
+    function setupCommentButtons() {
+            // Inline edit/save/cancel logic
+            document.querySelectorAll('.edit-comments-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const editArea = document.getElementById('edit-comments-area-' + id);
+                    const textarea = document.getElementById('edit-comments-textarea-' + id);
+                    const list = document.getElementById('comment-list-' + id);
+                    const saveBtn = document.querySelector('.save-comments-btn[data-id="' + id + '"]');
+                    const cancelBtn = document.querySelector('.cancel-comments-btn[data-id="' + id + '"]');
+                    // Remplir textarea avec les commentaires actuels
+                    let comments = [];
+                    if (list) list.querySelectorAll('li').forEach(li => comments.push(li.textContent));
+                    textarea.value = comments.join('\n');
+                    editArea.classList.remove('d-none');
+                    saveBtn.classList.remove('d-none');
+                    cancelBtn.classList.remove('d-none');
+                    btn.classList.add('d-none');
+                });
+            });
+            document.querySelectorAll('.cancel-comments-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const editArea = document.getElementById('edit-comments-area-' + id);
+                    const editBtn = document.querySelector('.edit-comments-btn[data-id="' + id + '"]');
+                    const saveBtn = document.querySelector('.save-comments-btn[data-id="' + id + '"]');
+                    btn.classList.add('d-none');
+                    saveBtn.classList.add('d-none');
+                    editArea.classList.add('d-none');
+                    editBtn.classList.remove('d-none');
+                });
+            });
+            document.querySelectorAll('.save-comments-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.getAttribute('data-id');
+                    const textarea = document.getElementById('edit-comments-textarea-' + id);
+                    const editArea = document.getElementById('edit-comments-area-' + id);
+                    const editBtn = document.querySelector('.edit-comments-btn[data-id="' + id + '"]');
+                    const cancelBtn = document.querySelector('.cancel-comments-btn[data-id="' + id + '"]');
+                    btn.classList.add('d-none');
+                    cancelBtn.classList.add('d-none');
+                    editArea.classList.add('d-none');
+                    editBtn.classList.remove('d-none');
+                    if (!textarea) return;
+                    const newComments = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
+                    for (const c of newComments) {
+                        if (c) {
+                            await fetch(`${BACKEND_URL}/api/add_comment`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ question_id: id, comment: c })
+                            });
+                        }
+                    }
+                    loadAndRender();
+                });
+            });
+        document.querySelectorAll('.comment-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const questionId = btn.getAttribute('data-id');
+                const { value: comment } = await Swal.fire({
+                    title: 'Add Comment',
+                    input: 'textarea',
+                    inputLabel: 'Comment',
+                    inputPlaceholder: 'Type your comment here...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Send',
+                    cancelButtonText: 'Cancel',
+                    inputValidator: (value) => {
+                        if (!value || !value.trim()) {
+                            return 'Comment required';
+                        }
+                    }
+                });
+                if (comment && comment.trim()) {
+                    Swal.showLoading();
+                    try {
+                        const res = await fetch(`${BACKEND_URL}/api/add_comment`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ question_id: questionId, comment: comment.trim() })
+                        });
+                        const result = await res.json();
+                        if (result.status === 'success') {
+                            // Refresh table
+                            loadAndRender();
+                        } else {
+                            await Swal.fire({ icon: 'error', title: 'Error', text: result.message || '' });
+                        }
+                    } catch (e) {
+                        await Swal.fire({ icon: 'error', title: 'Network error' });
+                    }
+                }
+            });
+        });
+    }
+
+    async function loadAndRender() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const key = urlParams.get('key');
+        if (!key) {
+            document.getElementById('log-table-wrapper').innerHTML = '<div class="alert alert-warning">Clé d\'accès requise dans l\'URL (?key=...)</div>';
+            return;
+        }
+        try {
+            const log = await fetchLog(key);
+            renderQABlocks(log);
+        } catch (e) {
+            document.getElementById('log-table-wrapper').innerHTML = '<div class="alert alert-danger">Impossible de charger le log.</div>';
+        }
+    }
+    loadAndRender();
+    </script>
+</body>
+</html>

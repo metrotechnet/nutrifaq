@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="app.title">IMX Agent | Assistant IA</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify for XSS protection -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script>
+        // Firebase project configuration (set via environment variables during deployment)
+        window.FIREBASE_PROJECT_ID = "{{FIREBASE_PROJECT_ID}}";
+        window.FIREBASE_API_KEY = "{{FIREBASE_API_KEY}}";
+        window.FIREBASE_AUTH_DOMAIN = "{{FIREBASE_AUTH_DOMAIN}}";
+        window.FIREBASE_STORAGE_BUCKET = "{{FIREBASE_STORAGE_BUCKET}}";
+        window.FIREBASE_MESSAGING_SENDER_ID = "{{FIREBASE_MESSAGING_SENDER_ID}}";
+        window.FIREBASE_APP_ID = "{{FIREBASE_APP_ID}}";
+        window.FIREBASE_MEASUREMENT_ID = "{{FIREBASE_MEASUREMENT_ID}}";
+        window.RECAPTCHA_SITE_KEY = "{{RECAPTCHA_SITE_KEY}}";
+        window.APP_CHECK_ENABLED = "{{APP_CHECK_ENABLED}}";
+        window.APP_CHECK_DEBUG_TOKEN = "{{APP_CHECK_DEBUG_TOKEN}}"; // Debug token for local testing
+    </script> 
+
+</head>
+<body>
+    <!-- Initial Loading Overlay -->
+    <div class="initial-loading-overlay" id="initial-loading-overlay">
+        <div class="initial-loading-content">
+             <h2 class="app-name">IMX - Nutria</h2>
+           <div class="initial-spinner"></div>
+            <p class="initial-loading-text" data-i18n="messages.warmup">Démarrage de l'application...</p>
+        </div>
+    </div>
+    
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 data-i18n="sidebar.title">IMX Agent</h2>
+            <button class="close-sidebar" id="close-sidebar" title="" data-i18n-title="sidebar.closeButton">×</button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="https://imxtech.ca/" target="_blank" rel="noopener noreferrer" class="sidebar-link" id="about-imx-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
+                </svg>
+                <span data-i18n="sidebar.aboutImx">À propos d'IMX</span>
+            </a>
+            <a href="#" class="sidebar-link" id="about-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v2h-2zm0 4h2v6h-2z"/>
+                </svg>
+                <span data-i18n="sidebar.about">À propos</span>
+            </a>
+            <a href="#" class="sidebar-link" id="legal-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                </svg>
+                <span data-i18n="sidebar.legal">Avertissements</span>
+            </a>
+            <a href="/privacy.html" target="_blank" class="sidebar-link" id="privacy-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                </svg>
+                <span data-i18n="sidebar.privacy">Confidentialité</span>
+            </a>
+            <div class="language-selector-container">
+                <label for="language-selector" data-i18n="sidebar.language">Langue</label>
+                <select id="language-selector" class="language-selector">
+                    <option value="fr">Français</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+
+        </nav>
+        <div class="footer-info" data-i18n="footer.content" style="text-align:center; font-size:0.95em; color:#666; margin:10px;"></div>
+    </div>
+    
+    <div class="overlay" id="overlay"></div>
+    
+    <header>
+        <button class="menu-toggle" id="menu-toggle" title="" data-i18n-title="header.menuButton">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <h1 class="header-title" data-i18n="header.title">Nutri-IA</h1>
+
+    </header>
+
+    <div class="content" id="chat-container">
+        <div id="chat-top-spacer" style="flex: 1; min-height: 0;"></div>
+        <div class="empty-state" id="empty-state">
+            <img src="/static/logos/logo-imx.png" alt="IMX Multi-Agent" data-i18n-alt="intro.profileAlt" data-i18n-src="intro.profileImage" class="profile-photo">
+            <h2 data-i18n="intro.title">Bienvenue sur IMX Multi-Agent</h2>
+            <p data-i18n="intro.description"></p>
+            <p><strong data-i18n="intro.disclaimer"></strong></p>
+            <div class="suggestions">
+                <!-- Agent suggestion cards will be populated dynamically from config -->
+            </div>
+        </div>
+    </div>
+    <footer>
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="input-box" 
+                        class="input-box" 
+                        placeholder="Pose-moi une question..." 
+                        data-i18n-placeholder="components.inputArea.placeholder"
+                        rows="1"
+                    ></textarea>
+                    <div class="input-buttons">
+                        <button id="voice-button" class="voice-button bi bi-mic-fill" style="color: white;" title="Enregistrer un message vocal" data-i18n-title="components.inputArea.voiceButton"></button>
+                        <button id="send-button" class="send-button bi bi-send" style="color: white;" title="" data-i18n-title="components.inputArea.sendButton"> </button>
+                        <button id="stop-button" class="send-button bi bi-stop-fill" style="color: white; display: none;" title="Cancel" data-i18n-title="components.inputArea.stopButton"> </button>
+                    </div>
+                </div>
+                <div class="input-disclaimer">
+                    <span data-i18n="components.inputArea.disclaimer">⚠️ Peut contenir des erreurs. Ne remplace pas un avis professionnel.</span>
+                    <span id="speech-method-indicator" style="margin-left: 10px; padding: 2px 8px; background: #4CAF50; color: white; border-radius: 12px; font-size: 0.75em; cursor: pointer;" title="Click to toggle recognition method">
+                        🎤 Whisper
+                    </span>
+                </div>
+            </div>
+
+    </footer>
+
+    </div>
+    
+    <!-- Cookie Consent Banner -->
+    <div class="cookie-banner" id="cookie-banner">
+        <div class="cookie-content">
+            <h3 data-i18n="cookies.title">🍪 Cookies et confidentialité</h3>
+            <p data-i18n="cookies.message">Ce site utilise des cookies essentiels pour assurer son bon fonctionnement. Aucune donnée personnelle n'est collectée à des fins publicitaires.</p>
+            <div class="cookie-buttons">
+                <button class="cookie-btn cookie-accept" id="cookie-accept" data-i18n="cookies.accept">Accepter</button>
+                <button class="cookie-btn cookie-decline" id="cookie-decline" data-i18n="cookies.decline">Refuser</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modular JavaScript files (load in dependency order) -->
+    <!-- Backend URL configuration must load first -->
+    <script src="/static/js/backend-url.js"></script>
+    <!-- Firebase App Check must load before making API calls -->
+    <script type="module" src="/static/js/firebase-config.js"></script>
+    <script src="/static/js/config.js"></script>
+    <script src="/static/js/components.js"></script>
+    <script src="/static/js/ui-utils.js"></script>
+    <script src="/static/js/tts.js"></script>
+    <script src="/static/js/chat.js"></script>
+    <script src="/static/js/voice-recognition.js"></script>
+    <script src="/static/js/agents.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
