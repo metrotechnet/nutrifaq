@@ -13,7 +13,11 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).parent.parent
 load_dotenv(dotenv_path=PROJECT_ROOT / '.env')
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def get_openai_client() -> OpenAI:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not configured.")
+    return OpenAI(api_key=api_key)
 
 # Supported translation languages
 SUPPORTED_LANGUAGES = {
@@ -116,6 +120,8 @@ def translate_text_stream(text: str, target_language: str, source_language: str 
     # Get model configuration
     model_name = model_config.get('name', 'gpt-4o-mini')
     
+    client = get_openai_client()
+
     # OpenAI streaming
     stream = client.chat.completions.create(
         model=model_name,
@@ -147,6 +153,8 @@ def transcribe_audio_whisper(audio_bytes: bytes, filename: str = "audio.webm", l
         str: Transcribed text
     """
     suffix = Path(filename).suffix or ".webm"
+    client = get_openai_client()
+
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name
@@ -183,6 +191,8 @@ def translate_audio_whisper(audio_bytes: bytes, filename: str = "audio.webm") ->
         str: Translated English text
     """
     suffix = Path(filename).suffix or ".webm"
+    client = get_openai_client()
+
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name

@@ -2,6 +2,7 @@ import os
 import json
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 import chromadb
 from chromadb.config import Settings
@@ -21,10 +22,11 @@ VECTOR_DB_DIRNAME = os.getenv("VECTOR_DB_DIRNAME", "chroma_db")
 
 # Initialize Vercel AI Gateway client (OpenAI-compatible)
 # See https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions
-client = OpenAI(
-    api_key=os.getenv("AI_GATEWAY_API_KEY"),
-    base_url="https://ai-gateway.vercel.sh/v1"
-)
+def get_gateway_client() -> OpenAI:
+    api_key = os.getenv("AI_GATEWAY_API_KEY")
+    if not api_key:
+        raise RuntimeError("AI_GATEWAY_API_KEY is not configured.")
+    return OpenAI(api_key=api_key, base_url="https://ai-gateway.vercel.sh/v1")
 
 
 def load_style_guides():
@@ -143,24 +145,46 @@ def _resolve_kb_root() -> Path:
     return PROJECT_ROOT / "knowledge-base"
 
 
+def _get_remote_collection(project_name: str, collection_name: str):
+    """Return a remote ChromaDB collection when the local app bundle does not include the KB."""
+    remote_url = os.getenv("CHROMADB_CENTRAL_URL")
+    if not remote_url:
+        raise FileNotFoundError("Remote ChromaDB URL is not configured.")
+
+    parsed = urlparse(remote_url)
+    host = parsed.hostname or remote_url
+    port = parsed.port or (443 if parsed.scheme == "https" else 8000)
+    ssl = parsed.scheme == "https"
+
+    remote_client = chromadb.HttpClient(host=host, port=port, ssl=ssl)
+    return remote_client.get_collection(name=collection_name)
+
+
 def _get_local_collection(project_name: str, collection_name: str):
-    """Return a local persisted ChromaDB collection."""
+    """Return a local persisted ChromaDB collection if available; otherwise use the remote fallback."""
     cache_key = f"{project_name}:{collection_name}"
     if cache_key in _COLLECTION_CACHE:
         return _COLLECTION_CACHE[cache_key]
 
     kb_root = _resolve_kb_root()
     db_path = kb_root / project_name / VECTOR_DB_DIRNAME
-    if not db_path.exists():
-        raise FileNotFoundError(f"Local ChromaDB folder not found: {db_path}")
+    if db_path.exists():
+        local_client = chromadb.PersistentClient(
+            path=str(db_path),
+            settings=Settings(anonymized_telemetry=False, allow_reset=False),
+        )
+        local_collection = local_client.get_collection(name=collection_name)
+        _COLLECTION_CACHE[cache_key] = local_collection
+        return local_collection
 
-    local_client = chromadb.PersistentClient(
-        path=str(db_path),
-        settings=Settings(anonymized_telemetry=False, allow_reset=False),
-    )
-    local_collection = local_client.get_collection(name=collection_name)
-    _COLLECTION_CACHE[cache_key] = local_collection
-    return local_collection
+    try:
+        remote_collection = _get_remote_collection(project_name, collection_name)
+        _COLLECTION_CACHE[cache_key] = remote_collection
+        return remote_collection
+    except Exception as exc:
+        raise FileNotFoundError(
+            f"Local ChromaDB folder not found: {db_path}. Remote fallback also failed: {exc}"
+        ) from exc
 
 def query_chromadb(project_name, collection_name=None, data=None):
     try:
@@ -312,6 +336,8 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
 
 
     try:
+        client = get_gateway_client()
+
         # Get embedding for the question
         query_emb = client.embeddings.create(
             model="text-embedding-3-large", 

@@ -7,12 +7,10 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pathlib import Path
+import importlib
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-
-# Import route modules
-from api.routes import query, translation, tts, report, config as config_routes, sessions, update
 
 # =====================================================
 # Configuration & Application Setup
@@ -42,6 +40,8 @@ firebase_project_id = os.getenv("FIREBASE_PROJECT_ID")
 allowed_origins = [
     f"https://{firebase_project_id}.web.app",
     f"https://{firebase_project_id}.firebaseapp.com",
+    "https://nutrifaqfe584319.z13.web.core.windows.net",
+    "https://nutrifaqfe385620.z13.web.core.windows.net",
     "http://localhost:3000",
     "http://localhost:8080",
     "http://localhost:5000",
@@ -55,9 +55,13 @@ additional_origins = os.getenv("ADDITIONAL_CORS_ORIGINS", "")
 if additional_origins:
     allowed_origins.extend([origin.strip() for origin in additional_origins.split(",") if origin.strip()])
 
+# Deduplicate while preserving order
+allowed_origins = list(dict.fromkeys(allowed_origins))
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://(?:.*\.)?(?:web\.app|firebaseapp\.com|web\.core\.windows\.net|azurestaticapps\.net)|http://(?:localhost|127\.0\.0\.1)(?::\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,13 +78,23 @@ app.add_middleware(
 # =====================================================
 # Include API Routes
 # =====================================================
-app.include_router(query.router, tags=["query"])
-app.include_router(translation.router, tags=["translation"])
-app.include_router(tts.router, tags=["tts"])
-app.include_router(report.router, tags=["report"])
-app.include_router(config_routes.router, tags=["config"])
-app.include_router(sessions.router, tags=["sessions"])
-app.include_router(update.router, tags=["update"])
+ROUTE_MODULES = [
+    ("api.routes.query", "query"),
+    ("api.routes.translation", "translation"),
+    ("api.routes.tts", "tts"),
+    ("api.routes.report", "report"),
+    ("api.routes.config", "config"),
+    ("api.routes.sessions", "sessions"),
+    ("api.routes.update", "update"),
+]
+
+for module_name, tag in ROUTE_MODULES:
+    try:
+        module = importlib.import_module(module_name)
+        app.include_router(module.router, tags=[tag])
+    except Exception as exc:
+        # Keep the service alive even if one optional integration fails at startup.
+        print(f"Route '{module_name}' not loaded: {exc}")
 
 # =====================================================
 # Main Routes

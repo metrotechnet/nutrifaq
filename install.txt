@@ -1,0 +1,222 @@
+Updated todo list
+
+I’m mapping this to a practical Azure deployment path for your FastAPI app and static frontend so you have a clear checklist without guessing around Azure services.
+
+## Recommended Azure setup for this project
+
+The easiest path for your app is:
+
+- Backend: Azure App Service
+- Frontend: served by the same FastAPI app from the existing templates/static folders
+- Optional: Azure Container Apps if you want container-based deployment later
+
+This fits your project well because the app already exposes the website through FastAPI and is not a pure static-only site.
+
+---
+
+## 1) Prepare the app for Azure
+
+Before deployment, make sure the app can run on Azure:
+
+- Python 3.11
+- FastAPI app starts correctly
+- app binds to a port from environment variable
+- dependencies are in `requirements.txt`
+- startup command is defined
+
+Your app currently does:
+
+- `uvicorn.run(app, host="0.0.0.0", port=port)`
+
+For Azure, make sure the app can also run under gunicorn with uvicorn workers.
+
+Add this package if needed:
+
+```bash
+pip install gunicorn
+```
+
+Then make sure it is in `requirements.txt`.
+
+---
+
+## 2) Create Azure resources
+
+From Azure CLI:
+
+```bash
+az login
+az group create --name nutrifaq-rg --location "eastus"
+az appservice plan create --name nutrifaq-plan --resource-group nutrifaq-rg --sku B1 --is-linux
+```
+
+Then create the web app:
+
+```bash
+az webapp create   --resource-group nutrifaq-rg   --plan nutrifaq-plan   --name nutrifaq-chat   --runtime "PYTHON:3.11"
+```
+
+Use a unique app name such as:
+
+```text
+nutrifaq-prod-2026
+```
+
+---
+
+## 3) Configure the startup command
+
+Set Azure to run the FastAPI app properly:
+
+```bash
+az webapp config set   --resource-group nutrifaq-rg   --name nutrifaq-chat   --startup-file "gunicorn --workers 2 --threads 4 --timeout 120 -k uvicorn.workers.UvicornWorker app:app"
+```
+
+This tells Azure to start the FastAPI app using gunicorn.
+
+> If your app expects a port like 8080, Azure usually sets a port automatically, and the app may need to read `PORT` from the environment. If needed, set `WEBSITES_PORT` to 8000 or similar.
+
+---
+
+## 4) Upload the project code
+
+From the project folder:
+
+```bash
+az webapp deploy \
+  --resource-group nutrifaq-rg \
+  --name nutrifaq-chat \
+  --src-path app.zip \
+  --type zip
+```
+
+If you do not have a zip yet, create it:
+
+```bash
+Compress-Archive -Path .\* -DestinationPath .\app.zip -Force
+```
+
+Then deploy it.
+
+---
+
+## 5) Set environment variables in Azure
+
+Set all environment variables your app needs:
+
+```bash
+az webapp config appsettings set \
+  --resource-group nutrifaq-rg \
+  --name nutrifaq-chat \
+  --settings \
+  OPENAI_API_KEY="..." \
+  FIREBASE_PROJECT_ID="..." \
+  APP_CHECK_ENABLED="false" \
+  PORT="8000"
+```
+
+Also make sure any other keys such as:
+
+- `OPENAI_API_KEY`
+- `GEMINI_API_KEY`
+- `CHROMA_PATH`
+- `KNOWLEDGE_BASE`
+- `BACKEND_URL`
+
+are configured in Azure App Settings.
+
+---
+
+## 6) Set the app to use your code
+
+Open the Azure portal and go to:
+
+- App Service
+- Configuration
+- Application settings
+
+Verify:
+- Python version is 3.11
+- startup command is set
+- required env vars exist
+
+Then restart the app.
+
+---
+
+## 7) Test the live app
+
+Once restarted, open:
+
+```text
+https://nutrifaq-chat.azurewebsites.net
+```
+
+Check:
+
+- root route loads
+- `/health` returns OK
+- key endpoints respond
+- frontend assets load from static files
+
+Example:
+
+```bash
+curl https://nutrifaq-chat.azurewebsites.net/health
+```
+
+---
+
+## 8) If you want separate frontend + backend
+
+If you later split the frontend and backend, the common Azure pattern is:
+
+- Frontend: Azure Static Web Apps
+- Backend: Azure App Service or Azure Container Apps
+
+But for your current project, a single App Service is the fastest and lowest-risk option.
+
+---
+
+## Best practice for this repo
+
+Because your project already contains:
+
+- FastAPI app
+- templates
+- static frontend
+- route-based API
+
+the most practical Azure deployment is:
+
+- One Azure App Service
+- one Python app
+- one startup command
+- one set of app settings
+
+---
+
+## Minimal deployment checklist
+
+1. Install Azure CLI
+2. Create Azure resource group and App Service plan
+3. Create Linux Web App on Python 3.11
+4. Add gunicorn to requirements
+5. Set startup command
+6. Zip and deploy project
+7. Add app settings
+8. Restart app
+9. Test `/health` and main frontend page
+
+---
+
+## If you want, I can do the next step for you
+
+I can prepare the exact Azure deployment configuration for this repo:
+
+- recommended `requirements.txt` additions
+- the exact `startup command`
+- a full Azure CLI script you can copy-paste
+- env var list for this app
+
+If you want, I can generate the full Azure deployment script next.

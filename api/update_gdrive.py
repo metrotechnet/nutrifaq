@@ -1,7 +1,6 @@
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
-from openai import OpenAI
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
@@ -23,14 +22,6 @@ load_dotenv(dotenv_path=PROJECT_ROOT / '.env')
 GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID", "")
 GDRIVE_CREDENTIALS_PATH = os.getenv("GDRIVE_CREDENTIALS_PATH", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-
-# Initialize Vercel AI Gateway client (OpenAI-compatible)
-# See https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions
-client = OpenAI(
-    api_key=os.getenv("AI_GATEWAY_API_KEY"),
-    base_url="https://ai-gateway.vercel.sh/v1"
-)
 
 
 def get_agent_paths(agent=None):

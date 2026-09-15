@@ -17,7 +17,11 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Initialize Vercel AI Gateway client (OpenAI-compatible)
 # See https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions
-client_openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def get_openai_client() -> OpenAI:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not configured.")
+    return OpenAI(api_key=api_key)
 
 
 @router.post("/api/tts")
@@ -32,6 +36,7 @@ async def text_to_speech(
     Returns audio/mpeg stream.
     """
     try:
+        client_openai = get_openai_client()
 
         # Choose voice based on language
         voice = "nova" if language in ["fr", "es", "it", "pt", "ro"] else "alloy"
