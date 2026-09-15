@@ -3,6 +3,7 @@
 # =====================================================
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -22,6 +23,7 @@ load_dotenv(dotenv_path=env_path)
 import os
 
 app = FastAPI(title="IMX Agent Factory - Nutria Agent API", version="1.0")
+APP_VERSION = os.getenv("APP_VERSION", "dev")
 
 # =====================================================
 # Rate Limiting Configuration
@@ -38,10 +40,6 @@ firebase_project_id = os.getenv("FIREBASE_PROJECT_ID")
 
 # Build allowed origins dynamically
 allowed_origins = [
-    f"https://{firebase_project_id}.web.app",
-    f"https://{firebase_project_id}.firebaseapp.com",
-    "https://nutrifaqfe584319.z13.web.core.windows.net",
-    "https://nutrifaqfe385620.z13.web.core.windows.net",
     "http://localhost:3000",
     "http://localhost:8080",
     "http://localhost:5000",
@@ -58,10 +56,20 @@ if additional_origins:
 # Deduplicate while preserving order
 allowed_origins = list(dict.fromkeys(allowed_origins))
 
+default_origin_regex = (
+    r"^https://nutrifaq[a-z0-9-]*\.z\d+\.web\.core\.windows\.net$"
+    r"|^http://(?:localhost|127\.0\.0\.1)(?::\d+)?$"
+)
+
+additional_origin_regex = os.getenv("ADDITIONAL_CORS_ORIGIN_REGEX", "").strip()
+allow_origin_regex = default_origin_regex
+if additional_origin_regex:
+    allow_origin_regex = f"(?:{default_origin_regex})|(?:{additional_origin_regex})"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"https://(?:.*\.)?(?:web\.app|firebaseapp\.com|web\.core\.windows\.net|azurestaticapps\.net)|http://(?:localhost|127\.0\.0\.1)(?::\d+)?",
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -102,15 +110,20 @@ for module_name, tag in ROUTE_MODULES:
 @app.get("/")
 def home():
     """API root endpoint - frontend is hosted on Firebase"""
-    return {"status": "ok", "message": "IMX Agent Factory API version 2"}
+    return {
+        "status": "ok",
+        "message": "IMX Agent Factory API",
+        "app_version": APP_VERSION,
+    }
 
 
 @app.get("/health")
 def health():
     """Health check endpoint"""
-    return {"status": "ok"}
-
-
+    return {
+        "status": "ok",
+        "app_version": APP_VERSION,
+    }
 # =====================================================
 # Run Application
 # =====================================================

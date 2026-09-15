@@ -405,6 +405,9 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
         bibliotheque: getSelectedLibrary()
     };
 
+    console.log('[Frontend][query] backend URL:', BACKEND_URL);
+    console.log('[Frontend][query] request payload:', requestData);
+
     // Create abort controller for cancellation
     currentAbortController = new AbortController();
 
@@ -414,6 +417,8 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
         body: JSON.stringify(requestData),
         signal: currentAbortController.signal
     });
+
+    console.log('[Frontend][query] response status:', response.status, response.statusText);
 
     if (!response.ok) {
         if (response.status === 429) {

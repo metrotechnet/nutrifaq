@@ -18,10 +18,10 @@ if (-Not (Test-Path "$envPath\Scripts\python.exe")) {
 
 Write-Host "Using virtual environment: $envPath" -ForegroundColor Cyan
 
-# Check if dependencies are installed
+# Check if required dependencies are installed
 Write-Host "Checking dependencies..." -ForegroundColor Cyan
-$uvicornCheck = & "$envPath\Scripts\python.exe" -c "import uvicorn; print('OK')" 2>$null
-if ($uvicornCheck -ne "OK") {
+$depsCheck = & "$envPath\Scripts\python.exe" -c "import uvicorn, chromadb, openai; from google.cloud import storage; print('OK')" 2>$null
+if ($depsCheck -ne "OK") {
     Write-Host "Installing dependencies..." -ForegroundColor Yellow
     & "$envPath\Scripts\python.exe" -m pip install -r requirements.txt
     Write-Host "Dependencies installed." -ForegroundColor Green

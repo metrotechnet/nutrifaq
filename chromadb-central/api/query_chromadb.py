@@ -185,15 +185,23 @@ def reload_project_collections(project_name,collection_name=None):
 # Example query function (to be adapted for your schema)
 def query_vector_db(project_name, collection_name, query):
 
+
     collection = get_collection(project_name, collection_name)
     if collection is None:
         return {"error": "ChromaDB collection is not available. Please run 'python index_chromadb.py' first to index your documents."}
     
     # If query is a dict, treat as advanced vector search
     if isinstance(query, dict):
-        # Expecting keys: query_embedding, n_results, include, (optional) where
+        # Accept both legacy and current payload names for compatibility.
         try:
-            query_embedding = query["query_embedding"]
+            query_embedding = query.get("query_embedding")
+            if query_embedding is None:
+                query_embedding = query.get("query_embeddings")
+                if isinstance(query_embedding, list) and len(query_embedding) > 0:
+                    query_embedding = query_embedding[0]
+            if query_embedding is None:
+                raise KeyError("query_embedding")
+
             n_results = query.get("n_results", 10)
             include = query.get("include", ["documents"])
             where = query.get("where")
@@ -204,6 +212,7 @@ def query_vector_db(project_name, collection_name, query):
             }
             if where:
                 query_args["where"] = where
+
             results = collection.query(**query_args)
             return results
         except Exception as e:

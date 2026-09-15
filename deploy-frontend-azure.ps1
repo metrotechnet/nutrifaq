@@ -1,10 +1,10 @@
 param(
     [string]$ResourceGroup = "nutrifaq-rg",
     [string]$Location = "eastus",
-    [string]$StorageAccountName = "",
+    [string]$StorageAccountName = "nutrifaqfeprod",
     [string]$FrontendDir = "public",
-    [string]$BackendUrl = "https://nutrifaq-chat.azurewebsites.net",
-    [string]$BackendAppName = "nutrifaq-chat",
+    [string]$BackendUrl = "https://nutrifaq-api-chhpeha3h9ehegft.canadacentral-01.azurewebsites.net",
+    [string]$BackendAppName = "nutrifaq-api",
     [switch]$UpdateBackendCors
 )
 
