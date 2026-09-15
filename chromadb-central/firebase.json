@@ -1,0 +1,45 @@
+{
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/__pycache__/**",
+      "*.py",
+      "*.pyc",
+      "*.bat",
+      "*.sh",
+      "*.ps1",
+      "requirements.txt",
+      "Dockerfile",
+      ".env",
+      "knowledge-base/**",
+      "api/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/datasets/**",
+        "run": {
+          "serviceId": "chromadb-central",
+          "region": "us-east4"
+        }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=31536000"
+          }
+        ]
+      }
+    ]
+  }
+}

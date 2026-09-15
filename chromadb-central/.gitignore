@@ -1,0 +1,12 @@
+__pycache__/
+.venv/
+knowledge-base/
+knowledge-basedebug/
+chromadb-database/
+node_modules/
+.backend-url.tmp
+.env
+credentials.json
+env-vars.yaml
+
+

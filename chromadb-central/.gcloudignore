@@ -1,0 +1,16 @@
+__pycache__/
+__init__.py
+.venv/
+node_modules/
+.env
+.env.example
+.gitignore
+.gcloudignore
+*.bat
+*.md
+knowledge-base/
+
+
+
+
+
