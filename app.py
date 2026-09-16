@@ -25,6 +25,11 @@ import os
 app = FastAPI(title="IMX Agent Factory - Nutria Agent API", version="1.0")
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 
+
+@app.on_event("startup")
+async def startup_log_app_version():
+    print(f"[Startup] App version: {APP_VERSION}", flush=True)
+
 # =====================================================
 # Rate Limiting Configuration
 # =====================================================

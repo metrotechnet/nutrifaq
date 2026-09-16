@@ -66,6 +66,9 @@ $settingsMap = [ordered]@{
     PORT = "8000"
     APP_VERSION = $deployVersion
     WEBSITES_CONTAINER_START_TIME_LIMIT = "1800"
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    ENABLE_ORYX_BUILD = "true"
+    PIP_ROOT_USER_ACTION = "ignore"
 }
 
 $settingsArgs = $settingsMap.GetEnumerator() | ForEach-Object {
@@ -78,7 +81,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Minimal startup command
 Write-Host "Setting startup command..."
-$startupCmd = "python -m pip install --no-cache-dir -r /home/site/wwwroot/requirements.txt && python /home/site/wwwroot/app.py"
+$startupCmd = "python /home/site/wwwroot/app.py"
 az webapp config set --resource-group $ResourceGroup --name $AppName --startup-file $startupCmd | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to configure Azure startup command."
@@ -142,17 +145,69 @@ if ($LASTEXITCODE -ne 0) {
 
 # Deploy zip
 Write-Host "Deploying to Azure App Service..."
-$deployOutput = az webapp deploy --resource-group $ResourceGroup --name $AppName --src-path $zipArtifact --type zip --clean true --only-show-errors 2>&1
-if ($LASTEXITCODE -ne 0) {
-    $deployOutput | ForEach-Object { Write-Host $_ }
-    throw "Azure web app deploy failed."
-}
-if ($deployOutput) {
-    $deployOutput | ForEach-Object { Write-Host $_ }
+$previousNativeErrBehavior = $null
+if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+    $previousNativeErrBehavior = $PSNativeCommandUseErrorActionPreference
+    $PSNativeCommandUseErrorActionPreference = $false
 }
 
-# Simple health check
-$siteUrl = "https://$AppName.azurewebsites.net"
+try {
+    $deployOutput = az webapp deploy --resource-group $ResourceGroup --name $AppName --src-path $zipArtifact --type zip --clean true --only-show-errors 2>&1
+    $deployText = ($deployOutput | Out-String)
+
+    if ($LASTEXITCODE -ne 0) {
+        if ($deployText -match "Status Code:\s*502") {
+            Write-Warning "Azure deploy returned transient 502 from SCM. Verifying latest deployment status..."
+
+            $deploymentConfirmed = $false
+            $maxChecks = 8
+            for ($check = 1; $check -le $maxChecks; $check++) {
+                $latestDeploymentJson = az webapp deployment list --resource-group $ResourceGroup --name $AppName --query "[0].{id:id,status:status,message:message,end_time:end_time}" -o json --only-show-errors 2>$null
+                if ($LASTEXITCODE -eq 0 -and $latestDeploymentJson) {
+                    $latestDeployment = $latestDeploymentJson | ConvertFrom-Json
+                    $statusValue = "{0}" -f $latestDeployment.status
+                    Write-Host ("Deployment status check {0}/{1}: id={2} status={3}" -f $check, $maxChecks, $latestDeployment.id, $statusValue)
+
+                    if ($statusValue -in @("4", "success", "Success", "succeeded", "Succeeded")) {
+                        $deploymentConfirmed = $true
+                        break
+                    }
+
+                    if ($statusValue -in @("3", "failed", "Failed")) {
+                        break
+                    }
+                }
+
+                Start-Sleep -Seconds 10
+            }
+
+            if (-not $deploymentConfirmed) {
+                throw "Azure deploy returned 502 and latest deployment was not confirmed successful."
+            }
+
+            Write-Host "Deployment confirmed successful despite transient 502."
+        } else {
+            if ($deployOutput) {
+                $deployOutput | ForEach-Object { Write-Host $_ }
+            }
+            throw "Azure web app deploy failed."
+        }
+    } elseif ($deployOutput) {
+        $deployOutput | ForEach-Object { Write-Host $_ }
+    }
+} finally {
+    if ($null -ne $previousNativeErrBehavior) {
+        $PSNativeCommandUseErrorActionPreference = $previousNativeErrBehavior
+    }
+}
+
+# Simple health check and version verification on the actual bound host name
+$defaultHostName = az webapp show --resource-group $ResourceGroup --name $AppName --query "defaultHostName" -o tsv --only-show-errors
+if (-not $defaultHostName) {
+    $defaultHostName = "$AppName.azurewebsites.net"
+}
+
+$siteUrl = "https://$defaultHostName"
 $healthUrl = "$siteUrl/health"
 Write-Host "Checking health endpoint: $healthUrl"
 try {
@@ -161,6 +216,25 @@ try {
         Write-Host "Health check passed: HTTP $($response.StatusCode)"
     } else {
         Write-Warning "Health endpoint returned HTTP $($response.StatusCode)."
+    }
+
+    $runtimeVersion = $null
+    try {
+        $healthPayload = $response.Content | ConvertFrom-Json -ErrorAction Stop
+        $runtimeVersion = $healthPayload.app_version
+    } catch {
+        Write-Warning "Health response is not valid JSON for version verification."
+    }
+
+    if ($runtimeVersion) {
+        Write-Host "Runtime APP_VERSION: $runtimeVersion"
+        if ($runtimeVersion -eq $deployVersion) {
+            Write-Host "Version check passed: runtime APP_VERSION matches deployment version."
+        } else {
+            Write-Warning "Version mismatch: runtime APP_VERSION '$runtimeVersion' differs from deployment version '$deployVersion'."
+        }
+    } else {
+        Write-Warning "Runtime APP_VERSION was not found in /health response."
     }
 } catch {
     Write-Warning "Health check did not return a successful response yet: $($_.Exception.Message)"

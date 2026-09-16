@@ -24,8 +24,15 @@ async def query_agent(request: Request, query_request: QueryRequest):
     """
     Main endpoint to ask questions to the agent and receive streaming responses
     """
+    client_ip = get_remote_address(request)
+    print(
+        f"[DEBUG][route:/query] incoming request ip={client_ip} session_id={query_request.session_id} lang={query_request.language}",
+        flush=True,
+    )
+
     # Check session-based rate limiting
     if query_request.session_id and is_session_rate_limited(query_request.session_id):
+        print(f"[DEBUG][route:/query] rate_limited session_id={query_request.session_id}", flush=True)
         return JSONResponse(
             status_code=429,
             content={
@@ -45,14 +52,20 @@ async def query_agent(request: Request, query_request: QueryRequest):
     conversation_history.append(user_message)
     
     question_id = str(uuid.uuid4())
+    print(
+        f"[DEBUG][route:/query] assigned session_id={session_id} question_id={question_id} history_size={len(conversation_history)}",
+        flush=True,
+    )
     
     def generate():
         # Generate the assistant's streaming response (SSE)
         try:
+            print(f"[DEBUG][route:/query] stream_start question_id={question_id}", flush=True)
             yield f"data: {json.dumps({'session_id': session_id, 'question_id': question_id, 'chunk': ''})}\n\n"
             
             assistant_response = ""
             is_refusal = False
+            chunk_count = 0
             
             for chunk in ask_question_stream(
                 query_request.question,
@@ -67,8 +80,10 @@ async def query_agent(request: Request, query_request: QueryRequest):
                 # Detect refusal marker
                 if chunk == "__REFUSAL__":
                     is_refusal = True
+                    print(f"[DEBUG][route:/query] refusal_marker question_id={question_id}", flush=True)
                     continue  # Don't include marker in response
                 
+                chunk_count += 1
                 assistant_response += chunk
                 yield f"data: {json.dumps({'chunk': chunk})}\n\n"
             
@@ -96,6 +111,10 @@ async def query_agent(request: Request, query_request: QueryRequest):
             
             # Send links as final SSE event (empty if refusal or medical disclaimer)
             links = session['links'].get(question_id, []) if not (is_refusal or has_medical_disclaimer) else []
+            print(
+                f"[DEBUG][route:/query] stream_done question_id={question_id} chunks={chunk_count} answer_len={len(assistant_response)} links_count={len(links)} refused={is_refusal}",
+                flush=True,
+            )
             yield f"data: {json.dumps({'links': links})}\n\n"
             
             # Send completion marker
@@ -104,6 +123,7 @@ async def query_agent(request: Request, query_request: QueryRequest):
         except Exception as e:
             # Handle any errors during streaming
             error_message = f"Error during streaming: {str(e)}"
+            print(f"[DEBUG][route:/query] EXCEPTION question_id={question_id} error={error_message}", flush=True)
             yield f"data: {json.dumps({'error': error_message})}\n\n"
             yield f"data: [DONE]\n\n"
 

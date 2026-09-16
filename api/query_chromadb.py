@@ -338,6 +338,11 @@ def get_links_from_contexts(contexts, metadatas=None, agent=None):
 
 def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR", top_k=5, conversation_history=None, session=None, question_id=None, agent=None):
     """Streaming version of ask_question with language support and conversation history"""
+    print(
+        f"[DEBUG][ask_question_stream] start question_len={len(question) if question else 0} language={language} top_k={top_k} agent={agent}",
+        flush=True,
+    )
+
     # Use conversation_history if provided, otherwise empty list
     if conversation_history is None:
         conversation_history = []
@@ -354,6 +359,7 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
     # context is not available yet (need ChromaDB), so pass empty string for now
     refusal_result = validate_user_query(question, llm_call_fn=None, language=language)
     if refusal_result and refusal_result.get("decision") == "refuse":
+        print("[DEBUG][ask_question_stream] refusal triggered by policy", flush=True)
         # Store empty links list in session for refusal
         if session is not None and question_id is not None:
             if 'links' not in session:
@@ -366,12 +372,15 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
 
     try:
         client = get_gateway_client()
+        print("[DEBUG][ask_question_stream] gateway client initialized", flush=True)
 
         # Get embedding for the question
+        print("[DEBUG][ask_question_stream] requesting embeddings", flush=True)
         query_emb = client.embeddings.create(
             model="text-embedding-3-large", 
             input=question
         ).data[0].embedding
+        print(f"[DEBUG][ask_question_stream] embedding_len={len(query_emb) if query_emb else 0}", flush=True)
 
         # Query ChromaDB
         query_params = {
@@ -382,21 +391,31 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             
         # Ensure query_params is JSON serializable
         query_params = json.loads(json.dumps(query_params, default=str))
+        print("[DEBUG][ask_question_stream] sending query to central chromadb", flush=True)
         results = query_chromadb(project_name="nutria", collection_name="gdrive_documents", data=query_params)
+        print(
+            f"[DEBUG][ask_question_stream] chromadb_result_type={type(results).__name__} keys={list(results.keys()) if isinstance(results, dict) else 'n/a'}",
+            flush=True,
+        )
 
         if not isinstance(results, dict):
+            print("[DEBUG][ask_question_stream] unexpected chromadb response format", flush=True)
             yield "Knowledge base query returned an unexpected response format."
             return
 
         if results.get("error"):
             details = results.get("details", "")
+            print(f"[DEBUG][ask_question_stream] chromadb error details={details or results['error']}", flush=True)
             yield f"Knowledge base query failed: {details or results['error']}"
             return
 
         documents = results.get("documents")
         if not documents or not isinstance(documents, list) or not documents[0]:
+            print("[DEBUG][ask_question_stream] no documents returned from chromadb", flush=True)
             yield "No relevant information found. Please make sure you have indexed some transcripts."
             return
+
+        print(f"[DEBUG][ask_question_stream] documents_count={len(documents[0])}", flush=True)
 
         # Build context from results
         contexts = []
@@ -410,6 +429,7 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         if is_substantial_question(question):
             metadatas = results.get('metadatas', [[]])[0]
             links = get_links_from_contexts(contexts, metadatas=metadatas, agent=agent)
+        print(f"[DEBUG][ask_question_stream] extracted_links_count={len(links)}", flush=True)
         
         # Save links in session if provided
         if session is not None and question_id is not None:
@@ -421,11 +441,13 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         prompt, model_config = build_prompt_from_template(language, context, question, history_text, agent=agent)
         
         if not prompt:
+            print("[DEBUG][ask_question_stream] prompt build failed", flush=True)
             yield "Error: Unable to load prompt template."
             return
 
         # Get streaming response from Vercel AI Gateway
         model_name = model_config.get('name', 'openai/gpt-4o-mini')
+        print(f"[DEBUG][ask_question_stream] starting completion model={model_name}", flush=True)
         
         stream = client.chat.completions.create(
             model=model_name,
@@ -437,6 +459,7 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         )
         first_chunk = True
         answer = ""
+        chunk_count = 0
         for chunk in stream:
             if chunk.choices[0].delta.content is not None:
                 content = chunk.choices[0].delta.content
@@ -445,8 +468,12 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
                     content = content.lstrip()
                     first_chunk = False
                 if content:
+                    chunk_count += 1
                     answer += content
                     yield content
 
+        print(f"[DEBUG][ask_question_stream] stream_complete chunks={chunk_count} answer_len={len(answer)}", flush=True)
+
     except Exception as e:
+        print(f"[DEBUG][ask_question_stream] EXCEPTION={str(e)}", flush=True)
         yield f"Error processing your question: {str(e)}"
