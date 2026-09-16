@@ -79,12 +79,19 @@ if ($LASTEXITCODE -ne 0) {
     throw "Failed to configure basic Azure app settings."
 }
 
-# Minimal startup command
-Write-Host "Setting startup command..."
-$startupCmd = "python /home/site/wwwroot/app.py"
-az webapp config set --resource-group $ResourceGroup --name $AppName --startup-file $startupCmd | Out-Null
+# Ensure the runtime environment has the backend dependencies before each startup.
+# App Service on Linux sometimes ignores the inline command when Oryx regenerates startup.sh,
+# so we set the startup script file itself and make it install deps before launching the app.
+Write-Host "Setting startup file..."
+$startupShPath = Join-Path $PSScriptRoot "startup.sh"
+if (-not (Test-Path -LiteralPath $startupShPath)) {
+    throw "Missing startup.sh at '$startupShPath'."
+}
+
+# The remote Linux container will execute this command itself; do not invoke bash locally.
+az webapp config set --resource-group $ResourceGroup --name $AppName --startup-file "sh /home/site/wwwroot/startup.sh" | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    throw "Failed to configure Azure startup command."
+    throw "Failed to configure Azure startup file."
 }
 
 # Build zip artifact
@@ -152,7 +159,7 @@ if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction Sile
 }
 
 try {
-    $deployOutput = az webapp deploy --resource-group $ResourceGroup --name $AppName --src-path $zipArtifact --type zip --clean true --only-show-errors 2>&1
+    $deployOutput = az webapp deployment source config-zip --resource-group $ResourceGroup --name $AppName --src $zipArtifact --only-show-errors 2>&1
     $deployText = ($deployOutput | Out-String)
 
     if ($LASTEXITCODE -ne 0) {

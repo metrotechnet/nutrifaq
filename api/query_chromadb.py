@@ -191,8 +191,10 @@ def query_chromadb(project_name, collection_name=None, data=None):
 
         print(f"[DEBUG][query_chromadb] query_embedding_len={len(query_embedding)}", flush=True)
 
+        # Send both key variants for compatibility across central API versions.
         query_args = {
             "query_embedding": query_embedding,
+            "query_embeddings": [query_embedding],
             "n_results": int(payload.get("n_results", 10)),
             "include": payload.get("include", ["documents", "metadatas"]),
         }
@@ -200,7 +202,7 @@ def query_chromadb(project_name, collection_name=None, data=None):
             query_args["where"] = payload.get("where")
 
         print(
-            f"[DEBUG][query_chromadb] query_args_meta=n_results:{query_args['n_results']} include:{query_args['include']} where_present:{'where' in query_args}",
+            f"[DEBUG][query_chromadb] query_args_meta=n_results:{query_args['n_results']} include:{query_args['include']} where_present:{'where' in query_args} has_query_embedding:{'query_embedding' in query_args} has_query_embeddings:{'query_embeddings' in query_args}",
             flush=True,
         )
 
