@@ -689,5 +689,54 @@
     "response": "Le bien-être général est influencé par plusieurs habitudes de vie interreliées. Voici quelques éléments clés à considérer :\n\n1. **Alimentation équilibrée** : Une alimentation riche en fruits, légumes et fibres contribue à la santé et à l’énergie.\n\n2. **Hydratation** : La déshydratation peut affecter la concentration et l’humeur. Assure-toi de boire suffisamment d’eau tout au long de la journée.\n\n3. **Activité physique** : Bouger régulièrement améliore non seulement la condition physique, mais augmente aussi la clarté mentale.\n\n4. **Sommeil** : Un bon sommeil est crucial pour la mémoire et la concentration. Un environnement calme et une routine régulière peuvent aider à mieux dormir.\n\nCes éléments ne fonctionnent pas séparément ; ils se complètent pour soutenir un bien-être optimal. Chacun de ces aspects mérite une attention particulière dans le cadre d’une approche globale.",
     "timestamp": "2026-09-17T09:52:10.394393",
     "comments": []
+  },
+  {
+    "question_id": "d2c2b883-b734-44a7-8883-4058bda51e77",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Il est vrai que le bien-être général est étroitement lié à nos habitudes de vie. L'alimentation, le sommeil et l'activité physique forment un trio interconnecté qui influence notre santé et nos performances cognitives.\n\n1. **Alimentation** : Une alimentation équilibrée, riche en végétaux et fibres, est essentielle. Elle contribue à la satiété et à une bonne gestion du poids. C'est aussi un élément clé pour un bon fonctionnement cognitif.\n\n2. **Sommeil** : Un sommeil de qualité est crucial pour la consolidation de la mémoire. Les heures de sommeil influencent directement notre concentration et notre humeur.\n\n3. **Activité physique** : Bouger régulièrement améliore la clarté mentale et réduit la fatigue. Même des exercices légers peuvent être bénéfiques, notamment en période d'examens.\n\nEn somme, prendre soin de ces trois aspects permet d’améliorer son bien-être général, mais il n'existe pas de solution universelle. Chaque individu doit trouver un équilibre qui lui convient.",
+    "timestamp": "2026-09-17T14:19:17.305779",
+    "comments": []
+  },
+  {
+    "question_id": "dc88bf53-0945-4b40-affe-7cbae8bffe64",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "timestamp": "2026-09-17T14:30:25.805864",
+    "comments": []
+  },
+  {
+    "question_id": "aeb7a449-d188-4e4c-a600-2d6f3561081b",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Le bien-être général est fortement influencé par nos habitudes de vie, qui comprennent l'alimentation, l'activité physique et le sommeil. L'alimentation joue un rôle crucial dans notre énergie et notre humeur. Une alimentation variée et riche en végétaux contribue à une meilleure santé et à une gestion du poids plus efficace.\n\nL'activité physique, même en petites quantités, peut améliorer notre clarté mentale et notre humeur. En revanche, une sédentarité prolongée peut augmenter la fatigue.\n\nEnfin, un sommeil de qualité est essentiel pour une bonne performance cognitive et un bien-être général. Dans cette dynamique, l'hydratation joue également un rôle : une bonne hydratation est liée à une meilleure mémoire et attention.\n\nIl n'existe pas de solution universelle, et chaque aspect de notre mode de vie interagit. Prendre conscience de ces interrelations est un premier pas vers l'amélioration de notre bien-être général. Si tu penses avoir des préoccupations spécifiques, je te recommande d'en parler avec un professionnel de la santé qualifié.",
+    "timestamp": "2026-09-17T14:32:16.083508",
+    "comments": []
+  },
+  {
+    "question_id": "028ff502-ca91-411a-bc27-8adbdd52d7ff",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Le bien-être général est intimement lié à nos habitudes de vie. En effet, l'alimentation, le sommeil et l'activité physique s'influencent mutuellement et jouent un rôle crucial dans notre santé. \n\n### Quelques points clés :\n- **Alimentation variée** : Consommer une large gamme d'aliments, riches en nutriments, aide à maintenir un équilibre santé.\n- **Hydratation** : Être bien hydraté est essentiel pour la mémoire, l'attention et l'humeur.\n- **Activité physique** : Même une activité modérée peut améliorer la clarté mentale et l'énergie.\n- **Sommeil** : Un bon sommeil est fondamental pour la cognition et la performance au quotidien.\n\n### À retenir :\nIl n'existe pas de solution universelle, et chaque aspect de la vie doit être pris en compte pour optimiser le bien-être. Écouter tes besoins et ajuster progressivement tes habitudes peut t'aider à améliorer ta santé à long terme.",
+    "timestamp": "2026-09-17T14:32:27.077813",
+    "comments": []
+  },
+  {
+    "question_id": "c9fccf14-2f9b-4954-b668-12f0a08b8340",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Le bien-être général est étroitement lié à nos habitudes de vie. Plusieurs facteurs, comme l’alimentation, le sommeil et l’activité physique, interagissent pour influencer notre santé. \n\n1. **Alimentation** : Une nourriture équilibrée, riche en nutriments, soutient la santé physique et mentale. Écouter les signaux de faim et de satiété est essentiel pour éviter la surconsommation.\n  \n2. **Sommeil** : Un bon sommeil est crucial pour la cognition et la récupération. Un manque de sommeil peut affecter négativement l'humeur et la concentration.\n\n3. **Activité physique** : Bouger régulièrement contribue à la clarté mentale et à la gestion du stress. La sédentarité peut accroître la fatigue et diminuer le bien-être.\n\nEn résumé, ces trois piliers sont interreliés et jouent un rôle fondamental dans notre qualité de vie. Il n'existe pas de solution universelle ; chaque personne doit trouver ce qui fonctionne le mieux pour elle dans le cadre d'une approche globale.",
+    "timestamp": "2026-09-17T14:46:52.165994",
+    "comments": []
+  },
+  {
+    "question_id": "e9ea8434-a35e-4857-a6a1-66f72762326a",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Le bien-être général est étroitement lié à nos habitudes de vie. Pour optimiser notre santé, il est essentiel de prendre en compte plusieurs éléments :\n\n1. **Alimentation** : Une consommation équilibrée et variée de nutriments contribue à notre énergie et notre humeur. L'écoute des signaux de faim et de satiété est cruciale pour éviter la surconsommation.\n\n2. **Sommeil** : Un bon sommeil est fondamental pour la récupération physique et cognitive. La qualité du sommeil peut être affectée par des choix alimentaires et nos horaires.\n\n3. **Activité physique** : L'exercice régulier favorise la clarté mentale et réduit la fatigue. La sédentarité peut avoir des effets négatifs sur notre bien-être.\n\n4. **Hydratation** : La déshydratation peut influencer notre mémoire, notre attention et même notre humeur. Il est important de rester bien hydraté.\n\nCes éléments sont interreliés et s'inscrivent dans une approche globale de la santé. Chaque individu peut avoir des besoins différents et il n'existe pas de solution universelle. Pour des conseils spécifiques ou un suivi, il est toujours préférable de consulter un professionnel de santé.",
+    "timestamp": "2026-09-17T14:47:50.136975",
+    "comments": []
+  },
+  {
+    "question_id": "7eec7ae1-5f43-4fac-9dd3-cbd03aa00cf6",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Le bien-être général est très lié à nos habitudes de vie, incluant l'alimentation, le sommeil et l'activité physique. Ces trois éléments sont interreliés et jouent un rôle crucial dans notre santé mentale et physique.\n\n1. **Alimentation** : Manger équilibré, avec suffisamment de végétaux, peut améliorer notre mood et notre énergie. Il est important d'écouter nos signaux de faim et de satiété pour éviter la surconsommation.\n\n2. **Sommeil** : Un bon sommeil est essentiel pour la concentration et la gestion du stress. Un manque de sommeil peut nuire à la cognition et à l'humeur.\n\n3. **Activité physique** : L'exercice régulier favorise la clarté mentale et aide à gérer le stress et l'anxiété. La sédentarité peut contribuer à la fatigue et à un état d’esprit moins positif.\n\nAvoir de bonnes habitudes de vie peut contribuer à un bien-être général sur le long terme. Toutefois, chaque personne est unique, et les effets dépendent du contexte et des quantités. Il n'existe pas de solution universelle !",
+    "timestamp": "2026-09-17T14:48:00.227182",
+    "comments": []
   }
 ]

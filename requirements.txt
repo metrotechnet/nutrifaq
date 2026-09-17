@@ -16,3 +16,4 @@ PyPDF2
 chromadb
 openai
 gunicorn
+azure-storage-blob

@@ -35,7 +35,7 @@ from pathlib import Path
 root = Path(os.environ["PROJECT_ROOT"]).resolve()
 zip_path = Path(os.environ["ZIP_PATH"])
 include = {"app.py", "__init__.py", "requirements.txt", "startup.sh"}
-include_dirs = {"api", "knowledge-base"}
+include_dirs = {"api", "nutrifaq-dbase"}
 exclude = {
     ".git", ".venv", "__pycache__", ".pytest_cache", ".azure", ".vs",
     ".vscode", ".firebase", "node_modules", "public",

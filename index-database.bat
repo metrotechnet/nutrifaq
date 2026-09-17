@@ -12,7 +12,7 @@ if "%PROJECT_NAME%"=="" set "PROJECT_NAME=nutria"
 set "COLLECTION_NAME=%~2"
 if "%COLLECTION_NAME%"=="" set "COLLECTION_NAME=gdrive_documents"
 
-set "KB_ROOT=%~dp0knowledge-base"
+set "KB_ROOT=%~dp0nutrifaq-dbase"
 set "VECTOR_DB_DIRNAME=chroma_db"
 
 echo.

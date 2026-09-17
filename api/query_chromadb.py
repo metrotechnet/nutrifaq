@@ -1,6 +1,8 @@
 import os
 import json
 import re
+import shutil
+from typing import Any
 from urllib.parse import urlparse
 from pathlib import Path
 from dotenv import load_dotenv
@@ -8,6 +10,7 @@ import requests
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
+from azure.storage.blob import BlobServiceClient  # type: ignore[reportMissingImports]
 from api.refusal_engine import validate_user_query
 
 # Get project root directory
@@ -17,6 +20,18 @@ load_dotenv(dotenv_path=PROJECT_ROOT / '.env')
 DEFAULT_PROJECT_NAME = os.getenv("KNOWLEDGE_BASE_NAME", "nutria")
 DEFAULT_COLLECTION_NAME = os.getenv("DEFAULT_COLLECTION_NAME", "gdrive_documents")
 CHROMADB_CENTRAL_URL = os.getenv("CHROMADB_CENTRAL_URL", "http://localhost:2000").rstrip("/")
+AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
+AZURE_STORAGE_KEY = os.getenv("AZURE_STORAGE_KEY")
+AZURE_STORAGE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+AZURE_STORAGE_CONTAINER = os.getenv("AZURE_KB_BLOB_CONTAINER", os.getenv("AZURE_STORAGE_CONTAINER", "nutrifaq-knowledge-base"))
+AZURE_BLOB_PREFIX = os.getenv("AZURE_KB_BLOB_PREFIX", "nutrifaq-dbase").strip("/")
+LOCAL_BLOB_CACHE_ROOT = PROJECT_ROOT / ".cache" / AZURE_BLOB_PREFIX / "chroma_db"
+LOCAL_BLOB_MARKER_FILE = LOCAL_BLOB_CACHE_ROOT / ".blob_signature"
+
+_CHROMA_CLIENT_CACHE: dict[str, Any] = {}
+_CHROMA_COLLECTION_CACHE: dict[tuple[str, str], Any] = {}
+_CHROMA_SIGNATURE_CACHE: str | None = None
 
 # Initialize Vercel AI Gateway client (OpenAI-compatible)
 # See https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions
@@ -136,18 +151,110 @@ def build_prompt_from_template(language, context, question, history_text="", age
 
 
 def _local_chroma_path(project_name: str) -> Path:
-    return PROJECT_ROOT / "knowledge-base" / project_name / "chroma_db"
+    return LOCAL_BLOB_CACHE_ROOT
+
+
+def _blob_service_client() -> BlobServiceClient | None:
+    if AZURE_STORAGE_CONNECTION_STRING:
+        return BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
+    if AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY:
+        account_url = f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net"
+        credential = AZURE_STORAGE_SAS_TOKEN or AZURE_STORAGE_KEY
+        return BlobServiceClient(account_url=account_url, credential=credential)
+    return None
+
+
+def _repo_chroma_path() -> Path:
+    return PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
+
+
+def _remote_chroma_signature(client: BlobServiceClient) -> str:
+    container_client = client.get_container_client(AZURE_STORAGE_CONTAINER)
+    blob_client = container_client.get_blob_client(f"{AZURE_BLOB_PREFIX}/chroma_db/chroma.sqlite3")
+    return blob_client.get_blob_properties().etag
+
+
+def _read_local_signature() -> str | None:
+    if not LOCAL_BLOB_MARKER_FILE.exists():
+        return None
+    try:
+        return LOCAL_BLOB_MARKER_FILE.read_text(encoding="utf-8").strip() or None
+    except Exception:
+        return None
+
+
+def _write_local_signature(signature: str) -> None:
+    LOCAL_BLOB_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    LOCAL_BLOB_MARKER_FILE.write_text(signature, encoding="utf-8")
+
+
+def _sync_chroma_from_blob(force: bool = False) -> Path:
+    global _CHROMA_SIGNATURE_CACHE
+
+    client = _blob_service_client()
+    if client is None:
+        raise RuntimeError(
+            "Azure Blob Storage configuration is required for ChromaDB access."
+        )
+
+    remote_signature = _remote_chroma_signature(client)
+    local_signature = _read_local_signature()
+    if not force and LOCAL_BLOB_CACHE_ROOT.exists() and local_signature == remote_signature:
+        _CHROMA_SIGNATURE_CACHE = remote_signature
+        return LOCAL_BLOB_CACHE_ROOT
+
+    container_client = client.get_container_client(AZURE_STORAGE_CONTAINER)
+    prefix = f"{AZURE_BLOB_PREFIX}/chroma_db/"
+
+    if LOCAL_BLOB_CACHE_ROOT.exists():
+        shutil.rmtree(LOCAL_BLOB_CACHE_ROOT)
+    LOCAL_BLOB_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+
+    blob_count = 0
+    for blob in container_client.list_blobs(name_starts_with=prefix):
+        if blob.name.endswith("/"):
+            continue
+
+        relative_path = blob.name[len(prefix):]
+        target_path = LOCAL_BLOB_CACHE_ROOT / relative_path
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(target_path, "wb") as target_file:
+            stream = container_client.download_blob(blob.name)
+            target_file.write(stream.readall())
+        blob_count += 1
+
+    if blob_count == 0:
+        raise FileNotFoundError(
+            f"No blobs found in container '{AZURE_STORAGE_CONTAINER}' with prefix '{prefix}'"
+        )
+
+    _write_local_signature(remote_signature)
+    _CHROMA_SIGNATURE_CACHE = remote_signature
+
+    return LOCAL_BLOB_CACHE_ROOT
 
 
 def _local_chroma_client(project_name: str):
-    kb_path = _local_chroma_path(project_name)
+    kb_path = _sync_chroma_from_blob()
     if not kb_path.exists():
         raise FileNotFoundError(f"Local ChromaDB directory not found: {kb_path}")
 
-    return chromadb.PersistentClient(
+    cache_key = str(kb_path)
+    if cache_key in _CHROMA_CLIENT_CACHE:
+        return _CHROMA_CLIENT_CACHE[cache_key]
+
+    client = chromadb.PersistentClient(
         path=str(kb_path),
         settings=Settings(anonymized_telemetry=False, allow_reset=False),
     )
+
+    _CHROMA_CLIENT_CACHE[cache_key] = client
+    return client
+
+
+def _invalidate_chroma_cache() -> None:
+    _CHROMA_CLIENT_CACHE.clear()
+    _CHROMA_COLLECTION_CACHE.clear()
 
 
 def _central_query_url() -> str:
@@ -200,12 +307,16 @@ def query_chromadb(project_name, collection_name=None, data=None):
             }
 
         client = _local_chroma_client(project_name)
-        collection = client.get_collection(name=collection_name)
+        cache_key = (str(_local_chroma_path(project_name)), collection_name)
+        collection = _CHROMA_COLLECTION_CACHE.get(cache_key)
+        if collection is None:
+            collection = client.get_collection(name=collection_name)
+            _CHROMA_COLLECTION_CACHE[cache_key] = collection
 
         query_kwargs = {
             "query_embeddings": [query_embedding],
             "n_results": int(payload.get("n_results", 10)),
-            "include": payload.get("include", ["documents", "metadatas", "distances"]),
+            "include": payload.get("include", ["documents", "metadatas", "distances", "embeddings"]),
         }
         if payload.get("where") is not None:
             query_kwargs["where"] = payload.get("where")
@@ -244,7 +355,7 @@ def check_remote_chromadb_connection(project_name=None, collection_name=None):
                 "remote_host": remote_host,
                 "remote_port": remote_port,
                 "remote_url": CHROMADB_CENTRAL_URL,
-                "details": f"Local knowledge-base folder not found: {local_path}",
+                "details": f"ChromaDB cache not available locally: {local_path}",
             }
 
         client = _local_chroma_client(project_name)

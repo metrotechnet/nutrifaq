@@ -41,14 +41,14 @@ VECTOR_DB_DIRNAME = os.getenv("VECTOR_DB_DIRNAME", "chroma_db")
 
 
 def _resolve_kb_root() -> Path:
-    """Resolve knowledge-base root with env override and sensible fallbacks."""
+    """Resolve nutrifaq-dbase root with env override and sensible fallbacks."""
     override = os.getenv("KNOWLEDGE_BASE_ROOT")
     candidates = []
     if override:
         candidates.append(Path(override))
-    candidates.append(PROJECT_ROOT / "knowledge-base")
-    candidates.append(PROJECT_ROOT.parent / "knowledge-base")
-    candidates.append(PROJECT_ROOT.parent / "chromadb-central" / "knowledge-base")
+    candidates.append(PROJECT_ROOT / "nutrifaq-dbase")
+    candidates.append(PROJECT_ROOT.parent / "nutrifaq-dbase")
+    candidates.append(PROJECT_ROOT.parent / "chromadb-central" / "nutrifaq-dbase")
 
     for candidate in candidates:
         if candidate.exists():

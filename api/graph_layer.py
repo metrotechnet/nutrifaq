@@ -22,7 +22,7 @@ def set_graph(project_name):
 
     graph_path = os.path.join(
         PROJECT_ROOT,
-        "knowledge-base",
+        "nutrifaq-dbase",
         project_name,
         "graph.json"
     )

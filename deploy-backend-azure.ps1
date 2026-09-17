@@ -144,7 +144,7 @@ from pathlib import Path
 root = Path(os.environ["PROJECT_ROOT"]).resolve()
 zip_path = Path(os.environ["ZIP_PATH"])
 include = {"app.py", "__init__.py", "requirements.txt", "startup.sh"}
-include_dirs = {"api", "knowledge-base"}
+include_dirs = {"api", "nutrifaq-dbase"}
 exclude = {
     ".git", ".venv", "__pycache__", ".pytest_cache", ".azure", ".vs",
     ".vscode", ".firebase", "node_modules", "public",
@@ -257,7 +257,7 @@ try {
     $wwwrootEntries = Invoke-RestMethod -Uri $kuduUrl -Headers $headers -Method Get -TimeoutSec 30
     $entryNames = @($wwwrootEntries | ForEach-Object { ("{0}" -f $_.name).TrimEnd('/') })
 
-    $requiredEntries = @("app.py", "__init__.py", "requirements.txt", "startup.sh", "api", "knowledge-base")
+    $requiredEntries = @("app.py", "__init__.py", "requirements.txt", "startup.sh", "api", "nutrifaq-dbase")
     $missingEntries = @($requiredEntries | Where-Object { $_ -notin $entryNames })
 
     if ($missingEntries.Count -gt 0) {

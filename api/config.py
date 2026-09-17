@@ -70,7 +70,7 @@ def get_config():
             return common_config
         
         # Provide detailed error with debugging info
-        kb_dir = PROJECT_ROOT / "knowledge-base"
+        kb_dir = PROJECT_ROOT / "nutrifaq-dbase"
         available_kbs = []
         if kb_dir.exists():
             available_kbs = [d.name for d in kb_dir.iterdir() if d.is_dir()]

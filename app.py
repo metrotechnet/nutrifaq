@@ -99,6 +99,7 @@ ROUTE_MODULES = [
     ("api.routes.config", "config"),
     ("api.routes.sessions", "sessions"),
     ("api.routes.update", "update"),
+    ("api.routes.database", "database"),
 ]
 
 for module_name, tag in ROUTE_MODULES:

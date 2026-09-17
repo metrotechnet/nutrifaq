@@ -39,7 +39,7 @@ def load_refusal_responses():
     try:
         candidate_paths = [
             PROJECT_ROOT / 'api' / 'config' / 'refusal_responses.json',
-            PROJECT_ROOT / 'knowledge-base' / 'common' / 'refusal_responses.json',
+            PROJECT_ROOT / 'nutrifaq-dbase' / 'common' / 'refusal_responses.json',
         ]
         for path in candidate_paths:
             if path.exists():

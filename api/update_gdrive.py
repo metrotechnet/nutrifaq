@@ -27,7 +27,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 def get_agent_paths(agent=None):
     """Get knowledge base paths for specific agent"""
     kb_name = agent 
-    kb_path = PROJECT_ROOT / "knowledge-base" / kb_name
+    kb_path = PROJECT_ROOT / "nutrifaq-dbase" / kb_name
     
     return {
         'kb_path': kb_path,

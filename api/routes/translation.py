@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 import json
 import uuid
 
-from api.models import TranslateRequest
+from api.schemas.models import TranslateRequest
 from api.logging import save_question_response
 from api.translate import (
     translate_text_stream, 

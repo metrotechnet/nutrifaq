@@ -1,13 +1,13 @@
 # NutriFAQ
 
-NutriFAQ is a FastAPI-based nutrition assistant and knowledge-base Q&A app. It serves a browser frontend, indexes nutrition materials into ChromaDB, and answers user questions from the configured knowledge base.
+NutriFAQ is a FastAPI-based nutrition assistant and nutrifaq-dbase Q&A app. It serves a browser frontend, indexes nutrition materials into ChromaDB, and answers user questions from the configured knowledge base.
 
 Repository: https://github.com/metrotechnet/nutrifaq.git
 
 ## Features
 
 - FastAPI backend with routed endpoints for queries, TTS, translation, sessions, reports, and config
-- Retrieval-augmented search over the knowledge base in `knowledge-base/nutria`
+- Retrieval-augmented search over the knowledge base in `nutrifaq-dbase/nutria`
 - Browser frontend served from `templates/` and `static/`
 - Firebase hosting/deployment configuration in the repo root
 - Debug launch configuration for the API in `.vscode/launch.json`
@@ -45,7 +45,7 @@ NutriFAQ/
 │       ├── translation.py
 │       ├── tts.py
 │       └── update.py
-├── knowledge-base/
+├── nutrifaq-dbase/
 │   └── nutria/
 │       ├── chroma_db/
 │       ├── documents/

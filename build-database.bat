@@ -12,19 +12,19 @@ echo   Building ChromaDB Vector Database
 echo ========================================
 echo.
 
-REM Check if knowledge-base/agent exists
-if not exist "knowledge-base\agent" (
-    echo [ERROR] knowledge-base\agent folder not found!
-    echo Please ensure you have run the agent creation script first.
+REM Check if nutrifaq-dbase exists
+if not exist "nutrifaq-dbase" (
+    echo [ERROR] nutrifaq-dbase folder not found!
+    echo Please ensure the repository is complete.
     echo.
     pause
     exit /b 1
 )
 
 REM Check if transcripts folder has files
-if not exist "knowledge-base\agent\transcripts\*.*" (
-    if not exist "knowledge-base\agent\documents\*.*" (
-        echo [ERROR] No documents found in knowledge-base\agent\transcripts or documents
+if not exist "nutrifaq-dbase\transcripts\*.*" (
+    if not exist "nutrifaq-dbase\documents\*.*" (
+        echo [ERROR] No documents found in nutrifaq-dbase\transcripts or documents
         echo Please add your documents first.
         echo.
         pause
@@ -36,13 +36,13 @@ echo [INFO] Generating transcripts_chromadb.json from source documents...
 echo.
 
 REM Generate transcripts_chromadb.json from transcripts and documents
-python.exe .\core\generate_transcripts_json.py .\knowledge-base\agent\
+python.exe .\api\db_pipeline\generate_transcripts_json.py .\nutrifaq-dbase\
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Failed to generate transcripts_chromadb.json!
     echo Check that:
-    echo   1. You have added documents to knowledge-base\agent\transcripts\ or documents\
+    echo   1. You have added documents to nutrifaq-dbase\transcripts\ or documents\
     echo   2. Python is installed and in PATH
     echo.
     pause
@@ -54,7 +54,7 @@ echo [INFO] Indexing documents to ChromaDB...
 echo.
 
 REM Run the indexing script
-python.exe .\core\index_chromadb_json.py .\knowledge-base\agent\
+python.exe .\api\db_pipeline\index_chromadb_json.py .\nutrifaq-dbase\
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
@@ -74,7 +74,7 @@ echo   Database Built Successfully!
 echo ========================================
 echo.
 echo ChromaDB vector database has been created at:
-echo   knowledge-base\agent\chroma_db\
+echo   nutrifaq-dbase\chroma_db\
 echo.
 echo You can now:
 echo   1. Test locally: start-backend.bat

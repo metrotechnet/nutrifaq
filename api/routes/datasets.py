@@ -1,7 +1,7 @@
 """
 Dataset Editor API Routes
 
-CRUD endpoints for managing project datasets (JSON files in knowledge-base/{project}/documents/).
+CRUD endpoints for managing project datasets (JSON files in nutrifaq-dbase/{project}/documents/).
 """
 import json
 import os
@@ -15,15 +15,15 @@ VECTOR_DB_DIRNAME = os.getenv("VECTOR_DB_DIRNAME", "chroma_db")
 
 
 def _resolve_kb_root() -> Path:
-    """Resolve knowledge-base root with env override and sensible fallbacks."""
+    """Resolve nutrifaq-dbase root with env override and sensible fallbacks."""
     project_root = Path(__file__).parent.parent.parent
     override = os.getenv("KNOWLEDGE_BASE_ROOT")
     candidates = []
     if override:
         candidates.append(Path(override))
-    candidates.append(project_root / "knowledge-base")
-    candidates.append(project_root.parent / "knowledge-base")
-    candidates.append(project_root.parent / "chromadb-central" / "knowledge-base")
+    candidates.append(project_root / "nutrifaq-dbase")
+    candidates.append(project_root.parent / "nutrifaq-dbase")
+    candidates.append(project_root.parent / "chromadb-central" / "nutrifaq-dbase")
 
     for candidate in candidates:
         if candidate.exists():

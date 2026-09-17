@@ -15,7 +15,7 @@ Create a new **Web App** in Azure with these settings:
 Create a zip package that includes only the required backend files.
 
 - `include = {"app.py", "__init__.py", "requirements.txt", "startup.sh"}`
-- `include_dirs = {"api", "knowledge-base"}`
+- `include_dirs = {"api", "nutrifaq-dbase"}`
 
 ## 3. Deploy the zip package to the Web App
 
@@ -34,7 +34,7 @@ Expected entries:
 - `requirements.txt`
 - `startup.sh`
 - `api/`
-- `knowledge-base/`
+- `nutrifaq-dbase/`
 
 ## 5. Validate that the API is running
 

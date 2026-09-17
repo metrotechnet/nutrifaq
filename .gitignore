@@ -1,6 +1,6 @@
 __pycache__/
 .venv/
-knowledge-base/
+nutrifaq-dbase/
 node_modules/
 .backend-url.tmp
 .env
@@ -10,4 +10,4 @@ public/
 latest-logs/*
 logs/*
 logs2/*
-
+knowledge-base - Copie/*
