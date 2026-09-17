@@ -9,6 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pathlib import Path
 import importlib
+from api.services.blob_storage_service import (
+    get_blob_prefix,
+    has_blob_storage_config,
+    sync_blob_prefix_to_local,
+)
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -24,11 +29,25 @@ import os
 
 app = FastAPI(title="IMX Agent Factory - Nutria Agent API", version="1.0")
 APP_VERSION = os.getenv("APP_VERSION", "dev")
+app.state.database_sync_status = "synch"
 
 
 @app.on_event("startup")
-async def startup_log_app_version():
-    print(f"[Startup] App version: {APP_VERSION}", flush=True)
+async def startup_load_blob_database():
+    if not has_blob_storage_config():
+        app.state.database_sync_status = "synch"
+        print("[Startup] Azure Blob Storage not configured; skipping database hydration.", flush=True)
+        return
+
+    source_prefix = f"{get_blob_prefix()}/chroma_db/"
+    target_root = PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
+    try:
+        sync_blob_prefix_to_local(prefix=source_prefix, local_root=target_root)
+        app.state.database_sync_status = "synch"
+        print(f"[Startup] Loaded blob database into {target_root}", flush=True)
+    except Exception as exc:
+        app.state.database_sync_status = "synch"
+        print(f"[Startup] Blob database hydration skipped: {exc}", flush=True)
 
 # =====================================================
 # Rate Limiting Configuration
@@ -92,6 +111,7 @@ app.add_middleware(
 # Include API Routes
 # =====================================================
 ROUTE_MODULES = [
+    ("api.routes.users", "users"),
     ("api.routes.query", "query"),
     ("api.routes.translation", "translation"),
     ("api.routes.tts", "tts"),

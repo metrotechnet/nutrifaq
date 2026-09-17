@@ -35,6 +35,10 @@ def _storage_sas_token() -> str | None:
     return os.getenv("AZURE_STORAGE_SAS_TOKEN")
 
 
+def has_blob_storage_config() -> bool:
+    return bool(_storage_connection_string() or (_storage_account_name() and _storage_account_key()))
+
+
 def get_blob_container_name() -> str:
     return os.getenv(
         "AZURE_KB_BLOB_CONTAINER",

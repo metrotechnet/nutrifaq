@@ -21,12 +21,13 @@ Usage:
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
 import chromadb
 from chromadb.config import Settings
-from chromadb.utils import embedding_functions
+from api.services.llm_service import create_embeddings
 
 # Locate .env
 SCRIPT_DIR = Path(__file__).parent
@@ -38,6 +39,9 @@ if _env.exists():
 OPENAI_API_KEY = os.getenv("AI_GATEWAY_API_KEY") or os.getenv("OPENAI_API_KEY")
 OPENAI_API_BASE = os.getenv("AI_GATEWAY_BASE_URL", "https://ai-gateway.vercel.sh/v1")
 VECTOR_DB_DIRNAME = os.getenv("VECTOR_DB_DIRNAME", "chroma_db")
+EMBEDDING_REQUEST_BATCH_SIZE = max(1, int(os.getenv("EMBEDDING_REQUEST_BATCH_SIZE", "32")))
+EMBEDDING_REQUEST_PAUSE_SECONDS = max(0.0, float(os.getenv("EMBEDDING_REQUEST_PAUSE_SECONDS", "0")))
+RESET_COLLECTION_ON_INDEX = os.getenv("RESET_COLLECTION_ON_INDEX", "true").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _resolve_kb_root() -> Path:
@@ -57,6 +61,7 @@ def _resolve_kb_root() -> Path:
 
 # Per-project overrides (default: text-embedding-3-large)
 _EMBEDDING_MODELS = {
+    "nutria": "text-embedding-3-small",
     "innovia": "text-embedding-3-small",
 }
 _DEFAULT_EMBEDDING_MODEL = "text-embedding-3-large"
@@ -261,7 +266,7 @@ def save_transcripts_json(documents, kb_path, project_name):
     return json_path
 
 
-def index_into_chromadb(documents, kb_path, project_name, collection_name="gdrive_documents", embedding_model=None):
+def index_into_chromadb(documents, kb_path, project_name, collection_name="nutrifaq-collection", embedding_model=None):
     """Chunk documents and index them into ChromaDB."""
     kb_path = Path(kb_path)
     chroma_path = str(kb_path / VECTOR_DB_DIRNAME)
@@ -270,26 +275,21 @@ def index_into_chromadb(documents, kb_path, project_name, collection_name="gdriv
     if not embedding_model:
         embedding_model = _EMBEDDING_MODELS.get(project_name, _DEFAULT_EMBEDDING_MODEL)
 
-    ef = embedding_functions.OpenAIEmbeddingFunction(
-        api_key=OPENAI_API_KEY, model_name=embedding_model,
-        api_base=OPENAI_API_BASE,
-    )
-
     client = chromadb.PersistentClient(
         path=chroma_path,
         settings=Settings(anonymized_telemetry=False, allow_reset=False),
     )
 
-    # Reset collection
-    try:
-        client.delete_collection(name=collection_name)
-        print(f"♻️  Deleted existing collection: {collection_name}")
-    except Exception:
-        pass
+    # Reset collection only when explicitly enabled.
+    if RESET_COLLECTION_ON_INDEX:
+        try:
+            client.delete_collection(name=collection_name)
+            print(f"♻️  Deleted existing collection: {collection_name}")
+        except Exception:
+            pass
 
-    collection = client.create_collection(
+    collection = client.get_or_create_collection(
         name=collection_name,
-        embedding_function=ef,
         metadata={"description": f"Knowledge base: {project_name}"},
     )
 
@@ -324,25 +324,66 @@ def index_into_chromadb(documents, kb_path, project_name, collection_name="gdriv
     BATCH_SIZE = 500
     total_batches = (len(all_ids) + BATCH_SIZE - 1) // BATCH_SIZE
 
-    print(f"\n📊 Indexing {len(all_ids)} chunks into ChromaDB...")
+    total_chunks = len(all_ids)
+    run_started_at = time.perf_counter()
+    processed_chunks = 0
+
+    print(f"\n📊 Indexing {total_chunks} chunks into ChromaDB...")
 
     for batch_idx in range(total_batches):
+        batch_started_at = time.perf_counter()
         start = batch_idx * BATCH_SIZE
         end = min(start + BATCH_SIZE, len(all_ids))
         print(f"   Batch {batch_idx + 1}/{total_batches}: {end - start} chunks...")
 
-        collection.add(
-            ids=all_ids[start:end],
-            documents=all_documents[start:end],
-            metadatas=all_metadatas[start:end],
-        )
+        batch_documents = all_documents[start:end]
+        batch_ids = all_ids[start:end]
+        batch_metadatas = all_metadatas[start:end]
 
-    print(f"\n✅ Indexed {len(all_ids)} chunks from {len(documents)} documents")
+        total_sub_batches = (len(batch_documents) + EMBEDDING_REQUEST_BATCH_SIZE - 1) // EMBEDDING_REQUEST_BATCH_SIZE
+        for sub_batch_idx, sub_start in enumerate(range(0, len(batch_documents), EMBEDDING_REQUEST_BATCH_SIZE), start=1):
+            sub_started_at = time.perf_counter()
+            sub_end = min(sub_start + EMBEDDING_REQUEST_BATCH_SIZE, len(batch_documents))
+            sub_docs = batch_documents[sub_start:sub_end]
+            sub_ids = batch_ids[sub_start:sub_end]
+            sub_meta = batch_metadatas[sub_start:sub_end]
+            print(
+                f"      Embedding sub-batch {sub_batch_idx}/{total_sub_batches} "
+                f"({sub_end - sub_start} chunks)..."
+            )
+            sub_embeddings = create_embeddings(input_texts=sub_docs, model_name=embedding_model)
+
+            collection.upsert(
+                ids=sub_ids,
+                documents=sub_docs,
+                metadatas=sub_meta,
+                embeddings=sub_embeddings,
+            )
+
+            processed_chunks += len(sub_docs)
+            elapsed = time.perf_counter() - run_started_at
+            avg_seconds_per_chunk = elapsed / processed_chunks if processed_chunks else 0.0
+            remaining_chunks = total_chunks - processed_chunks
+            eta_seconds = avg_seconds_per_chunk * remaining_chunks
+            sub_elapsed = time.perf_counter() - sub_started_at
+            print(
+                f"         progress: {processed_chunks}/{total_chunks} chunks, "
+                f"sub-batch {sub_elapsed:.1f}s, elapsed {elapsed:.1f}s, ETA {eta_seconds:.1f}s"
+            )
+
+            if EMBEDDING_REQUEST_PAUSE_SECONDS > 0:
+                time.sleep(EMBEDDING_REQUEST_PAUSE_SECONDS)
+
+        batch_elapsed = time.perf_counter() - batch_started_at
+        print(f"   Batch {batch_idx + 1} completed in {batch_elapsed:.1f}s")
+
+    total_elapsed = time.perf_counter() - run_started_at
+    print(f"\n✅ Indexed {total_chunks} chunks from {len(documents)} documents in {total_elapsed:.1f}s")
     print(f"📦 Collection: {collection.name} ({collection.count()} items)")
     return True
 
 
-def index_project(project_name, collection_name="gdrive_documents", embedding_model=None):
+def index_project(project_name, collection_name="nutrifaq-collection", embedding_model=None):
     """Full pipeline: scan documents → save JSON → index ChromaDB.
 
     Args:
@@ -353,7 +394,10 @@ def index_project(project_name, collection_name="gdrive_documents", embedding_mo
     Returns:
         dict with result info.
     """
-    kb_path = _resolve_kb_root() / project_name
+    kb_root = _resolve_kb_root()
+    kb_path = kb_root / project_name
+    if not kb_path.exists() and (kb_root / "documents").exists():
+        kb_path = kb_root
     documents_dir = kb_path / "documents"
 
     print(f"{'=' * 60}")
@@ -389,7 +433,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     proj = sys.argv[1]
-    col = sys.argv[2] if len(sys.argv) > 2 else "gdrive_documents"
+    col = sys.argv[2] if len(sys.argv) > 2 else "nutrifaq-collection"
     result = index_project(proj, collection_name=col)
     if result["indexed"]:
         print(f"\n✅ Done! {result['documents']} documents indexed.")

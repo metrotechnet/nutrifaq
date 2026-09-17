@@ -738,5 +738,89 @@
     "response": "Le bien-être général est très lié à nos habitudes de vie, incluant l'alimentation, le sommeil et l'activité physique. Ces trois éléments sont interreliés et jouent un rôle crucial dans notre santé mentale et physique.\n\n1. **Alimentation** : Manger équilibré, avec suffisamment de végétaux, peut améliorer notre mood et notre énergie. Il est important d'écouter nos signaux de faim et de satiété pour éviter la surconsommation.\n\n2. **Sommeil** : Un bon sommeil est essentiel pour la concentration et la gestion du stress. Un manque de sommeil peut nuire à la cognition et à l'humeur.\n\n3. **Activité physique** : L'exercice régulier favorise la clarté mentale et aide à gérer le stress et l'anxiété. La sédentarité peut contribuer à la fatigue et à un état d’esprit moins positif.\n\nAvoir de bonnes habitudes de vie peut contribuer à un bien-être général sur le long terme. Toutefois, chaque personne est unique, et les effets dépendent du contexte et des quantités. Il n'existe pas de solution universelle !",
     "timestamp": "2026-09-17T14:48:00.227182",
     "comments": []
+  },
+  {
+    "question_id": "a4a1ebd6-d4eb-49f0-bfc0-1ffa99d8a98b",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Le bien-être général est étroitement lié à nos habitudes de vie. En effet, l'alimentation, le sommeil et l'activité physique interagissent de manière complexe pour influencer notre santé mentale et physique.\n\n1. **Alimentation** : Une alimentation variée et riche en nutriments peut améliorer notre humeur et notre concentration. Boire suffisamment d'eau est également crucial, car la déshydratation peut affecter la mémoire et l'attention.\n\n2. **Sommeil** : Un sommeil de qualité est fondamental pour la récupération physique et mentale. Un manque de sommeil peut perturber la cognition et augmenter le stress.\n\n3. **Activité physique** : L’exercice régulier aide à libérer des endorphines, qui améliorent l’humeur et réduisent l’anxiété. Il peut également favoriser la clarté mentale.\n\nEn somme, ces piliers sont interreliés et contribuent ensemble à un bien-être général. L'adoption d'une approche équilibrée est essentielle, car il n'existe pas de solution universelle pour chacun.",
+    "timestamp": "2026-09-17T16:49:03.670400",
+    "comments": []
+  },
+  {
+    "question_id": "a16a2c48-5871-47f0-8821-5ed65a0c32e3",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Le bien-être général est étroitement lié à nos habitudes de vie, qui incluent l'alimentation, le sommeil et l'activité physique. Ces trois piliers sont interreliés et influencent notre santé mentale et physique. Une bonne nutrition, par exemple, peut améliorer notre humeur et notre énergie, tandis qu'une activité physique régulière booste notre clarté mentale.\n\nIl est important de noter qu’il n'existe pas de solution universelle : chaque personne réagit différemment aux changements de mode de vie. Écouter son corps et respecter ses signaux de faim et de satiété est essentiel pour favoriser une santé durable. \n\nVeille également à rester hydraté, car la déshydratation peut affecter la mémoire et l’attention. En somme, adopter de bonnes habitudes de vie de manière équilibrée peut contribuer à un bien-être général optimal.",
+    "timestamp": "2026-09-17T17:27:32.641953",
+    "comments": []
+  },
+  {
+    "question_id": "6409c300-3de0-46fd-bde3-26e754562dcd",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "timestamp": "2026-09-17T17:27:59.653995",
+    "comments": []
+  },
+  {
+    "question_id": "d8c311df-3262-4dcc-b299-25f96e01fb93",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "timestamp": "2026-09-17T17:31:53.973601",
+    "comments": []
+  },
+  {
+    "question_id": "217e559c-02dd-4fe5-aaee-8fd81d0cbbde",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "timestamp": "2026-09-17T17:33:17.647746",
+    "comments": []
+  },
+  {
+    "question_id": "31bb3bee-8b01-4af0-a914-84b4c5956c73",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "timestamp": "2026-09-17T17:34:19.948943",
+    "comments": []
+  },
+  {
+    "question_id": "fe279c66-5f8b-40e6-8374-a11ab6880a4d",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Collection expecting embedding with dimension of 3072, got 1536",
+    "timestamp": "2026-09-17T17:35:16.992774",
+    "comments": []
+  },
+  {
+    "question_id": "31b3c768-e372-4a46-870a-560d4e1429aa",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Error processing your question: Error code: 429 - {'error': {'message': 'Your requests to gpt-4.1-mini for nutrifaq-gpt41-mini in eastus2 have exceeded rate limit.', 'type': 'too_many_requests', 'param': None, 'code': 'rate_limit_exceeded'}}",
+    "timestamp": "2026-09-17T17:36:45.996026",
+    "comments": []
+  },
+  {
+    "question_id": "1a353ff8-df33-442b-b4f4-f5c60980d665",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "timestamp": "2026-09-17T17:42:39.584341",
+    "comments": []
+  },
+  {
+    "question_id": "45bae056-b1f3-48c7-8350-4d5a8737662b",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "timestamp": "2026-09-17T19:36:30.888883",
+    "comments": []
+  },
+  {
+    "question_id": "213caee5-8d97-4d04-8e76-42d81c6eb710",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "timestamp": "2026-09-17T19:38:23.430957",
+    "comments": []
+  },
+  {
+    "question_id": "e7e6a56c-15d6-4131-b36a-bd3a4f57eb5d",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Collection [nutrifaq-collection] does not exist",
+    "timestamp": "2026-09-17T19:38:41.369095",
+    "comments": []
   }
 ]

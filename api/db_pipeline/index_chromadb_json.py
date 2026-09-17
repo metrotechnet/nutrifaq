@@ -81,7 +81,7 @@ def init_chromadb(kb_path):
         ),
     )
 
-    collection_name = "gdrive_documents"
+    collection_name = "nutrifaq-collection"
 
     openai_api_key = os.getenv("OPENAI_API_KEY")
     ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai_api_key, model_name="text-embedding-3-large")

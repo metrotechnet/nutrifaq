@@ -110,7 +110,7 @@ Write-Host "Verifying startup script exists at '$startupShPath'..."
 if (-not (Test-Path -LiteralPath $startupShPath)) {
     throw "Startup script not found: '$startupShPath'"
 }
-az webapp config set --resource-group $ResourceGroup --name $AppName --startup-file "bash /home/site/wwwroot/startup.sh" --always-on true --health-check-path "/health" | Out-Null
+az webapp config set --resource-group $ResourceGroup --name $AppName --startup-file "bash /home/site/wwwroot/startup.sh" --always-on true | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to configure Azure startup file and App Service health settings."
 }
@@ -144,7 +144,7 @@ from pathlib import Path
 root = Path(os.environ["PROJECT_ROOT"]).resolve()
 zip_path = Path(os.environ["ZIP_PATH"])
 include = {"app.py", "__init__.py", "requirements.txt", "startup.sh"}
-include_dirs = {"api", "nutrifaq-dbase"}
+include_dirs = {"api"}
 exclude = {
     ".git", ".venv", "__pycache__", ".pytest_cache", ".azure", ".vs",
     ".vscode", ".firebase", "node_modules", "public",
@@ -257,7 +257,7 @@ try {
     $wwwrootEntries = Invoke-RestMethod -Uri $kuduUrl -Headers $headers -Method Get -TimeoutSec 30
     $entryNames = @($wwwrootEntries | ForEach-Object { ("{0}" -f $_.name).TrimEnd('/') })
 
-    $requiredEntries = @("app.py", "__init__.py", "requirements.txt", "startup.sh", "api", "nutrifaq-dbase")
+    $requiredEntries = @("app.py", "__init__.py", "requirements.txt", "startup.sh", "api")
     $missingEntries = @($requiredEntries | Where-Object { $_ -notin $entryNames })
 
     if ($missingEntries.Count -gt 0) {

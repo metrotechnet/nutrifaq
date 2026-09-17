@@ -3,14 +3,14 @@ setlocal
 REM ==================================================
 REM Index local Nutria knowledge base into ChromaDB
 REM Usage: index-database.bat [project_name] [collection_name]
-REM Example: index-database.bat nutria gdrive_documents
+REM Example: index-database.bat nutria nutrifaq-collection
 REM ==================================================
 
 set "PROJECT_NAME=%~1"
 if "%PROJECT_NAME%"=="" set "PROJECT_NAME=nutria"
 
 set "COLLECTION_NAME=%~2"
-if "%COLLECTION_NAME%"=="" set "COLLECTION_NAME=gdrive_documents"
+if "%COLLECTION_NAME%"=="" set "COLLECTION_NAME=nutrifaq-collection"
 
 set "KB_ROOT=%~dp0nutrifaq-dbase"
 set "VECTOR_DB_DIRNAME=chroma_db"

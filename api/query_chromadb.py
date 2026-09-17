@@ -8,14 +8,12 @@ from dotenv import load_dotenv
 import requests
 import chromadb
 from chromadb.config import Settings
-from openai import OpenAI
 from api.refusal_engine import validate_user_query
+from api.services.llm_service import create_chat_completion_stream, create_embedding, get_gateway_client
 from api.services.blob_storage_service import (
     get_blob_container_name,
     get_blob_prefix,
     get_blob_properties,
-    get_blob_service_client,
-    sync_blob_prefix_to_local,
 )
 
 # Get project root directory
@@ -23,7 +21,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 load_dotenv(dotenv_path=PROJECT_ROOT / '.env')
 
 DEFAULT_PROJECT_NAME = os.getenv("KNOWLEDGE_BASE_NAME", "nutria")
-DEFAULT_COLLECTION_NAME = os.getenv("DEFAULT_COLLECTION_NAME", "gdrive_documents")
+DEFAULT_COLLECTION_NAME = os.getenv("DEFAULT_COLLECTION_NAME", "nutrifaq-collection")
 CHROMADB_CENTRAL_URL = os.getenv("CHROMADB_CENTRAL_URL", "http://localhost:2000").rstrip("/")
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
@@ -33,19 +31,11 @@ AZURE_STORAGE_CONTAINER = get_blob_container_name()
 AZURE_BLOB_PREFIX = get_blob_prefix()
 LOCAL_BLOB_CACHE_ROOT = PROJECT_ROOT / ".cache" / AZURE_BLOB_PREFIX / "chroma_db"
 LOCAL_BLOB_MARKER_FILE = LOCAL_BLOB_CACHE_ROOT / ".blob_signature"
+ROOT_BLOB_CACHE_ROOT = PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
 
 _CHROMA_CLIENT_CACHE: dict[str, Any] = {}
 _CHROMA_COLLECTION_CACHE: dict[tuple[str, str], Any] = {}
 _CHROMA_SIGNATURE_CACHE: str | None = None
-
-# Initialize Vercel AI Gateway client (OpenAI-compatible)
-# See https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions
-def get_gateway_client() -> OpenAI:
-    api_key = os.getenv("AI_GATEWAY_API_KEY")
-    if not api_key:
-        raise RuntimeError("AI_GATEWAY_API_KEY is not configured.")
-    return OpenAI(api_key=api_key, base_url="https://ai-gateway.vercel.sh/v1")
-
 
 def load_style_guides():
     """Load style guides from JSON file"""
@@ -155,16 +145,8 @@ def build_prompt_from_template(language, context, question, history_text="", age
     return prompt, model_config
 
 
-def _local_chroma_path(project_name: str) -> Path:
-    return LOCAL_BLOB_CACHE_ROOT
-
-
 def _repo_chroma_path() -> Path:
     return PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
-
-
-def _blob_service_client():
-    return get_blob_service_client()
 
 
 def _remote_chroma_signature() -> str:
@@ -193,26 +175,20 @@ def _sync_chroma_from_blob(force: bool = False) -> Path:
             "Azure Blob Storage configuration is required for ChromaDB access."
         )
 
-    remote_signature = _remote_chroma_signature()
-    local_signature = _read_local_signature()
-    if not force and LOCAL_BLOB_CACHE_ROOT.exists() and local_signature == remote_signature:
-        _CHROMA_SIGNATURE_CACHE = remote_signature
-        return LOCAL_BLOB_CACHE_ROOT
+    if ROOT_BLOB_CACHE_ROOT.exists() and not force:
+        return ROOT_BLOB_CACHE_ROOT
 
-    prefix = f"{AZURE_BLOB_PREFIX}/chroma_db/"
-
-    sync_blob_prefix_to_local(prefix=prefix, local_root=LOCAL_BLOB_CACHE_ROOT)
-
-    _write_local_signature(remote_signature)
-    _CHROMA_SIGNATURE_CACHE = remote_signature
-
-    return LOCAL_BLOB_CACHE_ROOT
+    raise RuntimeError(
+        f"ChromaDB has not been loaded into {ROOT_BLOB_CACHE_ROOT}. It must be populated at startup."
+    )
 
 
 def _local_chroma_client(project_name: str):
-    kb_path = _sync_chroma_from_blob()
+    kb_path = ROOT_BLOB_CACHE_ROOT
     if not kb_path.exists():
-        raise FileNotFoundError(f"Local ChromaDB directory not found: {kb_path}")
+        raise FileNotFoundError(
+            f"Local ChromaDB directory not found: {kb_path}. Blob database was not loaded at startup."
+        )
 
     cache_key = str(kb_path)
     if cache_key in _CHROMA_CLIENT_CACHE:
@@ -282,7 +258,7 @@ def query_chromadb(project_name, collection_name=None, data=None):
             }
 
         client = _local_chroma_client(project_name)
-        cache_key = (str(_local_chroma_path(project_name)), collection_name)
+        cache_key = (str(ROOT_BLOB_CACHE_ROOT), collection_name)
         collection = _CHROMA_COLLECTION_CACHE.get(cache_key)
         if collection is None:
             collection = client.get_collection(name=collection_name)
@@ -300,13 +276,12 @@ def query_chromadb(project_name, collection_name=None, data=None):
         return results
 
     except Exception as e:
-        print(f"[DEBUG][query_chromadb] EXCEPTION={str(e)}", flush=True)
         return {
             "error": "Failed to query local ChromaDB",
             "details": str(e),
             "project_name": project_name,
             "collection_name": collection_name,
-            "local_path": str(_local_chroma_path(project_name)),
+            "local_path": str(ROOT_BLOB_CACHE_ROOT),
             "remote_host": remote_host,
             "remote_port": remote_port,
             "remote_url": CHROMADB_CENTRAL_URL,
@@ -320,7 +295,7 @@ def check_remote_chromadb_connection(project_name=None, collection_name=None):
     remote_host, remote_port = _central_host_port()
 
     try:
-        local_path = _local_chroma_path(project_name)
+        local_path = ROOT_BLOB_CACHE_ROOT
         if not local_path.exists():
             return {
                 "status": "error",
@@ -350,7 +325,7 @@ def check_remote_chromadb_connection(project_name=None, collection_name=None):
             "status": "error",
             "project_name": project_name,
             "collection_name": collection_name,
-            "local_path": str(local_path) if 'local_path' in locals() else str(_local_chroma_path(project_name)),
+            "local_path": str(ROOT_BLOB_CACHE_ROOT),
             "remote_host": remote_host,
             "remote_port": remote_port,
             "remote_url": CHROMADB_CENTRAL_URL,
@@ -431,10 +406,6 @@ def get_links_from_contexts(contexts, metadatas=None, agent=None):
 
 def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR", top_k=5, conversation_history=None, session=None, question_id=None, agent=None):
     """Streaming version of ask_question with language support and conversation history"""
-    print(
-        f"[DEBUG][ask_question_stream] start question_len={len(question) if question else 0} language={language} top_k={top_k} agent={agent}",
-        flush=True,
-    )
 
     # Use conversation_history if provided, otherwise empty list
     if conversation_history is None:
@@ -452,7 +423,6 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
     # context is not available yet (need ChromaDB), so pass empty string for now
     refusal_result = validate_user_query(question, llm_call_fn=None, language=language)
     if refusal_result and refusal_result.get("decision") == "refuse":
-        print("[DEBUG][ask_question_stream] refusal triggered by policy", flush=True)
         # Store empty links list in session for refusal
         if session is not None and question_id is not None:
             if 'links' not in session:
@@ -465,15 +435,9 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
 
     try:
         client = get_gateway_client()
-        print("[DEBUG][ask_question_stream] gateway client initialized", flush=True)
 
         # Get embedding for the question
-        print("[DEBUG][ask_question_stream] requesting embeddings", flush=True)
-        query_emb = client.embeddings.create(
-            model="text-embedding-3-large", 
-            input=question
-        ).data[0].embedding
-        print(f"[DEBUG][ask_question_stream] embedding_len={len(query_emb) if query_emb else 0}", flush=True)
+        query_emb = create_embedding(input_text=question, model_name="text-embedding-3-large")
 
         # Query ChromaDB
         query_params = {
@@ -484,31 +448,21 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             
         # Ensure query_params is JSON serializable
         query_params = json.loads(json.dumps(query_params, default=str))
-        print("[DEBUG][ask_question_stream] sending query to central chromadb", flush=True)
-        results = query_chromadb(project_name="nutria", collection_name="gdrive_documents", data=query_params)
-        print(
-            f"[DEBUG][ask_question_stream] chromadb_result_type={type(results).__name__} keys={list(results.keys()) if isinstance(results, dict) else 'n/a'}",
-            flush=True,
-        )
+        results = query_chromadb(project_name="nutria", collection_name="nutrifaq-collection", data=query_params)
 
         if not isinstance(results, dict):
-            print("[DEBUG][ask_question_stream] unexpected chromadb response format", flush=True)
             yield "Knowledge base query returned an unexpected response format."
             return
 
         if results.get("error"):
             details = results.get("details", "")
-            print(f"[DEBUG][ask_question_stream] chromadb error details={details or results['error']}", flush=True)
             yield f"Knowledge base query failed: {details or results['error']}"
             return
 
         documents = results.get("documents")
         if not documents or not isinstance(documents, list) or not documents[0]:
-            print("[DEBUG][ask_question_stream] no documents returned from chromadb", flush=True)
             yield "No relevant information found. Please make sure you have indexed some transcripts."
             return
-
-        print(f"[DEBUG][ask_question_stream] documents_count={len(documents[0])}", flush=True)
 
         # Build context from results
         contexts = []
@@ -522,7 +476,6 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         if is_substantial_question(question):
             metadatas = results.get('metadatas', [[]])[0]
             links = get_links_from_contexts(contexts, metadatas=metadatas, agent=agent)
-        print(f"[DEBUG][ask_question_stream] extracted_links_count={len(links)}", flush=True)
         
         # Save links in session if provided
         if session is not None and question_id is not None:
@@ -534,25 +487,20 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         prompt, model_config = build_prompt_from_template(language, context, question, history_text, agent=agent)
         
         if not prompt:
-            print("[DEBUG][ask_question_stream] prompt build failed", flush=True)
             yield "Error: Unable to load prompt template."
             return
 
         # Get streaming response from Vercel AI Gateway
         model_name = model_config.get('name', 'openai/gpt-4o-mini')
-        print(f"[DEBUG][ask_question_stream] starting completion model={model_name}", flush=True)
         
-        stream = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
+        stream = create_chat_completion_stream(
+            client=client,
+            model_name=model_name,
+            prompt=prompt,
             temperature=1.0,
-            stream=True
         )
         first_chunk = True
         answer = ""
-        chunk_count = 0
         for chunk in stream:
             if chunk.choices[0].delta.content is not None:
                 content = chunk.choices[0].delta.content
@@ -561,12 +509,8 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
                     content = content.lstrip()
                     first_chunk = False
                 if content:
-                    chunk_count += 1
                     answer += content
                     yield content
 
-        print(f"[DEBUG][ask_question_stream] stream_complete chunks={chunk_count} answer_len={len(answer)}", flush=True)
-
     except Exception as e:
-        print(f"[DEBUG][ask_question_stream] EXCEPTION={str(e)}", flush=True)
         yield f"Error processing your question: {str(e)}"

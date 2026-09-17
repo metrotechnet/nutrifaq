@@ -56,7 +56,7 @@ def get_chroma_collection(agent=None):
         )
     )
     collection = chroma_client.get_or_create_collection(
-        name="gdrive_documents", embedding_function=ef
+        name="nutrifaq-collection", embedding_function=ef
     )
     return collection, paths
 

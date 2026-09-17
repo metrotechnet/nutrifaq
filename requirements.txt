@@ -17,3 +17,4 @@ chromadb
 openai
 gunicorn
 azure-storage-blob
+PyJWT[crypto]
