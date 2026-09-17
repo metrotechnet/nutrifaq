@@ -99,6 +99,7 @@ ROUTE_MODULES = [
     ("api.routes.config", "config"),
     ("api.routes.sessions", "sessions"),
     ("api.routes.update", "update"),
+    ("api.routes.blob", "blob"),
     ("api.routes.database", "database"),
 ]
 

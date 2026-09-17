@@ -1,7 +1,6 @@
 import os
 import json
 import re
-import shutil
 from typing import Any
 from urllib.parse import urlparse
 from pathlib import Path
@@ -10,8 +9,14 @@ import requests
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
-from azure.storage.blob import BlobServiceClient  # type: ignore[reportMissingImports]
 from api.refusal_engine import validate_user_query
+from api.services.blob_storage_service import (
+    get_blob_container_name,
+    get_blob_prefix,
+    get_blob_properties,
+    get_blob_service_client,
+    sync_blob_prefix_to_local,
+)
 
 # Get project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -24,8 +29,8 @@ AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
 AZURE_STORAGE_KEY = os.getenv("AZURE_STORAGE_KEY")
 AZURE_STORAGE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
-AZURE_STORAGE_CONTAINER = os.getenv("AZURE_KB_BLOB_CONTAINER", os.getenv("AZURE_STORAGE_CONTAINER", "nutrifaq-knowledge-base"))
-AZURE_BLOB_PREFIX = os.getenv("AZURE_KB_BLOB_PREFIX", "nutrifaq-dbase").strip("/")
+AZURE_STORAGE_CONTAINER = get_blob_container_name()
+AZURE_BLOB_PREFIX = get_blob_prefix()
 LOCAL_BLOB_CACHE_ROOT = PROJECT_ROOT / ".cache" / AZURE_BLOB_PREFIX / "chroma_db"
 LOCAL_BLOB_MARKER_FILE = LOCAL_BLOB_CACHE_ROOT / ".blob_signature"
 
@@ -154,24 +159,16 @@ def _local_chroma_path(project_name: str) -> Path:
     return LOCAL_BLOB_CACHE_ROOT
 
 
-def _blob_service_client() -> BlobServiceClient | None:
-    if AZURE_STORAGE_CONNECTION_STRING:
-        return BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-    if AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY:
-        account_url = f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net"
-        credential = AZURE_STORAGE_SAS_TOKEN or AZURE_STORAGE_KEY
-        return BlobServiceClient(account_url=account_url, credential=credential)
-    return None
-
-
 def _repo_chroma_path() -> Path:
     return PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
 
 
-def _remote_chroma_signature(client: BlobServiceClient) -> str:
-    container_client = client.get_container_client(AZURE_STORAGE_CONTAINER)
-    blob_client = container_client.get_blob_client(f"{AZURE_BLOB_PREFIX}/chroma_db/chroma.sqlite3")
-    return blob_client.get_blob_properties().etag
+def _blob_service_client():
+    return get_blob_service_client()
+
+
+def _remote_chroma_signature() -> str:
+    return get_blob_properties(f"{AZURE_BLOB_PREFIX}/chroma_db/chroma.sqlite3").etag
 
 
 def _read_local_signature() -> str | None:
@@ -191,42 +188,20 @@ def _write_local_signature(signature: str) -> None:
 def _sync_chroma_from_blob(force: bool = False) -> Path:
     global _CHROMA_SIGNATURE_CACHE
 
-    client = _blob_service_client()
-    if client is None:
+    if not (AZURE_STORAGE_CONNECTION_STRING or (AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY)):
         raise RuntimeError(
             "Azure Blob Storage configuration is required for ChromaDB access."
         )
 
-    remote_signature = _remote_chroma_signature(client)
+    remote_signature = _remote_chroma_signature()
     local_signature = _read_local_signature()
     if not force and LOCAL_BLOB_CACHE_ROOT.exists() and local_signature == remote_signature:
         _CHROMA_SIGNATURE_CACHE = remote_signature
         return LOCAL_BLOB_CACHE_ROOT
 
-    container_client = client.get_container_client(AZURE_STORAGE_CONTAINER)
     prefix = f"{AZURE_BLOB_PREFIX}/chroma_db/"
 
-    if LOCAL_BLOB_CACHE_ROOT.exists():
-        shutil.rmtree(LOCAL_BLOB_CACHE_ROOT)
-    LOCAL_BLOB_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
-
-    blob_count = 0
-    for blob in container_client.list_blobs(name_starts_with=prefix):
-        if blob.name.endswith("/"):
-            continue
-
-        relative_path = blob.name[len(prefix):]
-        target_path = LOCAL_BLOB_CACHE_ROOT / relative_path
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(target_path, "wb") as target_file:
-            stream = container_client.download_blob(blob.name)
-            target_file.write(stream.readall())
-        blob_count += 1
-
-    if blob_count == 0:
-        raise FileNotFoundError(
-            f"No blobs found in container '{AZURE_STORAGE_CONTAINER}' with prefix '{prefix}'"
-        )
+    sync_blob_prefix_to_local(prefix=prefix, local_root=LOCAL_BLOB_CACHE_ROOT)
 
     _write_local_signature(remote_signature)
     _CHROMA_SIGNATURE_CACHE = remote_signature

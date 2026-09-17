@@ -9,14 +9,17 @@ import json
 import os
 import sys
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
 from openai import OpenAI
-from azure.storage.blob import BlobServiceClient
+from api.services.blob_storage_service import (
+    get_blob_container_name,
+    get_blob_prefix,
+    download_blob_to_path,
+)
 
 
 # Get main root directory (where .env is located)
@@ -35,34 +38,15 @@ AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
 AZURE_STORAGE_KEY = os.getenv("AZURE_STORAGE_KEY")
 AZURE_STORAGE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
-AZURE_STORAGE_CONTAINER = os.getenv("AZURE_KB_BLOB_CONTAINER", os.getenv("AZURE_STORAGE_CONTAINER", "nutrifaq-knowledge-base"))
-AZURE_BLOB_PREFIX = os.getenv("AZURE_KB_BLOB_PREFIX", "nutrifaq-dbase").strip("/")
-
-
-def _blob_service_client():
-    if AZURE_STORAGE_CONNECTION_STRING:
-        return BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
-    if AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY:
-        account_url = f"https://{AZURE_STORAGE_ACCOUNT}.blob.core.windows.net"
-        credential = AZURE_STORAGE_SAS_TOKEN or AZURE_STORAGE_KEY
-        return BlobServiceClient(account_url=account_url, credential=credential)
-    return None
+AZURE_STORAGE_CONTAINER = get_blob_container_name()
+AZURE_BLOB_PREFIX = get_blob_prefix()
 
 
 def _sync_transcripts_json_from_blob(kb_path: Path) -> Path:
-    client = _blob_service_client()
     local_json = kb_path / "transcripts_chromadb.json"
-    if client is None:
-        return local_json
-
-    container_client = client.get_container_client(AZURE_STORAGE_CONTAINER)
     blob_name = f"{AZURE_BLOB_PREFIX}/transcripts_chromadb.json"
-    blob_client = container_client.get_blob_client(blob_name)
-
     kb_path.mkdir(parents=True, exist_ok=True)
-    with open(local_json, "wb") as target_file:
-        target_file.write(blob_client.download_blob().readall())
-
+    download_blob_to_path(blob_name, local_json)
     return local_json
 
 
