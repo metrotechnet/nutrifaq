@@ -5,6 +5,8 @@ from urllib.parse import urlparse
 from pathlib import Path
 from dotenv import load_dotenv
 import requests
+import chromadb
+from chromadb.config import Settings
 from openai import OpenAI
 from api.refusal_engine import validate_user_query
 
@@ -133,6 +135,21 @@ def build_prompt_from_template(language, context, question, history_text="", age
     return prompt, model_config
 
 
+def _local_chroma_path(project_name: str) -> Path:
+    return PROJECT_ROOT / "knowledge-base" / project_name / "chroma_db"
+
+
+def _local_chroma_client(project_name: str):
+    kb_path = _local_chroma_path(project_name)
+    if not kb_path.exists():
+        raise FileNotFoundError(f"Local ChromaDB directory not found: {kb_path}")
+
+    return chromadb.PersistentClient(
+        path=str(kb_path),
+        settings=Settings(anonymized_telemetry=False, allow_reset=False),
+    )
+
+
 def _central_query_url() -> str:
     return f"{CHROMADB_CENTRAL_URL}/query"
 
@@ -152,6 +169,7 @@ def _central_host_port():
         port = 80
     return host, port
 
+
 def query_chromadb(project_name, collection_name=None, data=None):
     project_name = project_name or DEFAULT_PROJECT_NAME
     collection_name = collection_name or DEFAULT_COLLECTION_NAME
@@ -159,13 +177,7 @@ def query_chromadb(project_name, collection_name=None, data=None):
 
     try:
         payload = data or {}
-
-        print(f"[DEBUG][query_chromadb] project={project_name} collection={collection_name}", flush=True)
-        print(f"[DEBUG][query_chromadb] central_url={CHROMADB_CENTRAL_URL}", flush=True)
-        print(f"[DEBUG][query_chromadb] payload_type={type(payload).__name__}", flush=True)
-
         if not isinstance(payload, dict):
-            print("[DEBUG][query_chromadb] invalid payload: expected dict", flush=True)
             return {
                 "error": "Invalid query payload",
                 "details": "Expected a dict with query_embedding and query options.",
@@ -173,7 +185,6 @@ def query_chromadb(project_name, collection_name=None, data=None):
 
         query_embedding = payload.get("query_embedding")
         if query_embedding is None:
-            print(f"[DEBUG][query_chromadb] missing query_embedding, payload_keys={list(payload.keys())}", flush=True)
             return {
                 "error": "Invalid query payload",
                 "details": "Missing required field: query_embedding",
@@ -183,52 +194,33 @@ def query_chromadb(project_name, collection_name=None, data=None):
             query_embedding = query_embedding.tolist()
 
         if not hasattr(query_embedding, "__len__") or len(query_embedding) == 0:
-            print("[DEBUG][query_chromadb] invalid query_embedding: empty or not list-like", flush=True)
             return {
                 "error": "Invalid query payload",
                 "details": "query_embedding must be a non-empty list-like vector",
             }
 
-        print(f"[DEBUG][query_chromadb] query_embedding_len={len(query_embedding)}", flush=True)
+        client = _local_chroma_client(project_name)
+        collection = client.get_collection(name=collection_name)
 
-        # Send both key variants for compatibility across central API versions.
-        query_args = {
-            "query_embedding": query_embedding,
+        query_kwargs = {
             "query_embeddings": [query_embedding],
             "n_results": int(payload.get("n_results", 10)),
-            "include": payload.get("include", ["documents", "metadatas"]),
+            "include": payload.get("include", ["documents", "metadatas", "distances"]),
         }
         if payload.get("where") is not None:
-            query_args["where"] = payload.get("where")
+            query_kwargs["where"] = payload.get("where")
 
-        print(
-            f"[DEBUG][query_chromadb] query_args_meta=n_results:{query_args['n_results']} include:{query_args['include']} where_present:{'where' in query_args} has_query_embedding:{'query_embedding' in query_args} has_query_embeddings:{'query_embeddings' in query_args}",
-            flush=True,
-        )
-
-        body = {
-            "project_name": project_name,
-            "collection_name": collection_name,
-            "query": query_args,
-        }
-        print(f"[DEBUG][query_chromadb] POST {_central_query_url()} body_keys={list(body.keys())}", flush=True)
-        response = requests.post(_central_query_url(), json=body, timeout=20)
-        print(f"[DEBUG][query_chromadb] response_status={response.status_code}", flush=True)
-        response.raise_for_status()
-        result = response.json()
-        print(
-            f"[DEBUG][query_chromadb] response_keys={list(result.keys()) if isinstance(result, dict) else type(result).__name__}",
-            flush=True,
-        )
-        return result
+        results = collection.query(**query_kwargs)
+        return results
 
     except Exception as e:
         print(f"[DEBUG][query_chromadb] EXCEPTION={str(e)}", flush=True)
         return {
-            "error": "Failed to query ChromaDB Central API",
+            "error": "Failed to query local ChromaDB",
             "details": str(e),
             "project_name": project_name,
             "collection_name": collection_name,
+            "local_path": str(_local_chroma_path(project_name)),
             "remote_host": remote_host,
             "remote_port": remote_port,
             "remote_url": CHROMADB_CENTRAL_URL,
@@ -236,30 +228,43 @@ def query_chromadb(project_name, collection_name=None, data=None):
 
 
 def check_remote_chromadb_connection(project_name=None, collection_name=None):
-    """Check connectivity to ChromaDB Central API."""
+    """Check connectivity to the local ChromaDB knowledge base for the current project."""
     project_name = project_name or DEFAULT_PROJECT_NAME
     collection_name = collection_name or DEFAULT_COLLECTION_NAME
     remote_host, remote_port = _central_host_port()
 
     try:
-        response = requests.get(_central_health_url(), timeout=10)
-        response.raise_for_status()
-        health_payload = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
+        local_path = _local_chroma_path(project_name)
+        if not local_path.exists():
+            return {
+                "status": "error",
+                "project_name": project_name,
+                "collection_name": collection_name,
+                "local_path": str(local_path),
+                "remote_host": remote_host,
+                "remote_port": remote_port,
+                "remote_url": CHROMADB_CENTRAL_URL,
+                "details": f"Local knowledge-base folder not found: {local_path}",
+            }
 
+        client = _local_chroma_client(project_name)
+        collection = client.get_collection(name=collection_name)
         return {
             "status": "ok",
             "project_name": project_name,
             "collection_name": collection_name,
+            "local_path": str(local_path),
             "remote_host": remote_host,
             "remote_port": remote_port,
             "remote_url": CHROMADB_CENTRAL_URL,
-            "central_health": health_payload or {"status_code": response.status_code},
+            "central_health": {"status": "local", "collection_count": collection.count()},
         }
     except Exception as exc:
         return {
             "status": "error",
             "project_name": project_name,
             "collection_name": collection_name,
+            "local_path": str(local_path) if 'local_path' in locals() else str(_local_chroma_path(project_name)),
             "remote_host": remote_host,
             "remote_port": remote_port,
             "remote_url": CHROMADB_CENTRAL_URL,

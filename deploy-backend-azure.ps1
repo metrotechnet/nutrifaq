@@ -1,11 +1,12 @@
 param(
     [string]$ResourceGroup = "nutrifaq-rg",
-    [string]$Location = "canadacentral",
-    [string]$PlanName = "nutrifaq-plan-cc",
+    [string]$Location = "canadaeast",
+    [string]$PlanName = "nutrifaq-plan-ce",
     [string]$AppName = "nutrifaq-api",
-    [string]$Sku = "B1",
+    [string]$Sku = "P0v3",
     [string]$Runtime = "PYTHON:3.11",
     [string]$ZipPath = "app.zip",
+    [switch]$ResetServer,
     [switch]$KeepArtifact
 )
 
@@ -36,11 +37,20 @@ if ($planExists -eq "0") {
     az appservice plan create --name $PlanName --resource-group $ResourceGroup --location $Location --sku $Sku --is-linux | Out-Null
 }
 
-# Reuse an existing app, otherwise create it
+# Reuse an existing app in the current subscription, otherwise create it.
 Write-Host "Ensuring web app '$AppName' exists..."
 $showCmd = 'az webapp show --resource-group "{0}" --name "{1}" --query "name" -o tsv --only-show-errors' -f $ResourceGroup, $AppName
 $appExists = cmd /d /c "$showCmd 2>NUL"
 if ($LASTEXITCODE -ne 0) {
+    $appExists = ""
+}
+
+if ($appExists -and $ResetServer) {
+    Write-Host "ResetServer requested; deleting existing web app '$AppName' so deployment starts clean..."
+    az webapp delete --resource-group $ResourceGroup --name $AppName --only-show-errors | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to delete Azure web app '$AppName'."
+    }
     $appExists = ""
 }
 
@@ -52,10 +62,14 @@ if (-not $appExists) {
     }
 
     if ($LASTEXITCODE -ne 0) {
+        $errorText = ($createOutput | Out-String)
+        if ($errorText -match "globally unique|current subscription|Unable to retrieve details of the existing app") {
+            throw "The app name '$AppName' is already in use elsewhere in Azure. Choose a globally unique name with -AppName, for example: -AppName 'nutrifaq-api-$(Get-Date -Format yyyyMMdd)'"
+        }
         throw "Failed to create Azure web app '$AppName'."
     }
 } else {
-    Write-Host "Web app '$AppName' already exists; reusing it."
+    Write-Host "Web app '$AppName' already exists in the current subscription; reusing it."
 }
 
 # Minimal app settings
@@ -82,16 +96,23 @@ if ($LASTEXITCODE -ne 0) {
 # Ensure the runtime environment has the backend dependencies before each startup.
 # App Service on Linux sometimes ignores the inline command when Oryx regenerates startup.sh,
 # so we set the startup script file itself and make it install deps before launching the app.
-Write-Host "Setting startup file..."
+# Also keep the container alive and enable Azure's health probe to prevent the Kudu container
+# from being torn down after a brief idle period.
+Write-Host "Setting startup file and App Service health settings..."
 $startupShPath = Join-Path $PSScriptRoot "startup.sh"
 if (-not (Test-Path -LiteralPath $startupShPath)) {
     throw "Missing startup.sh at '$startupShPath'."
 }
 
 # The remote Linux container will execute this command itself; do not invoke bash locally.
-az webapp config set --resource-group $ResourceGroup --name $AppName --startup-file "sh /home/site/wwwroot/startup.sh" | Out-Null
+# Use bash explicitly because the file is a shell script and some App Service Linux images are stricter about /bin/sh behavior.
+Write-Host "Verifying startup script exists at '$startupShPath'..."
+if (-not (Test-Path -LiteralPath $startupShPath)) {
+    throw "Startup script not found: '$startupShPath'"
+}
+az webapp config set --resource-group $ResourceGroup --name $AppName --startup-file "bash /home/site/wwwroot/startup.sh" --always-on true --health-check-path "/health" | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    throw "Failed to configure Azure startup file."
+    throw "Failed to configure Azure startup file and App Service health settings."
 }
 
 # Build zip artifact
@@ -123,10 +144,10 @@ from pathlib import Path
 root = Path(os.environ["PROJECT_ROOT"]).resolve()
 zip_path = Path(os.environ["ZIP_PATH"])
 include = {"app.py", "__init__.py", "requirements.txt", "startup.sh"}
-include_dirs = {"api", "static", "templates"}
+include_dirs = {"api", "knowledge-base"}
 exclude = {
     ".git", ".venv", "__pycache__", ".pytest_cache", ".azure", ".vs",
-    ".vscode", ".firebase", "node_modules", "knowledge-base", "public",
+    ".vscode", ".firebase", "node_modules", "public",
     "doc", "build-backend.bat", "build-database.bat", "deploy-backend.bat",
     "deploy-frontend.bat", "deploy-gcp-backend.bat", "deploy-gcp-frontend.bat",
     "index-database.bat", "question_log.json", "app.zip"
@@ -150,6 +171,15 @@ if ($LASTEXITCODE -ne 0) {
     throw "Failed to create the Azure deployment zip package."
 }
 
+$zipContents = python -c "import zipfile, os; z = zipfile.ZipFile(os.environ['ZIP_PATH']); print('\n'.join(z.namelist()))" 2>$null
+if ($zipContents) {
+    Write-Host "Zip content preview:"
+    $zipContents | ForEach-Object { Write-Host $_ }
+}
+if (-not ($zipContents -match "(^|/)startup\.sh$")) {
+    throw "Deployment zip does not contain startup.sh. The App Service startup file will not be available."
+}
+
 # Deploy zip
 Write-Host "Deploying to Azure App Service..."
 $previousNativeErrBehavior = $null
@@ -159,12 +189,12 @@ if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction Sile
 }
 
 try {
-    $deployOutput = az webapp deployment source config-zip --resource-group $ResourceGroup --name $AppName --src $zipArtifact --only-show-errors 2>&1
+    $deployOutput = az webapp deploy --resource-group $ResourceGroup --name $AppName --src-path $zipArtifact --type zip --clean true --only-show-errors 2>&1
     $deployText = ($deployOutput | Out-String)
 
     if ($LASTEXITCODE -ne 0) {
-        if ($deployText -match "Status Code:\s*502") {
-            Write-Warning "Azure deploy returned transient 502 from SCM. Verifying latest deployment status..."
+        if ($deployText -match "Status Code:\s*502|timeout|unexpected error") {
+            Write-Warning "Azure deploy returned a transient deployment error. Verifying latest deployment status..."
 
             $deploymentConfirmed = $false
             $maxChecks = 8
@@ -189,10 +219,10 @@ try {
             }
 
             if (-not $deploymentConfirmed) {
-                throw "Azure deploy returned 502 and latest deployment was not confirmed successful."
+                throw "Azure deployment returned a transient error and could not be confirmed successful."
             }
 
-            Write-Host "Deployment confirmed successful despite transient 502."
+            Write-Host "Deployment confirmed successful despite transient Azure error."
         } else {
             if ($deployOutput) {
                 $deployOutput | ForEach-Object { Write-Host $_ }
@@ -206,6 +236,37 @@ try {
     if ($null -ne $previousNativeErrBehavior) {
         $PSNativeCommandUseErrorActionPreference = $previousNativeErrBehavior
     }
+}
+
+# Validate deployed files under /home/site/wwwroot through Kudu VFS API
+Write-Host "Verifying required files in /home/site/wwwroot..."
+try {
+    $publishingCredsJson = az webapp deployment list-publishing-credentials --resource-group $ResourceGroup --name $AppName --only-show-errors -o json
+    if (-not $publishingCredsJson) {
+        throw "Failed to read publishing credentials for Kudu validation."
+    }
+
+    $publishingCreds = $publishingCredsJson | ConvertFrom-Json
+    $scmUri = ("{0}" -f $publishingCreds.scmUri).TrimEnd('/')
+    $kuduUrl = "$scmUri/api/vfs/site/wwwroot/"
+
+    $authPair = "{0}:{1}" -f $publishingCreds.publishingUserName, $publishingCreds.publishingPassword
+    $encodedAuth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($authPair))
+    $headers = @{ Authorization = "Basic $encodedAuth" }
+
+    $wwwrootEntries = Invoke-RestMethod -Uri $kuduUrl -Headers $headers -Method Get -TimeoutSec 30
+    $entryNames = @($wwwrootEntries | ForEach-Object { ("{0}" -f $_.name).TrimEnd('/') })
+
+    $requiredEntries = @("app.py", "__init__.py", "requirements.txt", "startup.sh", "api", "knowledge-base")
+    $missingEntries = @($requiredEntries | Where-Object { $_ -notin $entryNames })
+
+    if ($missingEntries.Count -gt 0) {
+        throw "Missing required deployed entries in /home/site/wwwroot: $($missingEntries -join ', ')"
+    }
+
+    Write-Host "wwwroot validation passed. Required files and folders are present."
+} catch {
+    throw "Failed to validate /home/site/wwwroot contents: $($_.Exception.Message)"
 }
 
 # Simple health check and version verification on the actual bound host name

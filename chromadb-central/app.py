@@ -3,7 +3,7 @@ from fastapi import Body
 from api.query_chromadb import get_collection
 from api.orchestrator import smart_query
 from api.graph_layer import preload_graphs
-from api.routes import query, update, datasets
+from api.routes import query, update, datasets, migration
 import os
 
 """
@@ -17,6 +17,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import asynccontextmanager
 from api.query_chromadb import list_collections, query_vector_db, preload_all_collections
+from api.postgres_db import test_postgres_connection
+
+
+def get_app_version():
+    """Return the deployment version for this API instance."""
+    return os.getenv("APP_VERSION", "local")
 
 # Use FastAPI lifespan context for startup/shutdown logic
 @asynccontextmanager
@@ -69,6 +75,7 @@ app.add_middleware(
 app.include_router(query.router, tags=["query"])
 app.include_router(update.router, tags=["update"])
 app.include_router(datasets.router, tags=["datasets"])
+app.include_router(migration.router, tags=["migration"])
 
 # =====================================================
 # Main Routes
@@ -76,13 +83,16 @@ app.include_router(datasets.router, tags=["datasets"])
 @app.get("/")
 def home():
     """API root endpoint - frontend is hosted on Firebase"""
-    return {"status": "ok", "message": "ChromaDB Central API is running."}
+    return {"status": "ok", "version": get_app_version(), "message": "ChromaDB Central API is running."}
 
 
 @app.get("/health")
 def health():
     """Health check endpoint"""
-    return {"status": "ok"}
+    health_payload = {"status": "ok", "version": get_app_version()}
+    if os.getenv("POSTGRES_HOST") or os.getenv("POSTGRES_DATABASE_URL") or os.getenv("DATABASE_URL"):
+        health_payload["database"] = test_postgres_connection()
+    return health_payload
 
 
 # =====================================================

@@ -1,0 +1,225 @@
+Sous-alimentation et RED-S
+1. Introduction 
+Définir le RED-S
+Le RED-S (Relative Energy Deficiency in Sport) désigne une condition dans laquelle l'énergie disponible est insuffisante pour répondre aux besoins physiologiques essentiels, même si les besoins d'entraînement sont partiellement couverts.
+C’est une évolution du concept de la triade de l’athlète féminine, qui se limitait à : aménorrhée, ostéoporose et trouble alimentaire. Le RED-S englobe un spectre plus large : impact sur la santé métabolique, immunitaire, cardiovasculaire, hormonale, digestive, psychologique, etc.
+Ce syndrome touche toutes les disciplines, et aussi les hommes, mais les femmes sont plus à risque (voir ci-dessous).
+Pourquoi les femmes sont plus à risque :
+Pression sociale et jugement (minceur valorisée, stéréotypes sur la silhouette athlétique idéale)
+Sports à catégories de poids souvent féminin (gymnastique, danse, course de fond, arts martiaux, etc.)
+Méconnaissance de leurs besoins spécifiques (cycle menstruel, fer, récupération)
+Tabous autour des règles et de la santé reproductive
+Risques accrus en cas de végétarisme ou véganisme mal encadré.
+2. Déficit énergétique relatif : mécanisme
+Apports insuffisants vs. dépenses élevées. Voir cycle de la restriction.
+Peut être volontaire (restriction pour perdre du poids, pression de performance) ou involontaire (manque d'appétit, mauvaise planification alimentaire, surcharge d'entraînement).
+Déficit énergétique = énergie consommée – (besoins de base + entraînement + récupération + fonctions vitales)
+Même si l’athlète mange "sainement", l’apport peut être insuffisant pour maintenir l’équilibre énergétique.
+Conséquences physiologiques :
+Endocrinien : baisse de leptine, hormone thyroïdienne (TSH, T3), testostérone et œstrogènes → dérèglement hormonal
+Digestif : ralentissement du transit, inconforts, ballonnement
+Immunitaire : infections à répétition, mauvaise récupération, fracture de stress
+Fatigue chronique et troubles cognitifs
+Reproductif : aménorrhée, infertilité, cycles irréguliers
+Aménorrhé pas toujours liée à un faible % de masse adipeuse.
+Biodisponibilité énergétique, disfonction encocrinienne, stress ++.
+Augmentation des risques :
+Cardiovasculaire : bradycardie, hypotension, risques à long terme
+Santé osseuse : Ostéopénie jusqu’à l’ostéoporose
+3. Signes cliniques à surveiller 
+Happy, Horny Hungry test. Fonction hormonale, psychologique, énergétique / digestive
+Fatigue non proportionnelle à l’entraînement ou qui s’accumule sans récupération
+Plateau ou baisse des performances (maintien des performances courant)
+Troubles du sommeil (endormissement ou réveils fréquents)
+Irritabilité, anxiété, sautes d’humeur
+Perte d’appétit ou obsession alimentaire
+Perte de menstruation ou cycles irréguliers
+Blessures récurrentes, douleurs osseuses
+4. Prévention et éducation
+Alimenter sa performance est clé.
+Stratégies nutritionnelles concrètes :
+Planifier les apports caloriques en fonction des jours de charge
+Ne pas négliger les collations post-entraînement
+Éviter le "train low" trop fréquent
+Timing des repas pour éviter de longues périodes à jeun
+Intégrer des aliments denses en énergie si l’appétit est limité
+Travailler sur la relation à la nourriture (ne pas voir certains aliments comme "mauvais")
+Éduquer les athlètes : une règle absente n’est jamais normale chez une femme active
+5. Conclusion 
+Le RED-S est souvent invisible, mais ses effets sont long termes.
+La performance optimale passe par une énergie suffisante et une santé hormonale stable.
+Les femmes actives ont des besoins spécifiques qu’il faut respecter et valoriser.
+Ouvrir la parole dans les milieux sportifs est essentiel pour éviter des carrières brisées. Les femmes doivent en parler avec leur entraineur ou entourage.
+Nutrition et cycle hormonal
+1. Introduction
+Brève révision du cycle menstruel :
+Phase folliculaire précoce (jours 1 à 5) : œstrogène et progestérone faibles.
+Phase folliculaire tardive / ovulatoire (jours 6 à 15) : œstrogène élevé, progestérone faible.
+Phase lutéale (jours 16 à 28) : œstrogène élevé, progestérone élevé.
+Pourquoi c’est pertinent ?
+Ces hormones ont un impact potentiel sur plusieurs fonctions : métabolisme énergétique, récupération, système nerveux, thermorégulation, humeur, etc.
+On suppose depuis longtemps que le cycle influence la performance, mais les données sont hétérogènes.
+Ce podcast vise à faire le point entre la science, la pratique et les perceptions.
+2. Phases du cycle et performance 
+Résultats de la méta-analyse (McNulty et al., 2020) :
+Effet trivial sur la performance en phase folliculaire précoce (ES médian : -0,06 à -0,14).
+Aucune autre phase ne montre de différence significative en termes de performance.
+Qualité des études globalement faible : 42 % "low", 26 % "very low".
+Recommandation : approche individualisée.
+Variabilité individuelle importante :
+Certaines femmes observent plus de motivation ou de force à l’ovulation, d’autres en phase lutéale.
+D'autres ne perçoivent aucun changement.
+Il n’y a pas de réponse universelle, ce qui renforce l’importance d’un suivi personnel.
+Croyances vs données :
+On pense souvent que l’oxydation des lipides est plus élevée en phase lutéale et des glucides en phase folliculaire.
+Certaines études explorent l’idée d’adapter l’entraînement à ces variations métaboliques.
+En réalité, les données scientifiques sont trop limitées et inconsistantes pour en faire des recommandations générales.
+3. Nutrition et substrats selon les phases
+Effets hormonaux sur le métabolisme :
+Œstrogène : favorise l’épargne du glycogène, augmente l’utilisation des lipides.
+Progestérone : effet anti-œstrogénique, augmente la température corporelle et le métabolisme de base.
+En pratique :
+Phase lutéale : augmentation possible des besoins énergétiques (environ 100 à 300 kcal/jour), surtout si appétit en hausse.
+Phase menstruelle : attention au statut en fer, en particulier chez les sportives d’endurance.
+Aucune stratégie universelle, mais des adaptations individuelles sont possibles.
+EBOOK
+1. Cycle hormonal et performance
+Équilibre hormonal : œstrogène = effet stimulant ; progestérone = effet inhibiteur
+Phase folliculaire précoce : baisse possible de la performance (symptômes menstruels)
+Phase ovulatoire : pic d’œstrogènes, parfois associé à un pic de motivation et activation neuromusculaire
+Phase lutéale : fluctuations possibles (SPM, température corporelle augmentée)
+Environ 50-70 % des athlètes perçoivent un impact du cycle, mais peu adaptent leur entraînement
+2. Cycle hormonal et nutrition
+Ratio œstrogène/progestérone influence l’utilisation des substrats énergétiques
+Œstrogène → favorise oxydation des lipides
+Progestérone → atténue les effets positifs de l’œstrogène
+Recommandations nutritionnelles adaptées :
+Phase folliculaire : glucides prioritaires (meilleure sensibilité à l’insuline)
+Phase lutéale : plus de lipides et stabilité énergétique (appétit accru)
+Importance de la qualité des graisses, de l’équilibre des apports et de l’hydratation
+3. Cycle hormonal et sports d'endurance
+Effets des phases :
+Folliculaire précoce : possible baisse de tolérance à l’effort
+Ovulatoire : hausse possible de la performance (activation, motivation)
+Lutéale : tolérance à la chaleur diminuée, fluctuations énergétiques
+Données contradictoires : effets variables selon les femmes
+Supplémentation en glucides pendant l’effort pourrait compenser les variations de performance
+4. Futur de la recherche sur les femmes athlètes
+Problèmes actuels :
+Trop peu d’études bien contrôlées et centrées sur les femmes
+Phases mal identifiées, tailles d’échantillons faibles, manque de vérification hormonale
+Priorités :
+Mieux suivre et mesurer les cycles (tests salivaires, urinaires, etc.)
+Personnaliser les recommandations (profil répondeuse vs non répondeuse)
+Explorer davantage les effets de la contraception, de la grossesse, de la ménopause
+Appel à l’action :
+Former les intervenants (entraîneurs, nutritionnistes)
+Inclure systématiquement les femmes dans les plans de recherche et d’entraînement
+Résumé
+Phase 1 : Folliculaire précoce (Jours 1 à ~7)
+Hormones : œstrogène et progestérone très bas
+Contexte : période des menstruations
+Effets métaboliques :
+Métabolisme de base stable ou légèrement plus bas
+Sensibilité à l’insuline légèrement meilleure (meilleure utilisation des glucides)
+Possible inconfort (crampes, fatigue, baisse d’énergie les premiers jours)
+Recommandations nutritionnelles :
+Manger selon l’appétit réel, sans trop restreindre
+Miser sur des aliments riches en fer (viandes rouges, légumineuses, tofu, etc.)
+Bien s’hydrater, surtout si perte de sang importante
+Apports en glucides normaux ou légèrement réduits si activité plus faible
+Phase 2 : Ovulatoire (Jours ~8 à 14)
+Hormones : pic d’œstrogène, progestérone encore basse
+Contexte : période de haute énergie et pic de performance potentiel
+Effets métaboliques :
+Sensibilité à l’insuline optimale → meilleure gestion des glucides
+Meilleure tolérance à l’intensité
+Température corporelle encore basse = meilleure thermorégulation
+Recommandations nutritionnelles :
+Très bon moment pour les efforts explosifs ou intenses
+Apports en glucides plus élevés si volume d’entraînement important
+Bien soutenir la récupération (protéines + glucides post-effort)
+Si fringales augmentent, augmenter les portions plutôt que restreindre
+Phase 3 : Lutéale (Jours ~15 à 28)
+Hormones : œstrogène + progestérone élevés
+Contexte : prémenstruel, fluctuations possibles de l’énergie et de l’humeur
+Effets métaboliques :
+Augmentation du métabolisme de base (~100 à 300 kcal/j)
+Appétit souvent plus élevé
+Moindre sensibilité à l’insuline → corps utilise un peu plus de lipides
+Plus grande rétention d’eau, variation de poids fréquente
+Recommandations nutritionnelles :
+Augmenter légèrement l’apport énergétique si la faim est plus présente
+Privilégier des glucides complexes et des gras de qualité (avocats, noix, poissons)
+Collations riches en protéines et fibres pour gérer les fringales
+Attention au sodium et au magnésium pour limiter ballonnements et crampes
+Ne pas paniquer sur la balance → variations normales et transitoires
+4. Image corporelle et fluctuations de poids
+Fluctuations normales à connaître :
+Rétention d’eau fréquente en phase lutéale, pouvant entraîner une variation de poids de 1 à 2 kg.
+Ballonnements, sensation de gonflement, parfois inconfort abdominal.
+Impact psychologique et comportemental :
+Ces fluctuations peuvent affecter l’image corporelle et la confiance en soi.
+Risque de comportements compensatoires : restriction alimentaire, pesées excessives, auto-jugement. S’auto analyser dans les périodes à risque.
+Messages clés :
+Éviter les pesées quotidiennes, surtout autour des menstruations.
+Développer une communication ouverte et bienveillante autour du cycle avec les athlètes.
+Éviter de considérer ces symptômes comme "hors norme" : ils sont fréquents, transitoires et gérables.
+5. Conclusion
+À retenir :
+Les phases du cycle ont des effets variables d’une femme à l’autre. En moyenne, la performance est légèrement diminuée en début de cycle, mais l’effet est trivial.
+Aucune recommandation standard ne peut être faite à ce jour. L’approche doit être individualisée.
+Le suivi du cycle est un outil puissant pour mieux comprendre ses réponses physiologiques, psychologiques et nutritionnelles.
+Conseils pratiques :
+Tenir un journal de cycle incluant énergie, performance, appétit, sommeil, douleurs.
+Adapter nutrition et entraînement selon ses propres symptômes, pas uniquement selon la phase.
+Travailler en collaboration avec des professionnels de la santé pour optimiser la planification et la récupération.
+Supplémentation spécifique aux femmes sportives
+Fer (15 min)
+Besoins accrus (18 mg/jour vs. 8 mg chez les hommes)
+Risques accrus de carence : règles abondantes, végétarisme, endurance
+Dépistage : ferritine < 30 µg/L = à surveiller chez sportives
+Supplémentation : types (bisglycinate, fumarate), interactions (éviter calcium/thé/café)
+Créatine (15 min)
+Non spécifique aux hommes : même bénéfices chez les femmes
+Amélioration de la force, récupération, cognition
+Doses recommandées : 3-5 g/jour, pas nécessaire de "charger"
+Recommandée notamment en périménopause/menopause
+Oméga-3 & vitamine D (15 min)
+Oméga-3 : réduction de l’inflammation, douleurs menstruelles, santé cognitive
+Vit D : immunité, densité osseuse, souvent déficiente chez les sportives nordiques
+Tests et dosages recommandés (sang, supplémentation de base vs. thérapeutique)
+Conclusion / Q&A pratiques (15-20 min)
+Cas concrets : quand et pourquoi intégrer un supplément
+Erreurs fréquentes : auto-supplémentation, manque de suivi
+Importance du contexte individuel et des analyses sanguines
+Nutrition intrasport et récupération
+Apports glucidiques élevés : pourquoi? (15-20 min)
+90-100 g/h = possible même chez les femmes avec entraînement du tube digestif
+Souvent sous-consommés chez les femmes
+Impact sur la performance, la récupération, les hormones (moins de cortisol)
+Lipides : rôle important (10-15 min)
+Souvent négligés dans les diètes hypocaloriques
+Rôle hormonal (synthèse des stéroïdes), système nerveux
+Lipides de qualité : avocats, noix, huile d’olive, poissons gras
+Récupération optimisée (20-25 min)
+Fenêtre métabolique : protéines + glucides dans les 30-60 minutes post-effort
+Reconstitution du glycogène
+Refaire le plein de fer, réhydratation (boissons riches en sodium)
+Rôle du sommeil dans la récupération (aider avec magnésium, collagène)
+Études et cas concrets (10 min)
+Études sur l’absorption des glucides chez les femmes
+Exemples d’approche personnalisée (sports d’endurance, CrossFit, etc.)
+Sujets complémentaires (30-40 min chacun si intégrés à un épisode multiple)
+Nutrition et ménopause / périménopause
+Changements métaboliques : baisse de la dépense énergétique, redistribution des graisses
+Baisse des œstrogènes → impact sur les os, la récupération, la gestion du glucose
+Recommandations : protéines plus élevées, oméga-3, vitamine D, activité résistance priorisée
+Microbiote et performance
+Influence sur l’absorption des nutriments, l’immunité, les performances
+Liens émergents entre microbiote et santé hormonale
+Probiotiques : quels souches et dans quels cas ?
+Troubles digestifs en endurance
+Prévalence élevée chez les femmes (ballonnements, diarrhées, crampes)
+Causes : hypoperfusion digestive, FODMAPs, anxiété
+Stratégies : entraînement digestif, choix d’aliments bas FODMAPs, timing

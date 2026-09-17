@@ -3,6 +3,7 @@ Minimal ChromaDB access layer for central API.
 """
 import os
 import subprocess
+from urllib.parse import quote_plus
 from dotenv import load_dotenv
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
@@ -10,12 +11,89 @@ import chromadb
 from google.cloud import storage
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(PROJECT_ROOT, ".env"), override=True)
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"), override=False)
 
 OPENAI_API_KEY = os.getenv("AI_GATEWAY_API_KEY") or os.getenv("OPENAI_API_KEY")
 OPENAI_API_BASE = os.getenv("AI_GATEWAY_BASE_URL", "https://ai-gateway.vercel.sh/v1")
 
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "agent-factory-database")
+
+
+def _postgres_setting(name, default=""):
+    value = os.getenv(name, default)
+    if value is None:
+        return default
+    return str(value).strip()
+
+
+def get_postgres_dsn():
+    """Build the Postgres DSN for Azure Database for PostgreSQL Flexible Server."""
+    configured_url = os.getenv("POSTGRES_DATABASE_URL") or os.getenv("DATABASE_URL")
+    if configured_url:
+        return configured_url.rstrip("/")
+
+    host = _postgres_setting("POSTGRES_HOST")
+    port = _postgres_setting("POSTGRES_PORT", "5432") or "5432"
+    db = _postgres_setting("POSTGRES_DB")
+    user = _postgres_setting("POSTGRES_USER")
+    password = _postgres_setting("POSTGRES_PASSWORD")
+    sslmode = _postgres_setting("POSTGRES_SSLMODE", "require") or "require"
+
+    if not host or not db:
+        raise RuntimeError("POSTGRES_HOST and POSTGRES_DB must be configured before connecting to PostgreSQL.")
+    if not user:
+        raise RuntimeError("POSTGRES_USER must be configured before connecting to PostgreSQL.")
+    if not password:
+        raise RuntimeError("POSTGRES_PASSWORD must be configured before connecting to PostgreSQL.")
+
+    return (
+        f"postgresql://{quote_plus(user)}:{quote_plus(password)}@"
+        f"{host}:{port}/{db}?sslmode={sslmode}"
+    )
+
+
+def get_postgres_connection():
+    """Open a PostgreSQL connection using the configured Azure server."""
+    try:
+        import psycopg
+    except ImportError as exc:
+        raise RuntimeError("psycopg is not installed. Install it with: pip install 'psycopg[binary]' ") from exc
+
+    dsn = get_postgres_dsn()
+    return psycopg.connect(dsn, connect_timeout=10)
+
+
+def test_postgres_connection():
+    """Validate the configured connection and return a health payload."""
+    if not (os.getenv("POSTGRES_HOST") or os.getenv("POSTGRES_DATABASE_URL") or os.getenv("DATABASE_URL")):
+        return {
+            "status": "not_configured",
+            "details": "POSTGRES_HOST or DATABASE_URL is not configured.",
+        }
+
+    conn = None
+    try:
+        conn = get_postgres_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+            result = cur.fetchone()
+        return {
+            "status": "ok" if result == (1,) else "unknown",
+            "host": _postgres_setting("POSTGRES_HOST", "configured"),
+            "database": _postgres_setting("POSTGRES_DB", "configured"),
+            "details": "PostgreSQL connection verified.",
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "details": str(exc),
+            "host": _postgres_setting("POSTGRES_HOST", "unknown"),
+            "database": _postgres_setting("POSTGRES_DB", "unknown"),
+        }
+    finally:
+        if conn is not None:
+            conn.close()
+
 
 # Embedding model per project (innovia uses small, others use large)
 _EMBEDDING_MODELS = {

@@ -1,0 +1,295 @@
+PEAK – Revue des récentes avancées en nutrition de performance 
+Stratégies avancées en nutrition et supplémentation pour athlètes d’élite
+Benoit Boulanger Dt.P M.Sc
+Introduction
+Chose à prendre en compte quand on critique la littérature en nutrition sportive :
+Aucun aliment ou supplément à lui seul ne peut favoriser la performance. AUCUN.
+Effet généralisé qui supporte une recommandation global vs effet limité mais constant chez athlete entrainé. Un effet limité (1%) pour un athlète Élite est souvent significative. Effet absolue vs relatif.
+ Une seule étude ne peut pas supporter l’utilisation d’un supplément. Souvent on donne en exemple une seule étude mais on devient beaucoup trop biaisé par la méthodologie et les biais des chercheurs. Revue, meta-analyse au minimum pour tirer des conclusions.
+ High vs low responder. Différence génétique dans la réponse à la supplémentation. 
+ Athlète entrainé en bonne santé vs population générale, ou en carence. Une carence ne peut pas justifier lutilisation dun suppléement quand on parle de peak performance.
+Comment on arrive à une conclusion sur la performance. Le Modèle animal nous amène la théorie. Effet sur les concentrations dans le sang nous démontre l’efficacité. Effet de l’efficacité sur la performance direct vs placebo. Ensuite prendre en compte effet secondaire.
+Ketone
+-Amélioration de l’endurance et motricité chez l’animal.
+-Les cétones monoesters peuvent augmenter de manière aiguë les taux sériques d’EPO
+-Améliorer synthèse glycogene post effort.
+-Effet cognitif d’état d’éveil chez certain.
+-Aucune étude où on peut identifier ces effets chez l’humain.
+-Plusieurs travaux montrent l’absence d’effet.
+- l’International Journal of Sport Nutrition and Exercise Metabolism a montré que la supplémentation en cétones n’améliorait pas — et pouvait même altérer — la performance chez des athlètes d’endurance hautement entraînés.
+Supplémentation en cétones et performance physique
+La supplémentation en cétones a été présentée comme un moyen potentiel d’améliorer la performance physique et sportive. Toutefois, les données actuelles chez l’humain ne montrent aucun bénéfice constant ou significatif sur la performance à l’exercice.
+Si certains travaux sur modèles animaux suggèrent des améliorations possibles, les résultats obtenus chez l’humain sont mitigés et montrent souvent l’absence d’effet.
+Résultats sur la performance humaine
+Les revues systématiques et méta-analyses d’essais cliniques randomisés rapportent de façon cohérente que la supplémentation en cétones n’améliore pas significativement l’endurance, la capacité aérobie ou la puissance maximale chez l’humain, par rapport à un placebo ou à une condition témoin.
+La majorité des études ne trouve aucune différence en termes de performance sur contre-la-montre, de VO₂max ou de perception de l’effort après ingestion de cétones.
+Une minorité de travaux rapporte de faibles effets positifs ou négatifs, mais ceux-ci restent inconstants et sont souvent contrebalancés par des résultats neutres dans d’autres essais.
+Études animales et données mécanistiques
+Chez le rongeur, certains régimes ou suppléments à base de cétones ont montré une amélioration de la motricité et de l’endurance, mais ces effets ne se traduisent pas directement chez l’humain.
+Des études mécanistiques suggèrent que les cétones peuvent modifier l’utilisation des substrats énergétiques et avoir un effet d’épargne glycogénique, mais ces adaptations métaboliques n’ont pas conduit à des gains de performance clairs dans les essais humains.
+Endurance et récupération
+Une étude a montré une légère amélioration de la performance en endurance avec une supplémentation post-exercice en cétones chez des hommes actifs récréatifs, mais cet effet n’était pas associé à une modification de la fonction cardiaque et nécessite des recherches supplémentaires.
+Aucune preuve solide ne soutient des bénéfices sur la récupération, la cognition ou l’adaptation musculaire chez les athlètes.
+Suppléments commerciaux – Exemple : Ketone IQ
+Les suppléments tels que Ketone-IQ ont été testés pour leur potentiel d’amélioration de la performance. Cependant, une étude publiée dans l’International Journal of Sport Nutrition and Exercise Metabolism a montré que la supplémentation en cétones n’améliorait pas — et pouvait même altérer — la performance chez des athlètes d’endurance hautement entraînés.
+Les résultats indiquent que l’ingestion de cétones pourrait affecter le pH sanguin et augmenter la fatigue, ce qui pourrait annuler tout éventuel bénéfice énergétique.
+Cétones monoesters
+Performance physique
+Les cétones monoesters sont commercialisées comme ergogènes potentiels, mais les données montrent qu’elles n’améliorent pas de façon constante la performance en endurance ou lors d’exercices à haute intensité.
+Certaines études rapportent de légers effets métaboliques ou cognitifs, mais l’ensemble des résultats ne soutient pas leur utilisation généralisée chez les athlètes.
+Des travaux menés chez des coureurs et cyclistes entraînés indiquent que la prise de cétones monoesters, seules ou combinées à des glucides, n’améliore pas la performance en contre-la-montre, l’économie de course ou le temps jusqu’à l’épuisement, comparativement aux glucides seuls.
+Une méta-analyse a confirmé que ces suppléments n’augmentent pas de manière significative la performance en endurance (temps jusqu’à l’épuisement ou performance sur contre-la-montre).
+Effets cognitifs et métaboliques
+Certaines études ont observé une amélioration de la vigilance et du temps de réaction après ingestion de cétones monoesters associées à des glucides, mais sans amélioration parallèle de la performance physique.
+La supplémentation peut réduire les concentrations sanguines de lactate et de glucose, mais ces modifications métaboliques ne se traduisent pas par de meilleurs résultats à l’exercice.
+Mécanismes et récupération
+EPO et angiogenèse : les cétones monoesters peuvent augmenter de manière aiguë les taux sériques d’EPO et certains marqueurs d’angiogenèse musculaire, ce qui est lié à l’amélioration de l’apport en oxygène et aux adaptations d’endurance, mais ces liens restent indirects.
+Synthèse du glycogène : leur ingestion après l’exercice, particulièrement avec un apport élevé en glucose, favorise la resynthèse du glycogène musculaire et augmente l’insulinémie, ce qui peut soutenir la récupération, sans bénéfice direct sur la performance en endurance.
+Récupération cognitive : certaines données suggèrent une meilleure alerte mentale et une réduction de la fatigue cognitive lors d’événements d’ultra-endurance, ainsi qu’une réduction potentielle de l’inflammation musculaire post-exercice, mais sans amélioration tangible de la performance physique.
+Potentiel dans des contextes spécifiques
+Dans un contexte particulier, l’association cétones monoesters + bicarbonate a conduit à une augmentation de 5 % de la puissance moyenne sur un contre-la-montre de 15 minutes à la fin d’un événement cycliste prolongé, suggérant un bénéfice possible lorsque l’équilibre acido-basique est maintenu.
+Conclusion
+Les données actuelles indiquent que la supplémentation en cétones monoesters n’améliore pas de manière fiable la performance physique en endurance ou lors d’exercices de haute intensité.
+Bien que de petits bénéfices puissent être observés dans des contextes spécifiques ou sur certaines fonctions cognitives, ces effets restent inconstants et insuffisamment robustes pour recommander leur utilisation dans un objectif d’amélioration générale de la performance.
+L-Carnitine and acetyl-L-Carnitine
+-Facilite transport des acides gras, production d’énergie facilité.
+-Dosage chronique, saturation long terme.
+-Augmente la teneur en carnitine, associé à une amélioration de la capacité de travail, une diminution de la perception de l’effort et une augmentation de l’oxydation des graisses lors d’exercices à faible intensité.
+Étude animal prometteuse.
+-Effet non observé chez personne non carencé.
+-Semble une bonne idée en théorie, mais pas d’effet pratique chez les athletes entrainés.
+La L-carnitine et son dérivé, l’acétyl-L-carnitine, font l’objet de nombreuses recherches pour leur rôle dans le métabolisme énergétique du muscle squelettique et leur potentiel en tant qu’ergogènes pour améliorer la performance en endurance.
+La L-carnitine facilite le transport des acides gras à longue chaîne vers la mitochondrie pour la β-oxydation, tandis que l’acétyl-L-carnitine agit comme un tampon d’acétyl, pouvant soutenir la production d’énergie lors d’un effort prolongé.
+Malgré ce potentiel mécanistique, les preuves en faveur d’une amélioration de la performance chez les athlètes en bonne santé sont mitigées.
+Certaines études rapportent des gains en endurance, en récupération et sur certains marqueurs métaboliques, en particulier avec une supplémentation chronique et dans des populations spécifiques telles que les personnes âgées ou présentant une carence en carnitine.
+Cependant, plusieurs essais bien contrôlés et méta-analyses ne montrent aucun bénéfice significatif sur la performance chez des individus entraînés et en bonne santé, surtout avec une supplémentation aiguë.
+Des travaux sur modèles animaux et des études mécanistiques suggèrent des effets bénéfiques possibles sur le métabolisme énergétique, la réduction du stress oxydatif et la récupération musculaire, mais leur transposition en gains de performance reproductibles chez l’humain reste incertaine.
+Cette revue synthétise l’état actuel de la littérature en mettant en lumière les effets nuancés de la L-carnitine et de l’acétyl-L-carnitine sur la performance d’endurance, la récupération et les processus métaboliques sous-jacents.
+3. Résultats
+3.1 Populations étudiées et protocoles de supplémentation
+Les études incluent une diversité de populations : athlètes d’endurance entraînés, personnes actives récréatives, adultes plus âgés et modèles animaux.
+Les protocoles de supplémentation varient fortement, allant de doses aiguës (2 à 4 g) à des régimes chroniques (1 à 4 g/jour pendant 4 à 24 semaines).
+Certaines études associent la L-carnitine à des glucides afin d’optimiser sa captation musculaire.
+3.2 Effets sur la performance en endurance
+La supplémentation aiguë en L-carnitine n’améliore généralement pas la performance chez les athlètes d’endurance ni lors d’efforts de courte durée.
+La supplémentation chronique, notamment lorsqu’elle est combinée à des glucides, augmente la teneur musculaire en carnitine et a été associée à une amélioration de la capacité de travail, une diminution de la perception de l’effort et une augmentation de l’oxydation des graisses lors d’exercices à faible intensité.
+Cependant, ces effets ne sont pas observés de manière universelle, et certaines méta-analyses n’ont trouvé aucun avantage significatif en termes de performance chez des sujets sains.
+3.3 Données mécanistiques et récupération
+Les études mécanistiques soulignent le rôle de la L-carnitine dans l’oxydation des acides gras, la fonction mitochondriale et le tamponnage des groupes acétyl.
+La supplémentation pourrait réduire les dommages musculaires induits par l’exercice, le stress oxydatif et améliorer des marqueurs de récupération tels que la créatine kinase ou les courbatures.
+L’acétyl-L-carnitine, en particulier, semble soutenir le tamponnage de l’acétyl-CoA et le métabolisme énergétique lors d’un effort prolongé.
+3.4 Populations spécifiques et données contrastées
+Les bénéfices de la supplémentation en L-carnitine sont plus prononcés chez les individus présentant une carence en carnitine ou des altérations métaboliques, tels que les patients atteints d’un déficit primaire en carnitine ou les personnes âgées, où l’on observe une amélioration de l’oxydation lipidique et de la tolérance à l’effort.
+Les études animales montrent de manière constante une amélioration de l’endurance et une réduction de la fatigue avec la supplémentation.
+Toutefois, plusieurs études humaines bien contrôlées et revues systématiques rappellent que, chez des athlètes sains et bien nourris, les effets ergogènes restent limités ou incohérents.
+4. Discussion
+La littérature présente un tableau complexe et parfois contradictoire concernant les effets ergogènes de la L-carnitine et de l’acétyl-L-carnitine sur la performance d’endurance.
+Si les études mécanistiques et sur modèles animaux démontrent de manière constante une amélioration de l’oxydation des acides gras, de la fonction mitochondriale et une réduction du stress oxydatif, la transposition à des gains de performance reproductibles chez l’humain entraîné reste limitée.
+La supplémentation chronique, surtout en combinaison avec des glucides, peut augmenter la teneur musculaire en carnitine et améliorer l’endurance et la récupération dans certains contextes, mais ces effets ne sont pas universels et semblent dépendre du statut initial en carnitine, de l’âge et du niveau d’entraînement.
+Les preuves les plus solides concernent les populations présentant une carence ou une altération métabolique.
+Globalement, la qualité des données est élevée pour les effets mécanistiques et métaboliques, mais modérée à faible pour les améliorations directes de performance chez les athlètes sains.
+Des recherches supplémentaires sont nécessaires pour clarifier les protocoles optimaux de dose, de durée et les populations cibles.
+5. Conclusion
+En résumé, la L-carnitine et l’acétyl-L-carnitine jouent un rôle important dans le métabolisme énergétique musculaire.
+La supplémentation peut améliorer l’oxydation lipidique, la récupération et certains paramètres métaboliques dans des populations spécifiques.
+Cependant, les preuves actuelles ne soutiennent pas de manière cohérente une amélioration significative de la performance d’endurance chez les individus sains et entraînés.
+Les bénéfices sont les plus marqués chez les personnes présentant une carence en carnitine ou des altérations métaboliques, et les protocoles chroniques semblent plus efficaces que les doses aiguës.
+(IZADI MOJTABA ET AL. 2010) (E. BROAD ET AL. 2005) (JANG-KYU LEE ET AL. 2007) (JANG-KYU LEE ET AL. 2006) (E. BROAD ET AL. 2011)
+Glucosinolate-rich broccoli sprouts
+-Pousse de brocolis riche - Propriété antyoxydantes du glucosinolate (forte concentration).
+-Augmentation de la performance chez athlete d’endurance, réduction de l’oxydation des protéines musculaires et reduction des marqueurs de fatigue. Moins grande accumulation de lactate sanguine.
+-Dans la même famille que le tart cherry juice, concentré antyoxydant réduisant le dommage du stress oxydatif. Entrainement = stresseur.
+Introduction
+Les pousses de brocoli riches en glucosinolates ont été étudiées pour leur potentiel à améliorer la performance physique, en grande partie grâce à leurs propriétés antioxydantes. Les données les plus directes suggèrent que leur consommation peut favoriser les adaptations à l’entraînement et améliorer la performance, particulièrement dans des contextes d’entraînement intense.
+Effets sur la performance à l’exercice
+Amélioration de la performance physique
+Une supplémentation en pousses de brocoli riches en glucosinolates, sur une période d’une semaine d’entraînement intensif, a entraîné une amélioration mesurable des performances physiques par rapport au placebo.
+Ces effets s’accompagnaient d’une réduction de l’oxydation des protéines musculaires et de marqueurs sanguins de stress oxydatif.
+Réduction des marqueurs de fatigue
+Les participants ayant consommé des pousses de brocoli présentaient une accumulation moindre de lactate lors d’un exercice sous-maximal, ce qui indique une meilleure endurance et une diminution de la fatigue.
+Meilleure stabilité glycémique
+L’intervention a également réduit l’incidence d’hypoglycémies nocturnes sévères, suggérant une amélioration de la stabilité métabolique pendant et après l’exercice.
+Mécanismes d’action
+Renforcement de la défense antioxydante
+Les glucosinolates sont convertis en isothiocyanates, qui activent des voies antioxydantes et protègent les protéines musculaires et les mitochondries du stress oxydatif induit par l’exercice.
+Augmentation des composés bioactifs
+Des méthodes visant à accroître la teneur en glucosinolates dans les pousses de brocoli — telles qu’une exposition accrue au CO₂ ou un traitement au peroxyde d’hydrogène — renforcent encore leurs propriétés antioxydantes et anti-inflammatoires.
+Bien que ces effets améliorent la santé globale et la récupération, les liens directs avec la performance physique n’ont pas été testés dans ces études spécifiques.
+Table: Key Performance-Related Effects of Glucosinolate-Rich Broccoli Sprouts
+Conclusion
+Les pousses de brocoli riches en glucosinolates peuvent améliorer la performance physique et les adaptations à l’exercice, principalement en réduisant le stress oxydatif et en optimisant les réponses métaboliques pendant un entraînement intense.
+Ces bénéfices sont surtout démontrés dans des contextes d’exercices de courte durée et de haute intensité.
+(FLOCKHART; NILSSON; TILLQVIST; VINGE et al., 2023)
+Tart cherry juice
+-Jus de cerise acidulée riche en polyphénol
+- teneur élevée en polyphénols et anthocyanines, capables de neutraliser les radicaux libres et de moduler les voies inflammatoires
+-Les preuves en faveur du jus de cerise acidulée comme aide à la récupération après l’endurance sont solides, avec de multiples essais randomisés et méta-analyses montrant des bénéfices modestes mais réels sur la récupération musculaire, la réduction de la douleur et l’atténuation de l’inflammation
+-Améliore modestement la récupération musculaire, surtout lors de surcharge intense. Il faut un gros stress pour bénéficier de ce genre de detail.
+-Bien toléré, sécuritaire. 
+-250-350 ml pendant 7 jours avant et après effort.
+-Peu efficace chez athlète regulier.
+Introduction
+Le jus de cerise acidulée (tart cherry juice) a gagné en popularité comme aide à la récupération chez les athlètes d’endurance, en raison de sa richesse en polyphénols, et plus particulièrement en anthocyanines, dotés de propriétés antioxydantes et anti-inflammatoires.
+De nombreuses études — incluant des essais randomisés contrôlés et des méta-analyses — ont examiné si la supplémentation en jus de cerise acidulée pouvait améliorer la récupération musculaire après un exercice d’endurance.
+La majorité des données de haute qualité suggère que cette supplémentation peut accélérer modestement la récupération de la force musculaire, réduire les douleurs musculaires (delayed onset muscle soreness) et atténuer l’inflammation après des efforts d’endurance intenses, tels que le marathon, le cyclisme ou le triathlon【1861830364244+2 MORE】.
+Cependant, certaines études rapportent des effets mitigés ou nuls, en particulier dans des protocoles moins exigeants ou chez certaines populations【37113748】.
+L’efficacité semble maximale lorsque la supplémentation débute plusieurs jours avant l’épreuve et se poursuit durant la période de récupération【42514】.
+Cette revue synthétise les données actuelles sur l’utilisation du jus de cerise acidulée pour la récupération musculaire après l’exercice d’endurance, en soulignant les principaux résultats, les mécanismes et les considérations pratiques pour les athlètes.
+Résultats
+Conception des études et populations
+Les études incluses comprennent des essais contrôlés randomisés, des méta-analyses, des revues systématiques et des interventions expérimentales.
+Les populations étudiées incluent des athlètes d’endurance récréatifs et compétitifs (coureurs, cyclistes, triathlètes), des sportifs d’équipes, ainsi que des participants masculins et féminins【18183029424423+2 MORE】.
+Effets sur la récupération musculaire
+La majorité des travaux montrent que la supplémentation en jus de cerise acidulée, commencée plusieurs jours avant et poursuivie après l’exercice, permet :
+une récupération plus rapide de la force musculaire (ex. contraction volontaire maximale),
+une réduction des douleurs musculaires,
+une diminution des marqueurs inflammatoires tels que l’interleukine-6 (IL-6) et la protéine C-réactive (CRP)【18183036424423+1 MORE】.
+Par exemple, des marathoniens et cyclistes ayant consommé du jus de cerise acidulée ont présenté une récupération de force plus rapide et une inflammation réduite par rapport au placebo【13044】.
+Les méta-analyses confirment des effets bénéfiques petits à modérés sur la douleur musculaire et la récupération de la force【823】.
+Inflammation et stress oxydatif
+Le jus de cerise acidulée réduit de manière constante l’inflammation et le stress oxydatif post-exercice, avec des niveaux plus faibles d’IL-6, de CRP et de marqueurs de peroxydation lipidique dans les groupes supplémentés【1830441042】.
+Ces effets sont attribués à la teneur élevée en polyphénols et anthocyanines, capables de neutraliser les radicaux libres et de moduler les voies inflammatoires.
+Résultats mitigés ou nuls
+Certaines études — notamment celles impliquant un exercice moins exigeant, des individus non entraînés en résistance ou certains sports collectifs — ne rapportent aucune différence significative entre le jus de cerise acidulée et le placebo concernant la douleur, la force ou l’inflammation【37113748】.
+L’efficacité pourrait donc dépendre de l’ampleur des dommages musculaires, du type d’exercice et du niveau d’entraînement des participants.
+Discussion
+Les preuves en faveur du jus de cerise acidulée comme aide à la récupération après l’endurance sont solides, avec de multiples essais randomisés et méta-analyses montrant des bénéfices modestes mais réels sur la récupération musculaire, la réduction de la douleur et l’atténuation de l’inflammation【18183036424423+1 MORE】.
+Les effets sont les plus constants chez les athlètes d’endurance soumis à un exercice long et exigeant, où les dommages musculaires et l’inflammation sont marqués.
+Les mécanismes sont probablement liés aux propriétés antioxydantes et anti-inflammatoires des polyphénols, qui limiteraient les dommages musculaires secondaires et accéléreraient la récupération fonctionnelle【18441046】.
+Cependant, les effets ne sont pas universels. Certaines études sur des exercices moins intenses, des sportifs peu entraînés ou certains sports d’équipe (football, rugby) ne montrent aucun bénéfice【37113748】.
+Cela suggère que l’ampleur des dommages musculaires et le type d’effort influencent l’efficacité.
+Les protocoles optimaux de dosage et de timing restent à préciser, bien que la plupart des études efficaces adoptent une stratégie de précharge (plusieurs jours avant et après l’épreuve)【42514】.
+Dans l’ensemble, le jus de cerise acidulée est une intervention naturelle, sûre et bien tolérée, présentant des bénéfices modestes mais intéressants pour la récupération musculaire des athlètes d’endurance, en particulier lorsqu’il est utilisé stratégiquement lors de périodes de forte charge d’entraînement ou de compétition.
+Conclusion
+En résumé, la supplémentation en jus de cerise acidulée peut améliorer modestement la récupération musculaire après un exercice d’endurance, notamment en accélérant la récupération de la force, en réduisant les douleurs et en atténuant l’inflammation.
+Les bénéfices sont les plus nets chez les athlètes d’endurance après un effort intense, mais restent moins constants dans d’autres populations ou types d’exercice.
+Bicarb
+- Le bicarbonate de sodium agit comme tampon extracellulaire, réduisant l’acidose et retardant la fatigue lors d’exercices intenses
+-beaucoup de littérature, meta analyse et revue.
+- la puissance anaérobie maximale, l’endurance musculaire et la performance dans des épreuves durant environ 45 secondes à 8 minutes 
+-pas deffet sur force max
+-0Les protocoles courants prévoient un dosage de 0,2 à 0,3 g/kg de masse corporelle, administré 60 à 180 minutes avant l’exercice
+- Des formulations entérosolubles ou sous forme d’hydrogel, ainsi qu’un ajustement individualisé du moment de prise, peuvent réduire les effets gastro-intestinaux et optimiser les bénéfices
+Introduction
+Le bicarbonate de sodium (NaHCO₃) est largement étudié comme aide ergogène pour les athlètes, avec un important corpus de preuves soutenant son utilisation afin d’améliorer la performance lors d’exercices de haute intensité, anaérobies et intermittents.
+De multiples méta-analyses et revues systématiques ont montré que la supplémentation en bicarbonate de sodium peut améliorer de façon aiguë la puissance anaérobie maximale, l’endurance musculaire et la performance dans des épreuves durant environ 45 secondes à 8 minutes — comme les sprints, l’aviron ou les efforts répétés de haute intensité【145612141719+2 MORE】.
+Le mécanisme principal repose sur l’augmentation de la capacité tampon extracellulaire, retardant la fatigue en contrebalançant l’acidose induite par l’exercice【291224】.
+En revanche, les bénéfices sont moins nets pour la force maximale, la force isométrique sous-maximale ou les épreuves d’endurance prolongée, certaines études ne rapportant aucune amélioration significative【5164647】.
+Des travaux récents mettent également en lumière l’importance de stratégies de dosage individualisées, les différences selon le sexe, ainsi que le risque d’effets gastro-intestinaux, atténuables via des formulations ou timings spécifiques【11121644】.
+Dans l’ensemble, le bicarbonate de sodium est considéré comme une aide ergogène bien établie dans des contextes précis, mais son efficacité dépend du type d’exercice, du dosage et de la variabilité individuelle【145612141719+2 MORE】.
+Résultats
+Effets sur la performance anaérobie et de haute intensité
+Les preuves les plus solides concernent les effets ergogènes du bicarbonate de sodium dans des activités courtes, intenses et répétées.
+Les méta-analyses et revues systématiques rapportent de modérées à importantes améliorations de la puissance maximale et moyenne, de l’endurance musculaire et de la performance dans des épreuves comme le sprint, l’aviron, le CrossFit ou les sports de combat【145612141517+3 MORE】.
+Par exemple, il a été observé :
+Une amélioration du temps sur 2 km en aviron chez des athlètes féminines【11】
+Un gain de performance aux tests de sprint répété et Yo-Yo【213639】
+Une augmentation du travail total produit lors de protocoles de sprints répétés【2526】
+Effets sur la performance en endurance et en force
+Les bénéfices sont maximaux pour les épreuves de 45 secondes à 8 minutes, avec un niveau de preuve modéré concernant l’endurance musculaire et la course intermittente de haute intensité【45121419】.
+En revanche, les données sont moins convaincantes pour les épreuves d’endurance prolongée et la force maximale : certaines études n’ont observé aucun effet significatif sur la performance en contre-la-montre ou sur la force isométrique sous-maximale【5164647】, bien que de légères améliorations du temps jusqu’à l’épuisement et de la vitesse maximale aient été rapportées【3350】.
+Mécanismes, dosage et variabilité individuelle
+Le bicarbonate de sodium agit comme tampon extracellulaire, réduisant l’acidose et retardant la fatigue lors d’exercices intenses【291224】.
+Les protocoles courants prévoient un dosage de 0,2 à 0,3 g/kg de masse corporelle, administré 60 à 180 minutes avant l’exercice【11216】.
+La réponse varie selon des facteurs tels que le timing, le niveau d’entraînement et le sexe【91216】.
+Des formulations entérosolubles ou sous forme d’hydrogel, ainsi qu’un ajustement individualisé du moment de prise, peuvent réduire les effets gastro-intestinaux et optimiser les bénéfices【114244】.
+Différences selon le sexe, effets secondaires et co-supplémentation
+Bien que la majorité des recherches concernent les hommes, des revues récentes montrent que les femmes bénéficient également d’effets positifs, les recommandations de dosage actuelles étant appropriées pour les deux sexes【1216】.
+L’inconfort gastro-intestinal reste un effet secondaire fréquent, mais il peut être atténué par des formulations adaptées【114244】.
+La co-supplémentation avec la bêta-alanine ou la caféine pourrait offrir des effets complémentaires, bien que les preuves d’une synergie réelle soient mitigées【13293137】.
+Discussion
+Le consensus scientifique est que le bicarbonate de sodium constitue une aide ergogène efficace pour les exercices anaérobies, de haute intensité et répétés, avec des bénéfices de modérés à importants confirmés par de nombreuses méta-analyses et prises de position officielles【14512142739】.
+Les effets sont particulièrement marqués pour les épreuves de 45 secondes à 8 minutes — sprints, aviron, sports collectifs — où le tamponnage de l’acidose est un facteur clé【451214192739】.
+Cependant, les résultats sont plus incertains pour la force maximale et l’endurance prolongée【5164647】.
+Malgré un niveau globalement élevé de preuves, l’hétérogénéité des protocoles et des profils participants explique certaines divergences【3591216】.
+La variabilité interindividuelle, la tolérance digestive et l’optimisation du moment de la prise demeurent des considérations pratiques importantes【91112164244】.
+De nouvelles méthodes de formulation et de personnalisation du protocole laissent entrevoir une amélioration de la tolérance et de l’efficacité【114244】.
+Conclusion
+La supplémentation en bicarbonate de sodium est une aide ergogène bien documentée pour améliorer la performance lors d’exercices de haute intensité, anaérobies et répétés, avec un bénéfice maximal dans les activités de 45 secondes à 8 minutes.
+Son efficacité pour la force maximale et l’endurance prolongée reste moins claire.
+La réponse individuelle et les effets secondaires doivent être pris en compte pour une utilisation optimale.
+(AKTITIZ; KOşAR; TURNAGöL, 2024) (MCNAUGHTON; FORD; NEWBOLD, 1997) (DALLE; KOPPO; HESPEL, 2020) (DURKALEC-MICHALSKI; ZAWIEJA; PODGóRSKI; ŁONIEWSKI et al., 2018)
+Nitric oxide precursor (beets)
+- Les précurseurs de l’oxyde nitrique (NO), en particulier ceux issus des concentrés de jus de betterave
+- une molécule qui améliore la fonction vasculaire, l’efficacité musculaire et le transport de l’oxygène
+-Les revues systématiques et les essais contrôlés randomisés rapportent de manière constante que la supplémentation en jus de betterave peut améliorer l’endurance cardio-respiratoire, augmenter le temps jusqu’à l’épuisement à des intensités sous-maximales et améliorer la performance au seuil anaérobie et au VO2max
+-Dans l’ensemble, la littérature suggère que les précurseurs de NO dérivés de la betterave peuvent constituer une aide ergogénique pratique pour les athlètes d’endurance, les bénéfices les plus importants étant observés dans des contextes d’exercice aérobies et sous-maximaux
+-pas d’effet notable sur les sprint.
+Les précurseurs de l’oxyde nitrique (NO), en particulier ceux issus des concentrés de jus de betterave, ont suscité un intérêt considérable pour leur potentiel à améliorer la performance en endurance. La betterave est riche en nitrates alimentaires, qui sont convertis dans l’organisme en NO, une molécule qui améliore la fonction vasculaire, l’efficacité musculaire et le transport de l’oxygène — des facteurs clés pour l’exercice d’endurance. Les revues systématiques et les essais contrôlés randomisés rapportent de manière constante que la supplémentation en jus de betterave peut améliorer l’endurance cardio-respiratoire, augmenter le temps jusqu’à l’épuisement à des intensités sous-maximales et améliorer la performance au seuil anaérobie et au VO2max, en particulier lors d’activités d’endurance et aérobies. Cependant, les effets sont moins cohérents lors d’efforts de haute intensité, de courte durée ou de sprints répétés, et peuvent varier selon le sexe, le niveau d’entraînement et les interactions avec d’autres suppléments. Certaines études mettent également en avant des risques potentiels pour la santé en cas d’apport excessif en nitrates, bien que ces risques ne soient pas encore bien caractérisés. Dans l’ensemble, la littérature suggère que les précurseurs de NO dérivés de la betterave peuvent constituer une aide ergogénique pratique pour les athlètes d’endurance, les bénéfices les plus importants étant observés dans des contextes d’exercice aérobies et sous-maximaux.
+Le corpus actuel de recherches soutient fortement l’utilisation des précurseurs de l’oxyde nitrique issus de la betterave pour améliorer la performance en endurance, en particulier lors d’exercices aérobies et sous-maximaux. Les mécanismes physiologiques — vasodilatation améliorée, meilleure livraison de l’oxygène et efficacité musculaire — sont bien documentés et fournissent une justification solide aux bénéfices observés sur la performance. Cependant, les effets sont moins robustes ou inconsistants lors d’activités de haute intensité, de courte durée ou de sprints répétés, et peuvent être influencés par le sexe, le niveau d’entraînement et les interactions avec d’autres suppléments.
+La qualité des preuves est généralement élevée, avec de nombreuses revues systématiques, méta-analyses et essais contrôlés randomisés. Néanmoins, certaines limites existent, notamment des tailles d’échantillons réduites, une variabilité dans les protocoles de supplémentation et une sous-représentation des athlètes féminines. Des préoccupations de sécurité liées à un apport excessif en nitrates sont notées, mais elles ne sont pas encore bien caractérisées, ce qui justifie des recherches supplémentaires.
+Dans l’ensemble, les concentrés de betterave constituent une aide ergogénique pratique et généralement sûre pour les athlètes d’endurance, mais les réponses individuelles et les stratégies optimales de dosage nécessitent davantage d’études.
+Conclusion
+Les concentrés de betterave, en tant que précurseurs de l’oxyde nitrique, peuvent améliorer la performance en endurance, en particulier lors d’exercices aérobies et sous-maximaux, avec des effets les plus fiables observés chez les athlètes d’endurance. Les effets sont moins cohérents lors d’activités de haute intensité ou de sprints répétés, et la réponse individuelle, le sexe et les interactions avec d’autres suppléments doivent être pris en compte. Bien que généralement sûrs, les effets à long terme d’un apport élevé en nitrates nécessitent des recherches supplémentaires.
+(DOMíNGUEZ; CUENCA; MATé-MUñOZ; GARCíA-FERNáNDEZ et al., 2017; ROKKEDAL-LAUSCH; FRANCH; POULSEN; THOMSEN et al., 2019)
+Domínguez, R., Cuenca, E., Maté-Muñoz, J., García-Fernández, P., Serra-Payá, N., Estevan, M., Herreros, P., & Garnacho-Castaño, M. (2017). Effects of Beetroot Juice Supplementation on Cardiorespiratory Endurance in Athletes. A Systematic Review. Nutrients, 9. https://doi.org/10.3390/nu9010043.
+Rokkedal-Lausch, T., Franch, J., Poulsen, M., Thomsen, L., Weitzberg, E., Kamavuako, E., Karbing, D., & Larsen, R. (2019). Chronic high-dose beetroot juice supplementation improves time trial performance of well-trained cyclists in normoxia and hypoxia.. Nitric oxide : biology and chemistry, 85, 44-52 . https://doi.org/10.1016/j.niox.2019.01.011.
+Beta-alanine
+-Augmentation carnosine, capacité tampon.
+-Effet répétés, mais modeste à faible.
+-Plus grand effet sur les effort de 1 à 4 mins.
+-En théorie, plus grande niveau de carnosine = 
+Les tests de temps jusqu’à l’épuisement
+Le seuil ventilatoire
+La performance au sprint en fin d’épreuve d’endurance
+-Sécurité bien documneté (malgré parésie), marche chez la plupart des athlètes, d’où sa popularité.
+-3 semaines, 5g-6g par jour.
+1. Introduction
+La supplémentation en bêta-alanine a été largement étudiée pour son potentiel à améliorer la performance en endurance, principalement via son rôle dans l’augmentation du contenu musculaire en carnosine et de la capacité tampon, ce qui pourrait retarder la fatigue lors d’exercices de haute intensité.
+La littérature présente un tableau nuancé : plusieurs études et revues systématiques rapportent de modestes améliorations d’indicateurs de performance en endurance, tels que le temps jusqu’à l’épuisement, le seuil ventilatoire et la performance au sprint en fin d’épreuve prolongée. Toutefois, ces effets restent souvent de faible ampleur et semblent dépendre du type d’exercice, de sa durée et des caractéristiques de la population étudiée.
+Les bénéfices les plus marqués sont observés dans les activités durant 1 à 4 minutes, avec des effets moins constants pour les épreuves d’endurance plus longues. Certaines études mettent en évidence des adaptations accrues lorsque la bêta-alanine est combinée à un entraînement par intervalles à haute intensité ou à un entraînement pliométrique, notamment chez les individus actifs récréatifs et les athlètes féminines.
+Cependant, d’autres travaux — y compris des méta-analyses et des analyses sur données individuelles — montrent que l’effet ergogène reste modeste, avec une forte variabilité interindividuelle et un impact limité sur la capacité aérobie maximale ou la performance chez les athlètes d’endurance bien entraînés.
+Le profil de sécurité est généralement favorable, la paresthésie étant l’effet secondaire le plus rapporté, pouvant être atténué par une prise fractionnée.
+Dans l’ensemble, la bêta-alanine semble apporter de petits bénéfices significatifs pour certaines performances d’endurance, en particulier dans les activités à haute intensité ou mixtes (aérobie-anaérobie).
+3. Résultats
+3.1 Populations et protocoles d’étude
+Les études incluses portent sur des populations variées : individus actifs récréatifs, athlètes d’élite, adultes plus âgés, participants masculins et féminins.
+La majorité adopte un plan randomisé, en double aveugle et contrôlé par placebo, avec des durées de supplémentation allant de 2 à 12 semaines et des doses quotidiennes typiques de 2,4 à 6,4 g.
+3.2 Effets sur la performance en endurance
+La supplémentation en bêta-alanine augmente systématiquement le contenu musculaire en carnosine, renforçant la capacité tampon et retardant la fatigue lors d’efforts intenses.
+Les améliorations sont particulièrement notées pour :
+Les tests de temps jusqu’à l’épuisement
+Le seuil ventilatoire
+La performance au sprint en fin d’épreuve d’endurance
+Les méta-analyses indiquent un effet petit mais significatif dans les zones de transition aérobie-anaérobie et pour les tâches d’endurance de courte durée (1–4 min), avec des effets moins marqués ou inconstants sur les épreuves de plus longue durée.
+3.3 Sous-populations et interventions combinées
+Lorsque la bêta-alanine est associée à un entraînement par intervalles à haute intensité ou à un entraînement pliométrique, les gains en endurance et en performance de sprints répétés sont amplifiés, notamment chez les hommes actifs récréatifs et les joueuses de soccer.
+Chez les personnes âgées, les résultats sont mitigés : certaines études montrent une amélioration de la capacité à l’exercice et de la fonction exécutive, tandis que d’autres ne trouvent aucun avantage significatif par rapport à l’entraînement en résistance seul.
+3.4 Limites, résultats neutres et sécurité
+Plusieurs études ne rapportent aucun bénéfice significatif, en particulier chez les athlètes bien entraînés ou lors d’efforts prolongés (>25 min).
+Les méta-analyses confirment que la taille de l’effet reste modeste et que la variabilité interindividuelle est principalement attribuable à des facteurs externes (statut d’entraînement, alimentation, sommeil) plutôt qu’au supplément lui-même.
+La sécurité est bien établie : la paresthésie, effet secondaire transitoire, peut être minimisée par des doses fractionnées.
+4. Discussion
+Les données actuelles suggèrent que la supplémentation en bêta-alanine apporte de petites améliorations significatives en performance d’endurance lors d’efforts de haute intensité ou mixtes (aérobie-anaérobie) d’une durée de 1 à 4 minutes.
+Le mécanisme est clair : l’augmentation du contenu musculaire en carnosine renforce la capacité tampon et retarde la fatigue.
+Cependant, l’ampleur du bénéfice reste modeste, et les effets sur les épreuves d’endurance prolongées ou sur la VO₂max sont inconstants ou négligeables.
+La qualité des preuves est globalement élevée, soutenue par de nombreuses revues systématiques, méta-analyses et ECR bien conduits.
+La variabilité individuelle est importante et semble davantage liée à des facteurs contextuels qu’au supplément en lui-même.
+La sécurité d’utilisation est bien documentée.
+5. Conclusion
+En résumé, la supplémentation en bêta-alanine procure de petites améliorations constantes de la performance d’endurance à haute intensité, principalement grâce à l’augmentation de la carnosine musculaire et de la capacité tampon.
+Les bénéfices sont surtout visibles dans les efforts de 1 à 4 minutes, avec un impact moindre sur les épreuves prolongées ou la capacité aérobie maximale.
+Le profil de sécurité est bon, et la variabilité des réponses individuelles est largement indépendante du supplément.
+(ARTIOLI; GUALANO; SMITH; STOUT et al., 2009; DE ANDRADE KRATZ; DE SALLES PAINELLI; DE ANDRADE NEMEZIO; DA SILVA et al., 2017; DERAVE; OZDEMIR; HARRIS; POTTIER et al., 2007; DUCKER; DAWSON; WALLMAN, 2013)
+(GILSANZ; LóPEZ-SEOANE; JIMéNEZ; PAREJA-GALEANO, 2021) (OJEDA; CERDA; SALVATIERRA; BARAHONA-FUENTES et al., 2020) (SAUNDERS; ELLIOTT-SALE; ARTIOLI; SWINTON et al., 2016) (TREXLER; SMITH‐RYAN; STOUT; HOFFMAN et al., 2015)
+REFERENCE
+AKTITIZ, S.; KOŞAR, Ş.; TURNAGÖL, H. Effects of acute and multi-day low-dose sodium bicarbonate intake on high-intensity endurance exercise performance in male recreational cyclists. European Journal of Applied Physiology, 124, p. 2111-2122, 2024-02-29 2024.
+ARTIOLI, G.; GUALANO, B.; SMITH, A.; STOUT, J. et al. Role of beta-alanine supplementation on muscle carnosine and exercise performance. Medicine and science in sports and exercise, 42 6, p. 1162-1173, 2009-12-01 2009.
+DALLE, S.; KOPPO, K.; HESPEL, P. Sodium bicarbonate improves sprint performance in endurance cycling. Journal of science and medicine in sport, 2020-09-25 2020.
+DE ANDRADE KRATZ, C.; DE SALLES PAINELLI, V.; DE ANDRADE NEMEZIO, K. M.; DA SILVA, R. et al. Beta-alanine supplementation enhances judo-related performance in highly-trained athletes. Journal of science and medicine in sport, 20 4, p. 403-408, 2017-04-01 2017.
+DERAVE, W.; OZDEMIR, M.; HARRIS, R.; POTTIER, A. et al. beta-Alanine supplementation augments muscle carnosine content and attenuates fatigue during repeated isokinetic contraction bouts in trained sprinters. Journal of applied physiology, 103 5, p. 1736-1743, 2007-11-01 2007.
+DOMÍNGUEZ, R.; CUENCA, E.; MATÉ-MUÑOZ, J. L.; GARCÍA-FERNÁNDEZ, P. et al. Effects of Beetroot Juice Supplementation on Cardiorespiratory Endurance in Athletes. A Systematic Review. Nutrients, 9, n. 1, Jan 6 2017.
+DUCKER, K.; DAWSON, B.; WALLMAN, K. Effect of beta-alanine supplementation on 800-m running performance. International journal of sport nutrition and exercise metabolism, 23 6, p. 554-561, 2013-12-01 2013.
+DURKALEC-MICHALSKI, K.; ZAWIEJA, E.; PODGÓRSKI, T.; ŁONIEWSKI, I. et al. The effect of chronic progressive-dose sodium bicarbonate ingestion on CrossFit-like performance: A double-blind, randomized cross-over trial. PLoS ONE, 13, 2018-05-17 2018.
+EVANS, M.; COGAN, K.; EGAN, B. Metabolism of ketone bodies during exercise and training: physiological basis for exogenous supplementation. The Journal of Physiology, 595, 2017-05-01 2017.
+FLOCKHART, M.; NILSSON, L.; TILLQVIST, E.; VINGE, F. et al. Glucosinolate-rich broccoli sprouts protect against oxidative stress and improve adaptations to intense exercise training. Redox Biology, 67, 2023-09-01 2023.
+GILSANZ, L.; LÓPEZ-SEOANE, J.; JIMÉNEZ, S.; PAREJA-GALEANO, H. Effect of β-alanine and sodium bicarbonate co-supplementation on the body’s buffering capacity and sports performance: A systematic review. Critical Reviews in Food Science and Nutrition, 63, p. 5080-5093, 2021-12-09 2021.
+MARGOLIS, L.; O'FALLON, K. Utility of Ketone Supplementation to Enhance Physical Performance: A Systematic Review. Advances in nutrition, 2019-10-05 2019.
+MCNAUGHTON, L.; FORD, S.; NEWBOLD, C. Effect of Sodium Bicarbonate Ingestion on High Intensity Exercise in Moderately Trained Women. Journal of Strength and Conditioning Research, 11, p. 98, 1997-05-01 1997.
+OJEDA, Á. H.; CERDA, C. T.; SALVATIERRA, M. F. P.; BARAHONA-FUENTES, G. et al. Effects of Beta-Alanine Supplementation on Physical Performance in Aerobic–Anaerobic Transition Zones: A Systematic Review and Meta-Analysis. Nutrients, 12, 2020-08-19 2020.
+PINCKAERS, P.; CHURCHWARD-VENNE, T.; BAILEY, D.; VAN LOON, L. Ketone Bodies and Exercise Performance: The Next Magic Bullet or Merely Hype? Sports Medicine (Auckland, N.z.), 47, p. 383-391, 2016-07-18 2016.
+ROKKEDAL-LAUSCH, T.; FRANCH, J.; POULSEN, M. K.; THOMSEN, L. P. et al. Chronic high-dose beetroot juice supplementation improves time trial performance of well-trained cyclists in normoxia and hypoxia. Nitric Oxide, 85, p. 44-52, Apr 1 2019.
+SAUNDERS, B.; ELLIOTT-SALE, K.; ARTIOLI, G.; SWINTON, P. et al. β-alanine supplementation to improve exercise capacity and performance: a systematic review and meta-analysis. British Journal of Sports Medicine, 51, p. 658-669, 2016-10-18 2016.
+SUN, K.; CHOI, Y. T.; YU, C. C. W.; NELSON, E. et al. The Effects of Ketogenic Diets and Ketone Supplements on the Aerobic Performance of Endurance Runners: A Systematic Review. Sports health, p. 19417381241271548, 2024-09-04 2024.
+TREXLER, E.; SMITH‐RYAN, A.; STOUT, J.; HOFFMAN, J. et al. International society of sports nutrition position stand: Beta-Alanine. Journal of the International Society of Sports Nutrition, 12, 2015-07-15 2015.
+VALENZUELA, P.; MORALES, J.; CASTILLO-GARCÍA, A.; LUCIA, A. Acute Ketone Supplementation and Exercise Performance: A Systematic Review and Meta-Analysis of Randomized Controlled Trials. International journal of sports physiology and performance, p. 1-11, 2020-02-10 2020.

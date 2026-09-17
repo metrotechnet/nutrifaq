@@ -3,8 +3,8 @@ param(
     [string]$Location = "eastus",
     [string]$StorageAccountName = "nutrifaqfeprod",
     [string]$FrontendDir = "public",
-    [string]$BackendUrl = "https://nutrifaq-api-chhpeha3h9ehegft.canadacentral-01.azurewebsites.net",
-    [string]$BackendAppName = "nutrifaq-api",
+    [string]$BackendUrl = "https://nutrifaq-webapp-b5gwbbe3g0a4a6gd.canadacentral-01.azurewebsites.net",
+    [string]$BackendAppName = "nutrifaq-webapp",
     [switch]$UpdateBackendCors
 )
 

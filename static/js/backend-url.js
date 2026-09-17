@@ -8,7 +8,5 @@ if (window.location.hostname === 'localhost' && window.location.port === '3000')
     window.BACKEND_URL = 'http://localhost:8080';
 } else {
     // Production frontend should target the deployed backend explicitly.
-    window.BACKEND_URL = window.BACKEND_URL || 'https://nutrifaq-api-chhpeha3h9ehegft.canadacentral-01.azurewebsites.net';
+    window.BACKEND_URL = window.BACKEND_URL
 }
-
-window.BACKEND_URL = 'https://nutrifaq-api-chhpeha3h9ehegft.canadacentral-01.azurewebsites.net';
