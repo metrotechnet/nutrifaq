@@ -1,0 +1,14 @@
+{
+  "users": {
+    "96e6aa45-0518-49b4-a533-d7740a1c5552": {
+      "role": "client",
+      "updated_at": "2026-09-18T19:54:13.530807+00:00",
+      "updated_by": "demo-user"
+    },
+    "e11997bb-3cdb-4b56-95b2-bfc434bc93d7": {
+      "role": "client",
+      "updated_at": "2026-09-18T20:03:01.492975+00:00",
+      "updated_by": "demo-user"
+    }
+  }
+}

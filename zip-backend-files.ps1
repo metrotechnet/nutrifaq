@@ -35,7 +35,7 @@ from pathlib import Path
 root = Path(os.environ["PROJECT_ROOT"]).resolve()
 zip_path = Path(os.environ["ZIP_PATH"])
 include = {"app.py", "__init__.py", "requirements.txt", "startup.sh"}
-include_dirs = {"api"}
+include_dirs = {"api", "nutrifaq-dbase"}
 exclude = {
     ".git", ".venv", "__pycache__", ".pytest_cache", ".azure", ".vs",
     ".vscode", ".firebase", "node_modules", "public",
@@ -63,11 +63,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $zipContents = & $pythonExe -c "import zipfile, os; z = zipfile.ZipFile(os.environ['ZIP_PATH']); print('\\n'.join(z.namelist()))"
+$zipEntries = @()
+if ($zipContents) {
+    $zipContentsNormalized = ($zipContents -replace '\\n', "`n")
+    $zipEntries = @($zipContentsNormalized -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
 if ($zipContents) {
     Write-Host "Zip content preview:"
-    $zipContents | ForEach-Object { Write-Host $_ }
+    $zipEntries | ForEach-Object { Write-Host $_ }
 }
-if (-not ($zipContents -match "(^|/)startup\.sh$")) {
+if (-not ($zipEntries -contains "startup.sh")) {
     throw "Zip package does not contain startup.sh."
 }
 

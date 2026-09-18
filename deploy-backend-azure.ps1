@@ -1,12 +1,13 @@
 param(
     [string]$ResourceGroup = "nutrifaq-rg",
-    [string]$Location = "canadaeast",
-    [string]$PlanName = "nutrifaq-plan-ce",
-    [string]$AppName = "nutrifaq-api",
+    [string]$Location = "canadacentral",
+    [string]$PlanName = "nutrifaq-plan-cc",
+    [string]$AppName = "nutrifaq-webapp",
     [string]$Sku = "P0v3",
     [string]$Runtime = "PYTHON:3.11",
     [string]$ZipPath = "app.zip",
     [switch]$ResetServer,
+    [switch]$ForceClearWwwroot,
     [switch]$KeepArtifact
 )
 
@@ -59,6 +60,88 @@ function Get-AppSettingValue {
     }
 
     return $null
+}
+
+function Clear-WwwrootViaZipDeploy {
+    param(
+        [string]$ResourceGroup,
+        [string]$AppName
+    )
+
+    Write-Warning "Force clear enabled: running a clean deploy with a minimal zip to reset /home/site/wwwroot."
+
+    $tempClearRoot = Join-Path $env:TEMP ("nutrifaq-clear-" + [Guid]::NewGuid().ToString("N"))
+    $tempClearZip = Join-Path $env:TEMP ("nutrifaq-clear-" + [Guid]::NewGuid().ToString("N") + ".zip")
+    try {
+        New-Item -ItemType Directory -Path $tempClearRoot -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $tempClearRoot "clear-marker.txt") -Value "temporary clear package" -Encoding UTF8
+        Compress-Archive -Path (Join-Path $tempClearRoot "*") -DestinationPath $tempClearZip -Force
+
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $clearZip = [System.IO.Compression.ZipFile]::OpenRead($tempClearZip)
+        try {
+            $entryCount = $clearZip.Entries.Count
+        } finally {
+            $clearZip.Dispose()
+        }
+        if ($entryCount -eq 0) {
+            throw "Generated clear zip is empty; aborting clear step."
+        }
+
+        az webapp deploy --resource-group $ResourceGroup --name $AppName --src-path $tempClearZip --type zip --clean true --only-show-errors | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Azure empty-zip clean deploy failed while clearing wwwroot."
+        }
+    } finally {
+        if (Test-Path -LiteralPath $tempClearRoot) {
+            Remove-Item -LiteralPath $tempClearRoot -Recurse -Force
+        }
+        if (Test-Path -LiteralPath $tempClearZip) {
+            Remove-Item -LiteralPath $tempClearZip -Force
+        }
+    }
+
+    Write-Host "wwwroot clear step completed via clean deploy."
+}
+
+function Show-LatestDeploymentFailureDetails {
+    param(
+        [string]$ResourceGroup,
+        [string]$AppName
+    )
+
+    try {
+        $deploymentsJson = az webapp log deployment list --resource-group $ResourceGroup --name $AppName -o json --only-show-errors 2>$null
+        if (-not $deploymentsJson) {
+            Write-Warning "Could not retrieve deployment history for failure diagnostics."
+            return
+        }
+
+        $deployments = $deploymentsJson | ConvertFrom-Json
+        if (-not $deployments) {
+            Write-Warning "Deployment history is empty; no failure diagnostics available."
+            return
+        }
+
+        $failedDeployment = @($deployments | Where-Object { $_.status -eq 3 } | Sort-Object { [datetime]$_.received_time } -Descending)[0]
+        if (-not $failedDeployment) {
+            Write-Warning "No failed deployment found in recent history."
+            return
+        }
+
+        $deploymentId = "$($failedDeployment.id)"
+        Write-Warning "Latest failed deployment id: $deploymentId"
+
+        $detailsJson = az webapp log deployment show --resource-group $ResourceGroup --name $AppName --deployment-id $deploymentId -o json --only-show-errors 2>$null
+        if ($detailsJson) {
+            Write-Host "=== Deployment failure details (latest failed id) ==="
+            Write-Host $detailsJson
+        } else {
+            Write-Warning "Could not retrieve detailed logs for deployment id $deploymentId."
+        }
+    } catch {
+        Write-Warning "Failed to fetch deployment diagnostics: $($_.Exception.Message)"
+    }
 }
 
 # Ensure Azure CLI is installed
@@ -280,6 +363,10 @@ if (-not ($zipContents -match "(^|/)startup\.sh$")) {
     throw "Deployment zip does not contain startup.sh. The App Service startup file will not be available."
 }
 
+if ($ForceClearWwwroot) {
+    Clear-WwwrootViaZipDeploy -ResourceGroup $ResourceGroup -AppName $AppName
+}
+
 # Deploy zip
 Write-Host "Deploying to Azure App Service..."
 $previousNativeErrBehavior = $null
@@ -327,6 +414,7 @@ try {
             if ($deployOutput) {
                 $deployOutput | ForEach-Object { Write-Host $_ }
             }
+            Show-LatestDeploymentFailureDetails -ResourceGroup $ResourceGroup -AppName $AppName
             throw "Azure web app deploy failed."
         }
     } elseif ($deployOutput) {
