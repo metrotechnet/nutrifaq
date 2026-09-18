@@ -1,7 +1,5 @@
 param(
-    [string]$ProjectName = "nutria",
-    [string]$CollectionName = "nutrifaq-collection",
-    [string]$EmbeddingModel = "text-embedding-3-small"
+    [string]$ProjectName = "nutria"
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,12 +31,14 @@ Write-Host "=== Reindex Start ==="
 Write-Host "Start: $start"
 Write-Host "Repo:  $repoRoot"
 Write-Host "Project: $ProjectName"
-Write-Host "Collection: $CollectionName"
-Write-Host "Embedding model: $EmbeddingModel"
 Write-Host "Python: $python"
 Write-Host ""
 
-$command = "from api.index_chromadb import index_project; r=index_project('$ProjectName', collection_name='$CollectionName', embedding_model='$EmbeddingModel'); print(r)"
+$command = @"
+from api.services.database_regeneration_service import run_full_regeneration
+r = run_full_regeneration()
+print(r)
+"@
 & $python -u -c $command
 $exitCode = $LASTEXITCODE
 

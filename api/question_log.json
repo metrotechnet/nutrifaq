@@ -1,0 +1,9 @@
+[
+  {
+    "question_id": "8fde5c19-f7fe-45be-8fd1-96ef29fadf14",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\api\\nutrifaq-dbase\\chroma_db. Blob database was not loaded at startup.",
+    "timestamp": "2026-09-17T20:15:59.165053",
+    "comments": []
+  }
+]

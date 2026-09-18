@@ -8,6 +8,7 @@ Usage:
 import json
 import os
 import sys
+import shutil
 from pathlib import Path
 
 import chromadb
@@ -101,6 +102,17 @@ def init_chromadb(kb_path):
     return chroma_client, collection
 
 
+def _reset_chroma_directory(kb_path: Path) -> None:
+    chroma_path = kb_path / "chroma_db"
+    if chroma_path.exists():
+        shutil.rmtree(chroma_path, ignore_errors=True)
+
+
+def _is_missing_collections_table_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "no such table: collections" in message or "error getting collection" in message
+
+
 def chunk_text(text, chunk_size=1000, overlap=100):
     """Split text into overlapping chunks."""
     chunks = []
@@ -135,7 +147,15 @@ def index_chromadb_json(kb_path):
 
     print(f"Found {len(documents)} documents to index\n")
 
-    _, collection = init_chromadb(kb_path)
+    try:
+        _, collection = init_chromadb(kb_path)
+    except Exception as exc:
+        if _is_missing_collections_table_error(exc):
+            print("ChromaDB schema is missing or corrupted; recreating local database and retrying...")
+            _reset_chroma_directory(kb_path)
+            _, collection = init_chromadb(kb_path)
+        else:
+            raise
 
     all_ids = []
     all_documents = []
@@ -185,7 +205,16 @@ def index_chromadb_json(kb_path):
 
         print(f"   Batch {batch_idx + 1}/{total_batches}: Adding {len(batch_ids)} chunks...")
 
-        collection.add(ids=batch_ids, documents=batch_documents, metadatas=batch_metadatas)
+        try:
+            collection.add(ids=batch_ids, documents=batch_documents, metadatas=batch_metadatas)
+        except Exception as exc:
+            if _is_missing_collections_table_error(exc):
+                print("ChromaDB schema error detected during indexing; rebuilding local database and retrying...")
+                _reset_chroma_directory(kb_path)
+                _, collection = init_chromadb(kb_path)
+                collection.add(ids=batch_ids, documents=batch_documents, metadatas=batch_metadatas)
+            else:
+                raise
 
     print(f"\nSuccessfully indexed {total_chunks} chunks from {len(documents)} documents")
     print(f"Collection: {collection.name}")

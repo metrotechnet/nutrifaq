@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import requests
 import chromadb
 from chromadb.config import Settings
-from api.refusal_engine import validate_user_query
+from api.services.refusal_engine import validate_user_query
 from api.services.llm_service import create_chat_completion_stream, create_embedding, get_gateway_client
 from api.services.blob_storage_service import (
     get_blob_container_name,
@@ -65,7 +65,7 @@ def load_style_guides():
 def load_system_prompts():
     """Load system prompts from JSON file"""
     try:
-        with open(PROJECT_ROOT / 'api/config' / 'system_prompts.json', 'r', encoding='utf-8') as f:
+        with open(PROJECT_ROOT / 'config' / 'system_prompts.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         return {}
@@ -78,7 +78,7 @@ def load_prompts(kb_name=None):
         kb_name: Ignored for single-agent setup
     """
     try:
-        kb_path = PROJECT_ROOT / "api/config"
+        kb_path = PROJECT_ROOT / "config"
         prompts_path = kb_path / 'prompts.json'
         with open(prompts_path, 'r', encoding='utf-8') as f:
             return json.load(f)

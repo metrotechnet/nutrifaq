@@ -88,23 +88,14 @@ def _token_roles(claims: dict[str, Any]) -> list[str]:
     return [str(role).strip().lower() for role in values if str(role).strip()]
 
 
-def _bootstrap_admins() -> set[str]:
-    raw = os.getenv("ENTRA_BOOTSTRAP_ADMINS", "")
-    return {item.strip() for item in raw.split(",") if item.strip()}
-
-
 def _effective_role(object_id: str, claim_roles: list[str]) -> str:
-    _ = claim_roles  # Keep claim roles available for diagnostics, but don't use them for authorization.
-
-    if object_id in _bootstrap_admins():
-        return ROLE_ADMIN
+    _ = claim_roles  # Role authorization intentionally ignores token roles.
 
     assigned = get_assigned_role(object_id)
     if assigned:
         return assigned
 
-    default_role = os.getenv("ENTRA_DEFAULT_ROLE", ROLE_COLLABORATOR).strip().lower()
-    return default_role if default_role in {ROLE_ADMIN, ROLE_COLLABORATOR} else ROLE_COLLABORATOR
+    return ROLE_COLLABORATOR
 
 
 def _decode_access_token(token: str) -> dict[str, Any]:

@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import os
 
-from api.logging import add_comment_to_question, add_like_to_question, _download_log_from_gcs
+from api.services.logging import add_comment_to_question, add_like_to_question, _download_log_from_gcs
 
 router = APIRouter()
 

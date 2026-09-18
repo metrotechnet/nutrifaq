@@ -26,8 +26,6 @@
         window.FIREBASE_APP_ID = "{{FIREBASE_APP_ID}}";
         window.FIREBASE_MEASUREMENT_ID = "{{FIREBASE_MEASUREMENT_ID}}";
         window.RECAPTCHA_SITE_KEY = "{{RECAPTCHA_SITE_KEY}}";
-        window.APP_CHECK_ENABLED = "{{APP_CHECK_ENABLED}}";
-        window.APP_CHECK_DEBUG_TOKEN = "{{APP_CHECK_DEBUG_TOKEN}}"; // Debug token for local testing
     </script> 
 
 </head>
@@ -150,8 +148,6 @@
     <!-- Modular JavaScript files (load in dependency order) -->
     <!-- Backend URL configuration must load first -->
     <script src="/static/js/backend-url.js"></script>
-    <!-- Firebase App Check must load before making API calls -->
-    <script type="module" src="/static/js/firebase-config.js"></script>
     <script src="/static/js/config.js"></script>
     <script src="/static/js/components.js"></script>
     <script src="/static/js/ui-utils.js"></script>

@@ -111,7 +111,6 @@ az webapp config appsettings set \
   --settings \
   OPENAI_API_KEY="..." \
   FIREBASE_PROJECT_ID="..." \
-  APP_CHECK_ENABLED="false" \
   PORT="8000"
 ```
 

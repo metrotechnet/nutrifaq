@@ -61,8 +61,6 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                     '{{FIREBASE_APP_ID}}': os.getenv('FIREBASE_APP_ID', ''),
                     '{{FIREBASE_MEASUREMENT_ID}}': os.getenv('FIREBASE_MEASUREMENT_ID', ''),
                     '{{RECAPTCHA_SITE_KEY}}': os.getenv('RECAPTCHA_SITE_KEY', ''),
-                    '{{APP_CHECK_ENABLED}}': os.getenv('APP_CHECK_ENABLED', 'false'),
-                    '{{APP_CHECK_DEBUG_TOKEN}}': os.getenv('APP_CHECK_DEBUG_TOKEN', ''),
                 }
                 
                 for placeholder, value in replacements.items():
@@ -90,7 +88,6 @@ if __name__ == '__main__':
         print(f"\nFirebase Config:")
         print(f"  Project ID: {os.getenv('FIREBASE_PROJECT_ID', 'NOT SET')}")
         print(f"  App ID: {os.getenv('FIREBASE_APP_ID', 'NOT SET')}")
-        print(f"  App Check: {os.getenv('APP_CHECK_ENABLED', 'false')}")
         print("\nPress Ctrl+C to stop the server")
         print("=" * 60)
         try:

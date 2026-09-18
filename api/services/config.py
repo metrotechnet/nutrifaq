@@ -49,14 +49,14 @@ def get_config():
     try:
         
         # Load common config (base configuration)
-        common_config_path = PROJECT_ROOT / "api/config" /  "common_config.json"
+        common_config_path = PROJECT_ROOT / "config" /  "common_config.json"
         common_config = {}
         if common_config_path.exists():
             with open(common_config_path, 'r', encoding='utf-8') as f:
                 common_config = json.load(f)
         
         # Load agent-specific config (override configuration)
-        agent_config_path = PROJECT_ROOT / "api/config" / "agent_config.json"
+        agent_config_path = PROJECT_ROOT / "config" / "agent_config.json"
         
         if agent_config_path.exists():
             with open(agent_config_path, 'r', encoding='utf-8') as f:
@@ -87,13 +87,13 @@ def get_config():
         }
         
     except FileNotFoundError:
-        agent_config_path = PROJECT_ROOT / "api/config" / "agent_config.json"
+        agent_config_path = PROJECT_ROOT / "config" / "agent_config.json"
         return {
             "error": f"config not found at {agent_config_path}",
             "debug": {"config_path": str(agent_config_path)}
         }
     except Exception as e:
-        agent_config_path = PROJECT_ROOT / "api/config" / "agent_config.json"
+        agent_config_path = PROJECT_ROOT / "config" / "agent_config.json"
         return {
             "error": f"Error loading config from {agent_config_path}: {str(e)}",
             "debug": {"config_path": str(agent_config_path)}

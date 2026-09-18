@@ -7,8 +7,8 @@ import json
 import uuid
 
 from api.schemas.models import TranslateRequest
-from api.logging import save_question_response
-from api.translate import (
+from api.services.logging import save_question_response
+from api.services.translate import (
     translate_text_stream, 
     transcribe_audio_whisper, 
     translate_audio_whisper, 

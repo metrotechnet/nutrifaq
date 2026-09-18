@@ -6,18 +6,9 @@ This folder contains the backend logic for NutriFAQ. The app is launched from `a
 
 ```text
 api/
-├── app_check.py
-├── config.py
 ├── graph_layer.py
-├── index_chromadb.py
-├── logging.py
 ├── models.py
 ├── orchestrator.py
-├── query_chromadb.py
-├── refusal_engine.py
-├── sessions.py
-├── translate.py
-├── update_gdrive.py
 ├── utils.py
 ├── README.md
 ├── routes/
@@ -28,8 +19,14 @@ api/
 │   ├── report.py
 │   ├── sessions.py
 │   ├── translation.py
-│   ├── tts.py
-│   └── update.py
+│   └── tts.py
+├── services/
+│   ├── config.py
+│   ├── logging.py
+│   ├── query_chromadb.py
+│   ├── refusal_engine.py
+│   ├── sessions.py
+│   └── translate.py
 └── config/
     ├── agent_config.json
     ├── common_config.json
@@ -40,8 +37,23 @@ api/
 
 ## Route modules
 
-### `routes/query.py`
-Handles user questions and the main retrieval workflow.
+### `services/query_chromadb.py`
+Handles ChromaDB access, question retrieval, and streaming answer generation.
+
+### `services/config.py`
+Handles runtime configuration loading and deep merge.
+
+### `services/logging.py`
+Handles question/response logging and feedback persistence.
+
+### `services/refusal_engine.py`
+Handles pre-LLM refusal decisions and safety pattern matching.
+
+### `services/sessions.py`
+Handles in-memory conversation session tracking.
+
+### `services/translate.py`
+Handles text and audio translation/transcription.
 
 ### `routes/translation.py`
 Handles language detection, translation endpoints, and translation helpers.
@@ -58,9 +70,6 @@ Serves configuration data for frontend and runtime settings.
 ### `routes/sessions.py`
 Tracks conversation/session state.
 
-### `routes/update.py`
-Processes data refresh and update tasks.
-
 ## Main app entry
 
 The root app file registers the routing modules and exposes the FastAPI instance used by uvicorn:
@@ -72,12 +81,7 @@ app.include_router(tts.router, tags=["tts"])
 app.include_router(report.router, tags=["report"])
 app.include_router(config_routes.router, tags=["config"])
 app.include_router(sessions.router, tags=["sessions"])
-app.include_router(update.router, tags=["update"])
 ```
-
-## App Check note
-
-Firebase App Check is intentionally disabled for this project. The backend App Check middleware file remains in the repo for reference, but it is not registered in `app.py`.
 
 ## Run locally
 

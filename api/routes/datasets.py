@@ -187,9 +187,6 @@ def reindex_project(project_name: str):
             timeout=600,
         )
 
-        from api.query_chromadb import reload_project_collections
-        reload_project_collections(project_name)
-
         return {
             "status": "success" if result.returncode == 0 else "error",
             "project": project_name,

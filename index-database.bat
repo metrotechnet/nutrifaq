@@ -1,24 +1,20 @@
 @echo off
 setlocal
 REM ==================================================
-REM Index local Nutria knowledge base into ChromaDB
-REM Usage: index-database.bat [project_name] [collection_name]
-REM Example: index-database.bat nutria nutrifaq-collection
+REM Run the local knowledge base regeneration pipeline
+REM Usage: index-database.bat [project_name]
+REM Example: index-database.bat nutria
 REM ==================================================
 
 set "PROJECT_NAME=%~1"
 if "%PROJECT_NAME%"=="" set "PROJECT_NAME=nutria"
-
-set "COLLECTION_NAME=%~2"
-if "%COLLECTION_NAME%"=="" set "COLLECTION_NAME=nutrifaq-collection"
 
 set "KB_ROOT=%~dp0nutrifaq-dbase"
 set "VECTOR_DB_DIRNAME=chroma_db"
 
 echo.
 echo ========================================
-echo   Indexing project: %PROJECT_NAME%
-echo   Collection: %COLLECTION_NAME%
+echo   Regenerating project: %PROJECT_NAME%
 echo   KB root: %KB_ROOT%
 echo ========================================
 echo.
@@ -36,17 +32,21 @@ if exist "%~dp0.venv\Scripts\python.exe" (
 )
 
 set "KNOWLEDGE_BASE_ROOT=%KB_ROOT%"
-set "VECTOR_DB_DIRNAME=%VECTOR_DB_DIRNAME%"
 
-"%PYTHON_BIN%" -m api.index_chromadb "%PROJECT_NAME%" "%COLLECTION_NAME%"
+"%PYTHON_BIN%" -m api.db_pipeline.generate_transcripts_json "%KB_ROOT%"
 set "EXIT_CODE=%ERRORLEVEL%"
+
+if "%EXIT_CODE%"=="0" (
+    "%PYTHON_BIN%" -m api.db_pipeline.index_chromadb_json "%KB_ROOT%"
+    set "EXIT_CODE=%ERRORLEVEL%"
+)
 
 if not "%EXIT_CODE%"=="0" (
     echo.
-    echo [ERROR] Indexing failed with exit code %EXIT_CODE%.
+    echo [ERROR] Regeneration failed with exit code %EXIT_CODE%.
     exit /b %EXIT_CODE%
 )
 
 echo.
-echo [OK] Indexing completed successfully.
+    echo [OK] Regeneration completed successfully.
 exit /b 0

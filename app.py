@@ -42,7 +42,7 @@ async def startup_load_blob_database():
     source_prefix = f"{get_blob_prefix()}/chroma_db/"
     target_root = PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
     try:
-        sync_blob_prefix_to_local(prefix=source_prefix, local_root=target_root)
+        sync_blob_prefix_to_local(prefix=source_prefix, local_root=target_root, remove_existing=False)
         app.state.database_sync_status = "synch"
         print(f"[Startup] Loaded blob database into {target_root}", flush=True)
     except Exception as exc:
@@ -58,9 +58,6 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS with dynamic origins
-
-# Get Firebase project ID from environment
-firebase_project_id = os.getenv("FIREBASE_PROJECT_ID")
 
 # Build allowed origins dynamically
 allowed_origins = [
@@ -100,14 +97,6 @@ app.add_middleware(
 )
 
 # =====================================================
-# Firebase App Check Middleware
-# =====================================================
-# Verify App Check tokens to ensure requests come from legitimate app instances
-# Enable by setting APP_CHECK_ENABLED=true in environment variables
-# app.middleware("http")(verify_app_check_middleware)
-
-
-# =====================================================
 # Include API Routes
 # =====================================================
 ROUTE_MODULES = [
@@ -118,7 +107,6 @@ ROUTE_MODULES = [
     ("api.routes.report", "report"),
     ("api.routes.config", "config"),
     ("api.routes.sessions", "sessions"),
-    ("api.routes.update", "update"),
     ("api.routes.blob", "blob"),
     ("api.routes.database", "database"),
 ]

@@ -7,8 +7,8 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from typing import Optional
 
-from api.config import get_config
-from api.query_chromadb import check_remote_chromadb_connection
+from api.services.config import get_config
+from api.services.query_chromadb import check_remote_chromadb_connection
 
 router = APIRouter()
 

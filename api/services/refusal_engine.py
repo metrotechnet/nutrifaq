@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import re
 import json
@@ -38,7 +38,7 @@ def load_refusal_responses():
     
     try:
         candidate_paths = [
-            PROJECT_ROOT / 'api' / 'config' / 'refusal_responses.json',
+            PROJECT_ROOT / 'config' / 'refusal_responses.json',
             PROJECT_ROOT / 'nutrifaq-dbase' / 'common' / 'refusal_responses.json',
         ]
         for path in candidate_paths:
@@ -69,7 +69,7 @@ def load_refusal_patterns():
         return _refusal_patterns_cache
     
     try:
-        with open(PROJECT_ROOT / 'api/config' / 'refusal_patterns.json', 'r', encoding='utf-8') as f:
+        with open(PROJECT_ROOT / 'config' / 'refusal_patterns.json', 'r', encoding='utf-8') as f:
             _refusal_patterns_cache = json.load(f)
         return _refusal_patterns_cache
     except Exception as e:

@@ -5,7 +5,7 @@ This module defines endpoints for managing conversation sessions in the Nutria A
 """
 from fastapi import APIRouter
 
-from api.sessions import reset_session, get_session_info
+from api.services.sessions import reset_session, get_session_info
 
 router = APIRouter()
 

@@ -112,7 +112,11 @@ def sync_blob_prefix_to_local(prefix: str, local_root: Path, *, remove_existing:
     blobs = list(container_client.list_blobs(name_starts_with=prefix))
 
     if remove_existing and local_root.exists():
-        shutil.rmtree(local_root)
+        try:
+            shutil.rmtree(local_root)
+        except PermissionError:
+            # On Windows a Chroma file can be locked by another process; keep the existing cache.
+            pass
     local_root.mkdir(parents=True, exist_ok=True)
 
     for blob in blobs:
@@ -125,7 +129,11 @@ def sync_blob_prefix_to_local(prefix: str, local_root: Path, *, remove_existing:
 
         target_path = local_root / relative_path
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        download_blob_to_path(blob.name, target_path)
+        try:
+            download_blob_to_path(blob.name, target_path)
+        except PermissionError:
+            # Skip locked files and continue hydration best-effort.
+            continue
 
     return local_root
 

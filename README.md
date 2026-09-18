@@ -12,7 +12,6 @@ Repository: https://github.com/metrotechnet/nutrifaq.git
 - Firebase hosting/deployment configuration in the repo root
 - Debug launch configuration for the API in `.vscode/launch.json`
 - Rate limiting enabled by default for local API protection
-- Frontend App Check disabled for current local development workflow
 
 ## Current project structure
 
@@ -21,18 +20,16 @@ NutriFAQ/
 ├── app.py
 ├── api/
 │   ├── __init__.py
-│   ├── app_check.py
-│   ├── config.py
 │   ├── graph_layer.py
-│   ├── index_chromadb.py
-│   ├── logging.py
 │   ├── models.py
 │   ├── orchestrator.py
-│   ├── query_chromadb.py
-│   ├── refusal_engine.py
-│   ├── sessions.py
-│   ├── translate.py
-│   ├── update_gdrive.py
+│   ├── services/
+│   │   ├── config.py
+│   │   ├── logging.py
+│   │   ├── query_chromadb.py
+│   │   ├── refusal_engine.py
+│   │   ├── sessions.py
+│   │   └── translate.py
 │   ├── utils.py
 │   ├── README.md
 │   └── routes/
@@ -44,7 +41,7 @@ NutriFAQ/
 │       ├── sessions.py
 │       ├── translation.py
 │       ├── tts.py
-│       └── update.py
+│       └── blob.py
 ├── nutrifaq-dbase/
 │   └── nutria/
 │       ├── chroma_db/
@@ -113,13 +110,8 @@ It launches:
 uvicorn app:app --host 0.0.0.0 --port 8080 --reload
 ```
 
-## Frontend App Check status
-
-The frontend App Check gate is intentionally disabled for this project. The client-side check code remains in `static/js/firebase-config.js` but is not active in the current app flow.
-
 ## Notes
 
-- The backend App Check module still exists in `api/app_check.py`, but it is not registered in `app.py`.
 - Rate limiting is configured in `app.py` and defaults to `30 per day` and `10 per hour` by IP.
 - The app is expected to run locally on port `8080`.
 
@@ -141,8 +133,7 @@ https://github.com/metrotechnet/nutrifaq.git
 ### ChromaDB Issues
 
 ```bash
-# Re-index transcripts
-python scripts/index_chromadb.py
+# Query helpers live under api/services/query_chromadb.py
 ```
 
 ### Server Won't Start

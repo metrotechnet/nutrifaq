@@ -16,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from api.query_chromadb import query_chromadb
+from api.services.query_chromadb import query_chromadb
 from api.services.llm_service import create_chat_completion_stream, create_embedding, get_gateway_client
 
 

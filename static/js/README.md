@@ -13,13 +13,6 @@ This folder contains the browser-side logic for the NutriFAQ interface.
 - `voice-recognition.js` manages microphone and transcription flows.
 - `agents.js` handles agent-specific actions and switching logic.
 - `main.js` initializes the UI.
-- `firebase-config.js` contains Firebase setup and App Check-related client logic.
-
-## App Check status
-
-Firebase App Check is intentionally disabled in the browser for this project. The related logic remains in `firebase-config.js`, but the active flag is set to `false` and the fetch injection is commented out.
-
-This means the frontend sends normal requests without attaching `X-Firebase-AppCheck` tokens.
 
 ## Local development
 
@@ -33,4 +26,4 @@ http://localhost:8080
 
 ## Deployment notes
 
-The repo also includes Firebase hosting assets and deployment scripts. Those scripts are for deploying the frontend and backend in the project environment, but the current client-side App Check enforcement is disabled.
+The repo also includes Firebase hosting assets and deployment scripts.
