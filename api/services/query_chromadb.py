@@ -17,9 +17,10 @@ from api.services.blob_storage_service import (
     get_blob_properties,
 )
 
-# Get project root directory
-PROJECT_ROOT = Path(__file__).parent.parent
-load_dotenv(dotenv_path=PROJECT_ROOT / '.env')
+# API and repository roots
+API_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = API_ROOT.parent
+load_dotenv(dotenv_path=REPO_ROOT / '.env')
 
 DEFAULT_PROJECT_NAME = os.getenv("KNOWLEDGE_BASE_NAME", "nutrifaq")
 DEFAULT_COLLECTION_NAME = os.getenv("DEFAULT_COLLECTION_NAME", "nutrifaq-collection")
@@ -30,9 +31,9 @@ AZURE_STORAGE_KEY = os.getenv("AZURE_STORAGE_KEY")
 AZURE_STORAGE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
 AZURE_STORAGE_CONTAINER = get_blob_container_name()
 AZURE_BLOB_PREFIX = get_blob_prefix()
-LOCAL_BLOB_CACHE_ROOT = PROJECT_ROOT / ".cache" / AZURE_BLOB_PREFIX / "chroma_db"
+LOCAL_BLOB_CACHE_ROOT = REPO_ROOT / ".cache" / AZURE_BLOB_PREFIX / "chroma_db"
 LOCAL_BLOB_MARKER_FILE = LOCAL_BLOB_CACHE_ROOT / ".blob_signature"
-ROOT_BLOB_CACHE_ROOT = PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
+ROOT_BLOB_CACHE_ROOT = REPO_ROOT / "nutrifaq-dbase" / "chroma_db"
 
 _CHROMA_CLIENT_CACHE: dict[str, Any] = {}
 _CHROMA_COLLECTION_CACHE: dict[tuple[str, str], Any] = {}
@@ -41,7 +42,7 @@ _CHROMA_SIGNATURE_CACHE: str | None = None
 def load_style_guides():
     """Load style guides from JSON file"""
     try:
-        with open(PROJECT_ROOT / 'config' / 'style_guides.json', 'r', encoding='utf-8') as f:
+        with open(API_ROOT / 'config' / 'style_guides.json', 'r', encoding='utf-8') as f:
             style_data = json.load(f)
         
         # Format the style guides for use in prompts
@@ -66,7 +67,7 @@ def load_style_guides():
 def load_system_prompts():
     """Load system prompts from JSON file"""
     try:
-        with open(PROJECT_ROOT / 'config' / 'system_prompts.json', 'r', encoding='utf-8') as f:
+        with open(API_ROOT / 'config' / 'system_prompts.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         return {}
@@ -79,7 +80,7 @@ def load_prompts(kb_name=None):
         kb_name: Ignored for single-agent setup
     """
     try:
-        kb_path = PROJECT_ROOT / "config"
+        kb_path = API_ROOT / "config"
         prompts_path = kb_path / 'prompts.json'
         with open(prompts_path, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -147,7 +148,7 @@ def build_prompt_from_template(language, context, question, history_text="", age
 
 
 def _repo_chroma_path() -> Path:
-    return PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
+    return REPO_ROOT / "nutrifaq-dbase" / "chroma_db"
 
 
 def _remote_chroma_signature() -> str:
@@ -474,13 +475,18 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             return
 
         documents = results.get("documents")
-        if not documents or not isinstance(documents, list) or not documents[0]:
+        if not documents or not isinstance(documents, list):
+            yield "No relevant information found. Please make sure you have indexed some transcripts."
+            return
+
+        top_documents = documents[0] if len(documents) > 0 and isinstance(documents[0], list) else []
+        if not top_documents:
             yield "No relevant information found. Please make sure you have indexed some transcripts."
             return
 
         # Build context from results
         contexts = []
-        for i, doc in enumerate(documents[0]):
+        for i, doc in enumerate(top_documents):
             contexts.append(doc)
         context = "\n\n".join(contexts)
 
@@ -488,7 +494,8 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         # Only extract links for substantial questions (not for generic/short questions)
         links = []
         if is_substantial_question(question):
-            metadatas = results.get('metadatas', [[]])[0]
+            raw_metadatas = results.get("metadatas")
+            metadatas = raw_metadatas[0] if isinstance(raw_metadatas, list) and len(raw_metadatas) > 0 else []
             links = get_links_from_contexts(contexts, metadatas=metadatas, agent=agent)
         
         # Save links in session if provided
@@ -521,8 +528,14 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         answer = ""
         stream_started_at = time.perf_counter()
         for chunk in stream:
-            if chunk.choices[0].delta.content is not None:
-                content = chunk.choices[0].delta.content
+            if not getattr(chunk, "choices", None):
+                continue
+
+            first_choice = chunk.choices[0]
+            delta = getattr(first_choice, "delta", None)
+            content = getattr(delta, "content", None) if delta is not None else None
+
+            if content is not None:
                 # Strip leading whitespace from first chunk only
                 if first_chunk:
                     content = content.lstrip()
@@ -532,13 +545,7 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
                     answer += content
                     yield content
 
-        timings["stream_total_ms"] = round((time.perf_counter() - stream_started_at) * 1000, 1)
-        timings["request_total_ms"] = round((time.perf_counter() - request_started_at) * 1000, 1)
-
-        if session is not None and question_id is not None:
-            session.setdefault('timings', {})[question_id] = timings
-            print(f"[timing] {json.dumps(timings, ensure_ascii=False)}", flush=True)
-            yield f"data: {json.dumps({'timings': timings})}\n\n"
+  
 
     except Exception as e:
         yield f"Error processing your question: {str(e)}"

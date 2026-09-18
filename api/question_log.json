@@ -12,5 +12,68 @@
     "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\api\\nutrifaq-dbase\\chroma_db. Blob database was not loaded at startup.",
     "timestamp": "2026-09-17T20:24:08.431205",
     "comments": []
+  },
+  {
+    "question_id": "e9fb61f9-2f44-478d-91c2-635bd6aecf00",
+    "question": "General wellness and lifestyle habits",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\api\\nutrifaq-dbase\\chroma_db. Blob database was not loaded at startup.",
+    "timestamp": "2026-09-18T10:37:41.057263",
+    "comments": []
+  },
+  {
+    "question_id": "b425d5a4-1b7d-4031-a655-6bfe56dd1445",
+    "question": "General wellness and lifestyle habits",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\api\\nutrifaq-dbase\\chroma_db. Blob database was not loaded at startup.",
+    "timestamp": "2026-09-18T10:38:21.916949",
+    "comments": []
+  },
+  {
+    "question_id": "82c7971e-f85b-45d0-b3c8-318997a945e0",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Collection [nutrifaq-collection] does not exist",
+    "timestamp": "2026-09-18T10:41:29.609432",
+    "comments": []
+  },
+  {
+    "question_id": "e6214a71-8d59-41bd-a626-4ea6fdb67ae3",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Error processing your question: list index out of range",
+    "timestamp": "2026-09-18T10:51:40.103776",
+    "comments": []
+  },
+  {
+    "question_id": "fb7fd639-5ba7-45b9-b4a1-bb449ec52ae8",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Error processing your question: list index out of range",
+    "timestamp": "2026-09-18T10:53:23.542751",
+    "comments": []
+  },
+  {
+    "question_id": "cb80c12e-8bc7-4b34-b05f-f302976b6f36",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Tu veux des repères généraux sur le bien‑être et les habitudes de vie — voici un résumé clair basé sur le contexte fourni.\n\nPoints clés\n- Il n'existe pas de solution universelle. Les effets dépendent du contexte et des quantités.  \n- La nutrition s'inscrit dans une approche globale : l'alimentation, le sommeil et l'activité physique sont interreliés.  \n- Les suppléments apportent peu de bénéfices pour prévenir maladies chez des adultes en bonne santé, et peuvent servir surtout à couvrir des carences nutritionnelles ponctuelles.  \n- Les régimes dits « anti‑inflammatoires » (ex. méditerranéen, DASH) montrent une réduction modérée et consistante de certains marqueurs d'inflammation (CRP, cytokines), mais ce n’est pas une solution miracle.  \n- Structurer ton environnement aide : aliments de base accessibles, batch cooking, collations prêtes réduisent le recours au « prêt à jeter ». Exemples d’aliments abordables et nutritifs cités : œufs, avoine, pois chiches, tofu, bananes, légumes congelés, conserves (ex. thon) et soupes maison. Le congelé peut être aussi nutritif que le frais.  \n- L’écoute des signaux de faim et de satiété (alimentation intuitive) est importante pour une gestion durable du poids et du bien‑être.  \n- La perte de poids conduit souvent à des adaptations physiologiques (baisse du métabolisme, augmentation de l’appétit) qui favorisent le regain de poids ; c’est un défi fréquent et attendu.\n\nLimites et suite\n- Je ne suis pas un professionnel de santé et je ne fournis pas de diagnostic ni de recommandations personnalisées.  \n- Si tu as une question médicale, des objectifs de santé précis ou besoin d’un plan adapté, adresse‑toi à un professionnel de santé qualifié (médecin, diététicien, nutritionniste).data: {\"timings\": {\"provider\": \"azure\", \"embedding_provider\": \"azure\", \"refusal_check_ms\": 8.0, \"embedding_ms\": 880.2, \"chroma_query_ms\": 450.8, \"prompt_build_ms\": 4.8, \"model_name\": \"gpt-4o-mini\", \"first_token_ms\": 9.1, \"stream_total_ms\": 3238.4, \"request_total_ms\": 9685.3}}\n\n",
+    "timestamp": "2026-09-18T10:58:43.595493",
+    "comments": []
+  },
+  {
+    "question_id": "7457b98e-6638-4799-b089-85da95ce641b",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Voici un aperçu concis et éducatif, basé sur le contexte fourni, pour soutenir ton bien‑être général et tes habitudes de vie.\n\nPoints clés généraux\n- Il n'existe pas de solution universelle.  \n- Les effets dépendent du contexte et des quantités.  \n- La nutrition s'inscrit dans une approche globale.  \n- L'alimentation, le sommeil et l'activité physique sont interreliés.\n\nAlimentation et suppléments\n- Les régimes dits « anti‑inflammatoires » (ex. méditerranéen, DASH) montrent une diminution modérée mais régulière de marqueurs d'inflammation sanguine (ex. CRP).  \n- Les suppléments de vitamines et minéraux chez des adultes généralement en bonne santé apportent peu de bénéfice pour la prévention des maladies majeures ; ils deviennent parfois une « béquille » qui nuit au développement d'habitudes alimentaires durables.  \n- Développer l'habitude de manger suffisamment de végétaux, varier ses aliments et cuisiner soi‑même favorise la santé à long terme.\n\nStratégies pratiques (informationnelle)\n- Structurer ton environnement aide : aliments de base accessibles et peu chers, batch cooking, lunches préparés, collations prêtes pour éviter le « skip » ou les aliments transformés.  \n- Exemples d’aliments abordables et nutritifs cités : œufs, avoine, pois chiches, tofu, bananes, riz, légumes surgelés, conserve de thon, soupe maison.  \n- Frais ≠ toujours mieux : les aliments congelés peuvent être souvent aussi nutritifs, parfois plus que certains frais.\n\nComportement alimentaire et poids\n- L’écoute des signaux de faim et de satiété (alimentation bienveillante et intuitive) est au cœur d’une gestion du poids durable pour beaucoup de personnes.  \n- Les interventions de perte de poids peuvent entraîner des adaptations physiologiques (baisse du métabolisme, augmentation de l’appétit) et psychologiques qui favorisent le regain de poids; les bénéfices à long terme restent à élucider.\n\nLimites et orientation\n- Ceci est une information générale à visée éducative. Je ne fournis pas de diagnostic ni de recommandations personnalisées.  \n- Pour des questions médicales ou des conseils adaptés à ta situation personnelle, adresse‑toi à un professionnel de santé qualifié.data: {\"timings\": {\"provider\": \"azure\", \"embedding_provider\": \"azure\", \"refusal_check_ms\": 4.8, \"embedding_ms\": 981.3, \"chroma_query_ms\": 203.7, \"prompt_build_ms\": 0.3, \"model_name\": \"gpt-4o-mini\", \"first_token_ms\": 13.2, \"stream_total_ms\": 3448.2, \"request_total_ms\": 10280.9}}\n\n",
+    "timestamp": "2026-09-18T10:59:58.396812",
+    "comments": []
+  },
+  {
+    "question_id": "708eb3ca-fd4f-4f58-9a56-a88db8f2b0e0",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Voici quelques points généraux, clairs et issus uniquement du contexte fourni :\n\n- Les suppléments donnent souvent peu de bénéfices pour la prévention de maladies chez les adultes en bonne santé et peuvent servir de « béquille » empêchant le développement d’habitudes alimentaires durables.  \n- Les diètes dites « anti‑inflammatoires » (ex. méditerranéen, DASH) montrent une diminution modérée et consistante de marqueurs d’inflammation (CRP, certaines cytokines) — donc un effet mais pas une solution miraculeuse.  \n- Structurer son environnement facilite l’adoption d’assiettes équilibrées : aliments de base accessibles et peu chers, batch cooking, lunches prêts, et une épicerie futée réduisent le recours au « skip » ou à la malbouffe.  \n- Exemples d’aliments abordables et nutritifs cités : œufs, avoine, pois chiches, tofu, bananes, légumes congelés, conserves (ex. thon), soupe maison, riz. Le frais n’est pas toujours mieux ; le congelé est souvent tout aussi nutritif.  \n- L’alimentation bienveillante et intuitive — écouter faim et satiété — est centrale pour une gestion du poids et du bien‑être durable ; l’approche comportementale non restrictive peut améliorer la santé même sans grande perte de poids.  \n- La perte de poids s’accompagne de mécanismes physiologiques et psychologiques (thermogénèse adaptative, appétit augmenté, pensées centrées sur la nourriture, risque de reprise du poids) qui rendent le maintien difficile.  \n- Rappels importants : il n’existe pas de solution universelle ; les effets dépendent du contexte et des quantités ; la nutrition s’inscrit dans une approche globale ; l’alimentation, le sommeil et l’activité physique sont interreliés.\n\nJe ne suis pas un professionnel de santé et je ne peux pas donner de conseils personnalisés ni poser de diagnostic. Pour des questions médicales ou un accompagnement adapté à ta situation, consulte un professionnel de santé qualifié.data: {\"timings\": {\"provider\": \"azure\", \"embedding_provider\": \"azure\", \"refusal_check_ms\": 4.5, \"embedding_ms\": 857.5, \"chroma_query_ms\": 181.5, \"prompt_build_ms\": 0.3, \"model_name\": \"gpt-4o-mini\", \"first_token_ms\": 11.4, \"stream_total_ms\": 4789.6, \"request_total_ms\": 12937.4}}\n\n",
+    "timestamp": "2026-09-18T11:00:47.135050",
+    "comments": []
+  },
+  {
+    "question_id": "dd043ed9-3f13-4778-8ea6-1d973f7c5302",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Voici, de manière concise, ce que dit le contexte sur le bien‑être général et les habitudes de vie :\n\n- Il n'existe pas de solution universelle : la santé repose sur plusieurs facteurs liés entre eux. La nutrition s'inscrit dans une approche globale et l'alimentation, le sommeil et l'activité physique sont interreliés.  \n- Alimentation : favoriser une grande diversité de végétaux et des aliments de base accessibles (œufs, avoine, pois chiches, tofu, bananes, riz) aide à la qualité nutritionnelle. Les légumes congelés ou les conserves peuvent être aussi nutritifs que le frais.  \n- Organisation pratique : structurer son environnement (aliments de base, batch cooking, collations prêtes, épicerie futée) facilite le maintien d'assiettes équilibrées sans complication.  \n- Régimes « anti‑inflammatoires » (ex. méditerranéen, DASH) : études montrent une diminution modérée mais consistante de marqueurs d'inflammation sanguins (CRP, certaines cytokines).  \n- Suppléments : les preuves montrent peu d'effet préventif sur maladies majeures chez des adultes en bonne santé ; certains prennent des compléments pour la tranquillité d'esprit, mais ils ne doivent pas remplacer l'amélioration des habitudes alimentaires.  \n- Gestion du poids : l'écoute des signaux de faim et de satiété est centrale. Les interventions de perte de poids peuvent entraîner des adaptations physiologiques (thermogenèse adaptative, hausse de l'appétit) et des effets psychocomportementaux qui favorisent le regain de poids.  \n- Les effets dépendent du contexte et des quantités : les bénéfices observés sont souvent modérés et variables entre individus.\n\nJe ne peux pas fournir de conseils personnalisés ni de diagnostic. Pour une stratégie adaptée à ta situation personnelle, consulte un professionnel de santé qualifié.",
+    "timestamp": "2026-09-18T11:02:19.089588",
+    "comments": []
   }
 ]

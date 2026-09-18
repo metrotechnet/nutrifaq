@@ -24,6 +24,28 @@ def _normalize_model_name(model_name: str) -> str:
     return model_name.split("/", 1)[1] if "/" in model_name else model_name
 
 
+def _is_azure_apim_gateway(endpoint: str | None) -> bool:
+    if not endpoint:
+        return False
+    return "azure-api.net" in endpoint.lower()
+
+
+def _is_azure_openai_v1_endpoint(endpoint: str | None) -> bool:
+    if not endpoint:
+        return False
+    normalized = endpoint.lower().rstrip("/")
+    return (
+        "openai.azure.com" in normalized
+        or "services.ai.azure.com" in normalized
+        or normalized.endswith("/openai/v1")
+        or "/openai/v1/" in normalized
+    )
+
+
+def _normalize_base_url(endpoint: str, suffix: str) -> str:
+    return f"{endpoint.rstrip('/')}/{suffix.lstrip('/')}"
+
+
 def _status_code_from_error(exc: Exception) -> int | None:
     status_code = getattr(exc, "status_code", None)
     if isinstance(status_code, int):
@@ -79,9 +101,12 @@ def _log_rate_limit_wait(kind: str, attempt: int, max_retries: int, delay: float
     )
 
 
-def _get_azure_client() -> AzureOpenAI:
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+def _get_azure_client(
+    endpoint_override: str | None = None,
+    api_key_override: str | None = None,
+) -> AzureOpenAI:
+    endpoint = endpoint_override or os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = api_key_override or os.getenv("AZURE_OPENAI_API_KEY")
     api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21")
 
     if not endpoint or not api_key:
@@ -92,10 +117,24 @@ def _get_azure_client() -> AzureOpenAI:
     return AzureOpenAI(azure_endpoint=endpoint, api_key=api_key, api_version=api_version)
 
 
+def _get_azure_chat_client() -> OpenAI | AzureOpenAI:
+    endpoint = os.getenv("AZURE_OPENAI_CHAT_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_CHAT_API_KEY")
+
+    return _get_azure_client(endpoint, api_key)
+
+
+def _get_azure_embedding_client() -> OpenAI | AzureOpenAI:
+    endpoint = os.getenv("AZURE_OPENAI_EMBEDDING_ENDPOINT") 
+    api_key = os.getenv("AZURE_OPENAI_EMBEDDING_API_KEY") 
+
+    return _get_azure_client(endpoint, api_key)
+
+
 def get_gateway_client() -> OpenAI | AzureOpenAI:
     provider = _llm_provider()
     if provider == "azure":
-        return _get_azure_client()
+        return _get_azure_chat_client()
 
     api_key = os.getenv("AI_GATEWAY_API_KEY")
     if not api_key:
@@ -158,7 +197,7 @@ def create_embedding(
     embedding_client: OpenAI | AzureOpenAI
 
     if provider == "azure":
-        embedding_client = _get_azure_client()
+        embedding_client = _get_azure_embedding_client()
         resolved_model = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT") or _normalize_model_name(model_name)
     else:
         api_key = os.getenv("AI_GATEWAY_API_KEY")
@@ -174,6 +213,8 @@ def create_embedding(
     for attempt in range(max_retries + 1):
         try:
             response = embedding_client.embeddings.create(model=resolved_model, input=input_text)
+            if not getattr(response, "data", None):
+                raise RuntimeError("Embedding API returned no data.")
             return response.data[0].embedding
         except Exception as exc:
             last_error = exc
@@ -204,7 +245,7 @@ def create_embeddings(
     embedding_client: OpenAI | AzureOpenAI
 
     if provider == "azure":
-        embedding_client = _get_azure_client()
+        embedding_client = _get_azure_embedding_client()
         resolved_model = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT") or _normalize_model_name(model_name)
     else:
         api_key = os.getenv("AI_GATEWAY_API_KEY")
@@ -222,6 +263,8 @@ def create_embeddings(
         for attempt in range(max_retries + 1):
             try:
                 response = embedding_client.embeddings.create(model=resolved_model, input=texts)
+                if not getattr(response, "data", None):
+                    raise RuntimeError("Embedding API returned no data.")
                 return [item.embedding for item in response.data]
             except Exception as exc:
                 last_error = exc

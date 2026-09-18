@@ -7,26 +7,24 @@ Usage:
 
 import json
 import os
-import sys
 import shutil
+import sys
 from pathlib import Path
 
 import chromadb
 from chromadb.config import Settings
-from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
-from openai import OpenAI
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from api.services.blob_storage_service import (
+from api.services.blob_storage_service import (  # noqa: E402
+    download_blob_to_path,
     get_blob_container_name,
     get_blob_prefix,
-    download_blob_to_path,
 )
-
+from api.services.llm_service import create_embeddings  # noqa: E402
 
 # Get main root directory (where .env is located)
 MAIN_ROOT = Path.cwd()
@@ -34,11 +32,6 @@ while not (MAIN_ROOT / ".env").exists() and MAIN_ROOT.parent != MAIN_ROOT:
     MAIN_ROOT = MAIN_ROOT.parent
 
 load_dotenv(dotenv_path=MAIN_ROOT / ".env", override=True)
-
-client = OpenAI(
-    api_key=os.getenv("AI_GATEWAY_API_KEY"),
-    base_url="https://ai-gateway.vercel.sh/v1",
-)
 
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
@@ -57,19 +50,10 @@ def _sync_transcripts_json_from_blob(kb_path: Path) -> Path:
 
 
 def get_embeddings(texts):
-    """Get embeddings from OpenAI."""
+    """Get embeddings using the configured embedding provider."""
     if isinstance(texts, str):
         texts = [texts]
-
-    batch_size = 100
-    all_embeddings = []
-
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i : i + batch_size]
-        resp = client.embeddings.create(model="text-embedding-3-large", input=batch)
-        all_embeddings.extend([e.embedding for e in resp.data])
-
-    return all_embeddings
+    return create_embeddings(input_texts=texts, model_name="text-embedding-3-large")
 
 
 def init_chromadb(kb_path):
@@ -89,9 +73,6 @@ def init_chromadb(kb_path):
 
     collection_name = "nutrifaq-collection"
 
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    ef = embedding_functions.OpenAIEmbeddingFunction(api_key=openai_api_key, model_name="text-embedding-3-large")
-
     try:
         chroma_client.delete_collection(name=collection_name)
         print(f"Deleted existing collection: {collection_name}")
@@ -100,7 +81,6 @@ def init_chromadb(kb_path):
 
     collection = chroma_client.create_collection(
         name=collection_name,
-        embedding_function=ef,
         metadata={"description": f"Knowledge base: {kb_path.name}"},
     )
 
@@ -141,7 +121,10 @@ def index_chromadb_json(kb_path):
         print("Ensure transcripts_chromadb.json was created first")
         return
 
+    embedding_provider = os.getenv("EMBEDDING_PROVIDER", os.getenv("LLM_PROVIDER", "vercel"))
+    print(f"Embedding provider: {embedding_provider}")
     print(f"Loading JSON from: {json_file}")
+
     with open(json_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -164,6 +147,7 @@ def index_chromadb_json(kb_path):
 
     all_ids = []
     all_documents = []
+    all_embeddings = []
     all_metadatas = []
 
     total_chunks = 0
@@ -179,12 +163,13 @@ def index_chromadb_json(kb_path):
         print(f"  Created {len(chunks)} chunks")
         total_chunks += len(chunks)
 
-        _ = get_embeddings(chunks)
+        chunk_embeddings = get_embeddings(chunks)
 
         for i, chunk in enumerate(chunks):
             chunk_id = f"{doc_id}_chunk{i}"
             all_ids.append(chunk_id)
             all_documents.append(chunk)
+            all_embeddings.append(chunk_embeddings[i])
 
             chunk_metadata = {
                 **metadata,
@@ -206,18 +191,29 @@ def index_chromadb_json(kb_path):
 
         batch_ids = all_ids[start_idx:end_idx]
         batch_documents = all_documents[start_idx:end_idx]
+        batch_embeddings = all_embeddings[start_idx:end_idx]
         batch_metadatas = all_metadatas[start_idx:end_idx]
 
         print(f"   Batch {batch_idx + 1}/{total_batches}: Adding {len(batch_ids)} chunks...")
 
         try:
-            collection.add(ids=batch_ids, documents=batch_documents, metadatas=batch_metadatas)
+            collection.add(
+                ids=batch_ids,
+                documents=batch_documents,
+                embeddings=batch_embeddings,
+                metadatas=batch_metadatas,
+            )
         except Exception as exc:
             if _is_missing_collections_table_error(exc):
                 print("ChromaDB schema error detected during indexing; rebuilding local database and retrying...")
                 _reset_chroma_directory(kb_path)
                 _, collection = init_chromadb(kb_path)
-                collection.add(ids=batch_ids, documents=batch_documents, metadatas=batch_metadatas)
+                collection.add(
+                    ids=batch_ids,
+                    documents=batch_documents,
+                    embeddings=batch_embeddings,
+                    metadatas=batch_metadatas,
+                )
             else:
                 raise
 

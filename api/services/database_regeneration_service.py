@@ -9,14 +9,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
+import shutil
 import subprocess
 import sys
 import time
+
+from api.services.blob_storage_service import (
+    get_blob_prefix,
+    has_blob_storage_config,
+    sync_local_directory_to_blob,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 KB_ROOT = REPO_ROOT / "nutrifaq-dbase"
 SCRIPTS_DIR = REPO_ROOT / "api" / "db_pipeline"
+CHROMA_DB_ROOT = KB_ROOT / "chroma_db"
+LOCAL_SERVER_SQLITE_COPY = REPO_ROOT / "local-server" / "chroma.sqlite3"
 
 
 @dataclass
@@ -161,6 +170,45 @@ def run_regeneration_step(step_key: str) -> Dict[str, object]:
     return runner()
 
 
+def _save_chromadb_to_blob_and_local_copy() -> Dict[str, object]:
+    if not CHROMA_DB_ROOT.exists():
+        return {
+            "status": "error",
+            "message": f"ChromaDB directory not found: {CHROMA_DB_ROOT}",
+        }
+
+    sqlite_path = CHROMA_DB_ROOT / "chroma.sqlite3"
+    if not sqlite_path.exists():
+        return {
+            "status": "error",
+            "message": f"SQLite database file not found: {sqlite_path}",
+        }
+
+    blob_result: Dict[str, object]
+    if has_blob_storage_config():
+        destination_prefix = f"{get_blob_prefix()}/chroma_db"
+        uploaded = sync_local_directory_to_blob(CHROMA_DB_ROOT, destination_prefix, overwrite=True)
+        blob_result = {
+            "status": "ok",
+            "destination_prefix": destination_prefix,
+            "uploaded_files_count": len(uploaded),
+        }
+    else:
+        blob_result = {
+            "status": "skipped",
+            "message": "Azure Blob Storage not configured; upload skipped.",
+        }
+
+    LOCAL_SERVER_SQLITE_COPY.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(sqlite_path, LOCAL_SERVER_SQLITE_COPY)
+
+    return {
+        "status": "ok",
+        "blob_sync": blob_result,
+        "local_sqlite_copy": str(LOCAL_SERVER_SQLITE_COPY),
+    }
+
+
 def run_full_regeneration(
     include_extract_docx: bool = False,
     include_extract_references: bool = False,
@@ -200,8 +248,18 @@ def run_full_regeneration(
                 "steps": results,
             }
 
+    publish_result = _save_chromadb_to_blob_and_local_copy()
+    if publish_result.get("status") != "ok":
+        return {
+            "status": "error",
+            "message": "Pipeline completed but post-sync failed.",
+            "steps": results,
+            "post_sync": publish_result,
+        }
+
     return {
         "status": "success",
         "message": "Database regeneration pipeline completed.",
         "steps": results,
+        "post_sync": publish_result,
     }

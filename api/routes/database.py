@@ -4,6 +4,9 @@ Provides API endpoints to run the nutrifaq-dbase regeneration pipeline
 using scripts under api/db_pipeline.
 """
 
+import os
+from contextlib import contextmanager
+
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
@@ -19,6 +22,25 @@ from api.services.database_regeneration_service import (
 
 
 router = APIRouter()
+
+
+@contextmanager
+def _temporary_env(overrides: dict[str, str | None]):
+    previous: dict[str, str | None] = {}
+    try:
+        for key, value in overrides.items():
+            previous[key] = os.environ.get(key)
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 @router.get("/api/database/steps")
@@ -73,6 +95,8 @@ def run_index_chromadb_json():
 def regenerate_database(
     include_extract_docx: bool = Query(False, description="Run DOCX extraction before regeneration."),
     include_extract_references: bool = Query(False, description="Run references extraction before regeneration."),
+    llm_provider: str | None = Query(None, description="Optional LLM provider override for this run."),
+    embedding_provider: str | None = Query(None, description="Optional embedding provider override for this run."),
 ):
     """Run the full regeneration pipeline.
 
@@ -80,9 +104,21 @@ def regenerate_database(
     - generate_transcripts_json
     - index_chromadb_json
     """
-    result = run_full_regeneration(
-        include_extract_docx=include_extract_docx,
-        include_extract_references=include_extract_references,
-    )
+    env_overrides = {
+        "LLM_PROVIDER": llm_provider,
+        "EMBEDDING_PROVIDER": embedding_provider,
+    }
+
+    with _temporary_env(env_overrides):
+        result = run_full_regeneration(
+            include_extract_docx=include_extract_docx,
+            include_extract_references=include_extract_references,
+        )
+
+    result["provider"] = {
+        "llm_provider": llm_provider or os.getenv("LLM_PROVIDER", "vercel"),
+        "embedding_provider": embedding_provider or os.getenv("EMBEDDING_PROVIDER", "vercel"),
+    }
+
     status_code = 200 if result.get("status") == "success" else 500
     return JSONResponse(status_code=status_code, content=result)
