@@ -1,7 +1,7 @@
 """
 Session Management API Routes
 
-This module defines endpoints for managing conversation sessions in the Nutria Agent backend.
+This module defines endpoints for managing conversation sessions in the Nutrifaq Agent backend.
 """
 from fastapi import APIRouter
 

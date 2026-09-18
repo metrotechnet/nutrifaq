@@ -1,7 +1,7 @@
 """
 Session Management Utilities
 
-This module provides functions for managing conversation sessions in the Nutria Agent backend.
+This module provides functions for managing conversation sessions in the Nutrifaq Agent backend.
 """
 from datetime import datetime, timedelta
 from typing import Dict

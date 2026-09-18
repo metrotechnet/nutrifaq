@@ -1,5 +1,5 @@
 """
-Extract references from Nutria documents.
+Extract references from Nutrifaq documents.
 
 Reads all .docx files in nutrifaq-dbase/documents and extracts:
 - Inline PMID references (PMID: 12345678)

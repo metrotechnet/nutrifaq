@@ -1,7 +1,7 @@
 """
 Agent Configuration API Routes
 
-This module defines endpoints for retrieving agent configuration in the Nutria Agent backend.
+This module defines endpoints for retrieving agent configuration in the Nutrifaq Agent backend.
 """
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("/api/get_config")
 def get_config_endpoint():
     """
-    Retrieve the configuration for the Nutria Agent (single-agent deployment).
+    Retrieve the configuration for the Nutrifaq Agent (single-agent deployment).
 
     Returns:
         dict: The merged configuration dictionary for the agent.

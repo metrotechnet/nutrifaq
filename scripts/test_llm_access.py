@@ -98,7 +98,7 @@ def _test_chroma_compatibility(vec: list[float] | None) -> bool:
 
     try:
         result = query_chromadb(
-            project_name="nutria",
+            project_name="nutrifaq",
             collection_name="nutrifaq-collection",
             data={
                 "query_embedding": vec,

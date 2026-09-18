@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import time
 from typing import Any
 from urllib.parse import urlparse
 from pathlib import Path
@@ -20,7 +21,7 @@ from api.services.blob_storage_service import (
 PROJECT_ROOT = Path(__file__).parent.parent
 load_dotenv(dotenv_path=PROJECT_ROOT / '.env')
 
-DEFAULT_PROJECT_NAME = os.getenv("KNOWLEDGE_BASE_NAME", "nutria")
+DEFAULT_PROJECT_NAME = os.getenv("KNOWLEDGE_BASE_NAME", "nutrifaq")
 DEFAULT_COLLECTION_NAME = os.getenv("DEFAULT_COLLECTION_NAME", "nutrifaq-collection")
 CHROMADB_CENTRAL_URL = os.getenv("CHROMADB_CENTRAL_URL", "http://localhost:2000").rstrip("/")
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -407,6 +408,12 @@ def get_links_from_contexts(contexts, metadatas=None, agent=None):
 def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR", top_k=5, conversation_history=None, session=None, question_id=None, agent=None):
     """Streaming version of ask_question with language support and conversation history"""
 
+    request_started_at = time.perf_counter()
+    timings = {
+        "provider": os.getenv("LLM_PROVIDER", "vercel"),
+        "embedding_provider": os.getenv("EMBEDDING_PROVIDER", os.getenv("LLM_PROVIDER", "vercel")),
+    }
+
     # Use conversation_history if provided, otherwise empty list
     if conversation_history is None:
         conversation_history = []
@@ -421,13 +428,16 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             history_text += f"{role_label}: {msg['content']}\n"
 
     # context is not available yet (need ChromaDB), so pass empty string for now
+    refusal_started_at = time.perf_counter()
     refusal_result = validate_user_query(question, llm_call_fn=None, language=language)
+    timings["refusal_check_ms"] = round((time.perf_counter() - refusal_started_at) * 1000, 1)
     if refusal_result and refusal_result.get("decision") == "refuse":
         # Store empty links list in session for refusal
         if session is not None and question_id is not None:
             if 'links' not in session:
                 session['links'] = {}
             session['links'][question_id] = []
+            session.setdefault('timings', {})[question_id] = timings
         yield "__REFUSAL__"
         yield refusal_result["answer"]
         return
@@ -437,9 +447,12 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         client = get_gateway_client()
 
         # Get embedding for the question
+        embedding_started_at = time.perf_counter()
         query_emb = create_embedding(input_text=question, model_name="text-embedding-3-large")
+        timings["embedding_ms"] = round((time.perf_counter() - embedding_started_at) * 1000, 1)
 
         # Query ChromaDB
+        chroma_started_at = time.perf_counter()
         query_params = {
             "query_embedding": query_emb,
             "n_results": top_k,
@@ -448,7 +461,8 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             
         # Ensure query_params is JSON serializable
         query_params = json.loads(json.dumps(query_params, default=str))
-        results = query_chromadb(project_name="nutria", collection_name="nutrifaq-collection", data=query_params)
+        results = query_chromadb(project_name="nutrifaq", collection_name="nutrifaq-collection", data=query_params)
+        timings["chroma_query_ms"] = round((time.perf_counter() - chroma_started_at) * 1000, 1)
 
         if not isinstance(results, dict):
             yield "Knowledge base query returned an unexpected response format."
@@ -484,7 +498,9 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             session['links'][question_id] = links
 
         # Build prompt using template from JSON
+        prompt_started_at = time.perf_counter()
         prompt, model_config = build_prompt_from_template(language, context, question, history_text, agent=agent)
+        timings["prompt_build_ms"] = round((time.perf_counter() - prompt_started_at) * 1000, 1)
         
         if not prompt:
             yield "Error: Unable to load prompt template."
@@ -499,8 +515,11 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             prompt=prompt,
             temperature=1.0,
         )
+        timings["model_name"] = model_name
+        timings["first_token_ms"] = None
         first_chunk = True
         answer = ""
+        stream_started_at = time.perf_counter()
         for chunk in stream:
             if chunk.choices[0].delta.content is not None:
                 content = chunk.choices[0].delta.content
@@ -508,9 +527,18 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
                 if first_chunk:
                     content = content.lstrip()
                     first_chunk = False
+                    timings["first_token_ms"] = round((time.perf_counter() - stream_started_at) * 1000, 1)
                 if content:
                     answer += content
                     yield content
+
+        timings["stream_total_ms"] = round((time.perf_counter() - stream_started_at) * 1000, 1)
+        timings["request_total_ms"] = round((time.perf_counter() - request_started_at) * 1000, 1)
+
+        if session is not None and question_id is not None:
+            session.setdefault('timings', {})[question_id] = timings
+            print(f"[timing] {json.dumps(timings, ensure_ascii=False)}", flush=True)
+            yield f"data: {json.dumps({'timings': timings})}\n\n"
 
     except Exception as e:
         yield f"Error processing your question: {str(e)}"

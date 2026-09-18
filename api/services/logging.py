@@ -1,7 +1,7 @@
 """
 Logging Utilities
 
-This module provides functions for logging questions, responses, comments, and likes in the Nutria Agent backend.
+This module provides functions for logging questions, responses, comments, and likes in the Nutrifaq Agent backend.
 """
 from pathlib import Path
 from datetime import datetime

@@ -1,7 +1,7 @@
 """
 Report API Routes
 
-This module defines endpoints for logging user feedback (comments, likes) and serving log files in the Nutria Agent backend.
+This module defines endpoints for logging user feedback (comments, likes) and serving log files in the Nutrifaq Agent backend.
 """
 from fastapi import APIRouter, Body, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse

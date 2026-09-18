@@ -1,15 +1,15 @@
 {
   "fr": {
     "app": {
-      "title": "IMX - Nutria | Agent Nutritionniste",
+      "title": "IMX - Nutrifaq | Agent Nutritionniste",
       "description": "Agent IA nutritionniste par IMX Multi-Agent"
     },
     "intro": {
       "title": "Des questions sur la nutrition ?",
       "description": "Posez vos questions à notre agent IA et obtenez des réponses claires instantanément. Luttons contre la désinformation, une question à la fois.",
       "disclaimer": "Note : Cet agent IA fournit uniquement des informations. Pour des conseils personnalisés, consultez un professionnel de santé qualifié.",
-      "profileAlt": "Nutria Agent",
-      "profileImage": "/static/logos/logo-nutria.png"
+      "profileAlt": "Nutrifaq Agent",
+      "profileImage": "/static/logos/logo-nutrifaq.png"
     },
     "suggestions": [
       {
@@ -46,15 +46,15 @@
   },
   "en": {
     "app": {
-      "title": "IMX - Nutria | Nutritionist Agent",
+      "title": "IMX - Nutrifaq | Nutritionist Agent",
       "description": "AI Nutritionist Agent by IMX Multi-Agent"
     },
     "intro": {
       "title": "Questions about nutrition?",
       "description": "Ask our AI agent and get clear answers instantly. Fighting misinformation, one question at a time.",
       "disclaimer": "Note: This AI agent provides information only. For personalized advice, consult a qualified health professional.",
-      "profileAlt": "Nutria Agent",
-      "profileImage": "/static/logos/logo-nutria.png"
+      "profileAlt": "Nutrifaq Agent",
+      "profileImage": "/static/logos/logo-nutrifaq.png"
     },
     "suggestions": [
       {

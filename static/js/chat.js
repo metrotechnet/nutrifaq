@@ -520,6 +520,10 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
                         // console.log('Links received via stream:', linksReceived);
                     }
 
+                    if (data.timings) {
+                        console.log('[Frontend][timing]', data.timings);
+                    }
+
                     if (data.chunk) {
                         textToDisplay += data.chunk;
                         fullText = textToDisplay; // Keep fullText synchronized

@@ -27,7 +27,7 @@ load_dotenv(dotenv_path=env_path)
 
 import os
 
-app = FastAPI(title="IMX Agent Factory - Nutria Agent API", version="1.0")
+app = FastAPI(title="IMX Agent Factory - Nutrifaq Agent API", version="1.0")
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 app.state.database_sync_status = "synch"
 

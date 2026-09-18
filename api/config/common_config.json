@@ -5,12 +5,12 @@
       "description": "Assistant IA par IMX Technologie inc."
     },
     "header": {
-      "title": "IMX - NutrIA",
+      "title": "IMX - NutriFAQ",
       "menuButton": "Menu",
       "agentLabel": "Agent"
     },
     "sidebar": {
-      "title": "IMX - NutrIA",
+      "title": "IMX - NutriFAQ",
       "closeButton": "Fermer",
       "aboutImx": "À propos d'IMX",
       "legal": "Avertissements",
@@ -103,7 +103,7 @@
       "closeButton": "Fermer"
     },
     "agents": {
-      "nutria": "Agent Nutritionniste",
+      "nutrifaq": "Agent Nutritionniste",
       "translator": "Agent Traducteur"
     },
     "footer": {
@@ -116,12 +116,12 @@
       "description": "AI Assistant of IMX Technologie inc."
     },
     "header": {
-      "title": "IMX - NutrIA",
+      "title": "IMX - NutriFAQ",
       "menuButton": "Menu",
       "agentLabel": "Agent"
     },
     "sidebar": {
-      "title": "IMX - NutrIA",
+      "title": "IMX - NutriFAQ",
       "closeButton": "Close",
       "aboutImx": "About IMX",
       "legal": "Warnings",
@@ -214,7 +214,7 @@
       "closeButton": "Close"
     },
     "agents": {
-      "nutria": "Nutrition Agent",
+      "nutrifaq": "Nutrition Agent",
       "translator": "Translator Agent"
     },
     "footer": {

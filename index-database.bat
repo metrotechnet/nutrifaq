@@ -3,11 +3,11 @@ setlocal
 REM ==================================================
 REM Run the local knowledge base regeneration pipeline
 REM Usage: index-database.bat [project_name]
-REM Example: index-database.bat nutria
+REM Example: index-database.bat nutrifaq
 REM ==================================================
 
 set "PROJECT_NAME=%~1"
-if "%PROJECT_NAME%"=="" set "PROJECT_NAME=nutria"
+if "%PROJECT_NAME%"=="" set "PROJECT_NAME=nutrifaq"
 
 set "KB_ROOT=%~dp0nutrifaq-dbase"
 set "VECTOR_DB_DIRNAME=chroma_db"

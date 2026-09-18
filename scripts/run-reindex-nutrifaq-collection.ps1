@@ -1,5 +1,5 @@
 param(
-    [string]$ProjectName = "nutria"
+    [string]$ProjectName = "nutrifaq"
 )
 
 $ErrorActionPreference = "Stop"

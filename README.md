@@ -7,7 +7,7 @@ Repository: https://github.com/metrotechnet/nutrifaq.git
 ## Features
 
 - FastAPI backend with routed endpoints for queries, TTS, translation, sessions, reports, and config
-- Retrieval-augmented search over the knowledge base in `nutrifaq-dbase/nutria`
+- Retrieval-augmented search over the knowledge base in `nutrifaq-dbase/nutrifaq`
 - Browser frontend served from `templates/` and `static/`
 - Firebase hosting/deployment configuration in the repo root
 - Debug launch configuration for the API in `.vscode/launch.json`
@@ -43,7 +43,7 @@ NutriFAQ/
 │       ├── tts.py
 │       └── blob.py
 ├── nutrifaq-dbase/
-│   └── nutria/
+│   └── nutrifaq/
 │       ├── chroma_db/
 │       ├── documents/
 │       ├── extracted_texts/

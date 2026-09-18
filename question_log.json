@@ -700,7 +700,7 @@
   {
     "question_id": "dc88bf53-0945-4b40-affe-7cbae8bffe64",
     "question": "Bien-être général et habitudes de vie",
-    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutrifaq\\chroma_db",
     "timestamp": "2026-09-17T14:30:25.805864",
     "comments": []
   },
@@ -756,28 +756,28 @@
   {
     "question_id": "6409c300-3de0-46fd-bde3-26e754562dcd",
     "question": "Bien-être général et habitudes de vie",
-    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutrifaq\\chroma_db",
     "timestamp": "2026-09-17T17:27:59.653995",
     "comments": []
   },
   {
     "question_id": "d8c311df-3262-4dcc-b299-25f96e01fb93",
     "question": "Bien-être général et habitudes de vie",
-    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutrifaq\\chroma_db",
     "timestamp": "2026-09-17T17:31:53.973601",
     "comments": []
   },
   {
     "question_id": "217e559c-02dd-4fe5-aaee-8fd81d0cbbde",
     "question": "Bien-être général et habitudes de vie",
-    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutrifaq\\chroma_db",
     "timestamp": "2026-09-17T17:33:17.647746",
     "comments": []
   },
   {
     "question_id": "31bb3bee-8b01-4af0-a914-84b4c5956c73",
     "question": "Bien-être général et habitudes de vie",
-    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutrifaq\\chroma_db",
     "timestamp": "2026-09-17T17:34:19.948943",
     "comments": []
   },
@@ -798,21 +798,21 @@
   {
     "question_id": "1a353ff8-df33-442b-b4f4-f5c60980d665",
     "question": "Bien-être général et habitudes de vie",
-    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutrifaq\\chroma_db",
     "timestamp": "2026-09-17T17:42:39.584341",
     "comments": []
   },
   {
     "question_id": "45bae056-b1f3-48c7-8350-4d5a8737662b",
     "question": "Bien-être général et habitudes de vie",
-    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutrifaq\\chroma_db",
     "timestamp": "2026-09-17T19:36:30.888883",
     "comments": []
   },
   {
     "question_id": "213caee5-8d97-4d04-8e76-42d81c6eb710",
     "question": "Bien-être général et habitudes de vie",
-    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutrifaq\\chroma_db",
     "timestamp": "2026-09-17T19:38:23.430957",
     "comments": []
   },

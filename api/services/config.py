@@ -1,7 +1,7 @@
 """
 Configuration Management Utilities
 
-This module provides functions for loading and merging configuration files in the Nutria Agent backend.
+This module provides functions for loading and merging configuration files in the Nutrifaq Agent backend.
 """
 from pathlib import Path
 import json

@@ -16,6 +16,11 @@ from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
 from openai import OpenAI
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from api.services.blob_storage_service import (
     get_blob_container_name,
     get_blob_prefix,
