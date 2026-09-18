@@ -138,7 +138,6 @@ https://github.com/metrotechnet/nutrifaq.git
 
 ### Server Won't Start
 
-- Ensure `.env` file exists with `OPENAI_API_KEY`
 - Verify Python 3.11+ is installed: `python --version`
 - Check venv is activated: `.\.venv\Scripts\Activate.ps1`
 - Install dependencies: `pip install -r requirements.txt`

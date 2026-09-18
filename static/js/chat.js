@@ -125,7 +125,7 @@ function createAssistantMessage() {
     messageDiv.innerHTML = `
         <div class="message-icon">IMX</div>
         <div class="message-content">
-            <div class="message-text">
+            <div class="message-text markdown">
                 <div class="loading">
                     <div class="loading-dot"></div>
                     <div class="loading-dot"></div>
@@ -523,9 +523,10 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
                     if (data.chunk) {
                         textToDisplay += data.chunk;
                         fullText = textToDisplay; // Keep fullText synchronized
-                        
                         // Remove incomplete URLs before displaying
                         const cleanText = removeIncompleteUrls(textToDisplay);
+                        // console.log('Full text so far:', cleanText);
+
                         // Only parse markdown if we don't have an incomplete URL
                         // This prevents showing broken image/link URLs during streaming
                         if (!hasIncompleteUrl(cleanText)) {

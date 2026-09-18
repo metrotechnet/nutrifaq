@@ -162,6 +162,7 @@ def create_chat_completion_stream(
 
     for attempt in range(max_retries + 1):
         try:
+            print(prompt)
             return client.chat.completions.create(
                 model=resolved_model,
                 messages=[{"role": "user", "content": prompt}],

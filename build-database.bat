@@ -62,7 +62,6 @@ if %ERRORLEVEL% NEQ 0 (
     echo Check that:
     echo   1. Python is installed and in PATH
     echo   2. Required packages are installed (pip install -r requirements.txt)
-    echo   3. OPENAI_API_KEY is set in .env
     echo.
     pause
     exit /b 1

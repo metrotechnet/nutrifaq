@@ -109,13 +109,11 @@ az webapp config appsettings set \
   --resource-group nutrifaq-rg \
   --name nutrifaq-chat \
   --settings \
-  OPENAI_API_KEY="..." \
   PORT="8000"
 ```
 
 Also make sure any other keys such as:
 
-- `OPENAI_API_KEY`
 - `GEMINI_API_KEY`
 - `CHROMA_PATH`
 - `KNOWLEDGE_BASE`

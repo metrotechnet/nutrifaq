@@ -41,14 +41,10 @@ Import-DotEnv -DotEnvPath (Join-Path $repoRoot ".env")
 $env:PYTHONUNBUFFERED = "1"
 
 # Conservative defaults for Azure S0 throttling. Respect existing values if already set.
-if (-not $env:EMBEDDING_REQUEST_BATCH_SIZE) { $env:EMBEDDING_REQUEST_BATCH_SIZE = "1" }
-if (-not $env:EMBEDDING_REQUEST_PAUSE_SECONDS) { $env:EMBEDDING_REQUEST_PAUSE_SECONDS = "2" }
 if (-not $env:EMBEDDING_MAX_RETRIES) { $env:EMBEDDING_MAX_RETRIES = "20" }
 if (-not $env:EMBEDDING_RETRY_BASE_DELAY) { $env:EMBEDDING_RETRY_BASE_DELAY = "5" }
 if (-not $env:EMBEDDING_RETRY_MAX_DELAY) { $env:EMBEDDING_RETRY_MAX_DELAY = "120" }
 if (-not $env:EMBEDDING_SPLIT_AFTER_RETRIES) { $env:EMBEDDING_SPLIT_AFTER_RETRIES = "1" }
-if (-not $env:LLM_RETRY_VERBOSE) { $env:LLM_RETRY_VERBOSE = "true" }
-if (-not $env:RESET_COLLECTION_ON_INDEX) { $env:RESET_COLLECTION_ON_INDEX = "false" }
 
 # if (-not $BackendUrl) {
 #     if ($env:BACKEND_URL) {
