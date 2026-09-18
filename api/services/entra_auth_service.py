@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import os
 from dataclasses import dataclass
 from functools import lru_cache
@@ -9,7 +10,7 @@ from typing import Any
 
 import jwt
 import requests
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from api.services.user_management_service import (
@@ -194,3 +195,29 @@ def _require_min_role(min_role: str):
 require_collaborator = _require_min_role(ROLE_COLLABORATOR)
 require_admin = _require_min_role(ROLE_ADMIN)
 require_client = _require_min_role(ROLE_CLIENT)
+
+
+async def require_client_or_query_key(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_security),
+) -> EntraUser:
+    expected_key = os.getenv("QUERY_ACCESS_KEY", "").strip()
+    provided_key = request.headers.get("X-Client-Key", "").strip()
+
+    if expected_key and provided_key and hmac.compare_digest(provided_key, expected_key):
+        return EntraUser(
+            object_id="query-key-user",
+            username="query-key@local",
+            display_name="Query Key User",
+            role=ROLE_CLIENT,
+            token_roles=[ROLE_CLIENT],
+            claims={"mode": "query_key"},
+        )
+
+    user = await get_current_user(credentials)
+    if _ROLE_ORDER.get(user.role, 0) < _ROLE_ORDER[ROLE_CLIENT]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient permissions. Required role: {ROLE_CLIENT}.",
+        )
+    return user

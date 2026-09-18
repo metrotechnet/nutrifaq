@@ -1,6 +1,6 @@
 param(
-    # [string]$ApiBase = "https://nutrifaq-webapp.azurewebsites.net",
-    [string]$ApiBase = "http://localhost:8080",
+    [string]$ApiBase = "https://nutrifaq-webapp.azurewebsites.net",
+    # [string]$ApiBase = "http://localhost:8080",
     [string]$ResourceGroup = "nutrifaq-rg",
     [string]$AppName = "nutrifaq-webapp",
     [string]$ClientEmail = "denis@imxtech.ca",

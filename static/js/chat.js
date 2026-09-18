@@ -18,6 +18,7 @@ let prevMessageContent = null;
 // Rate limiting - Debouncing
 let lastRequestTime = 0;
 const MIN_REQUEST_INTERVAL = 2000; // 2 seconds minimum between requests
+const CLIENT_QUERY_KEY = (window.CLIENT_QUERY_KEY || '').trim();
 
 
 
@@ -411,9 +412,14 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
     // Create abort controller for cancellation
     currentAbortController = new AbortController();
 
+    const requestHeaders = { 'Content-Type': 'application/json' };
+    if (CLIENT_QUERY_KEY) {
+        requestHeaders['X-Client-Key'] = CLIENT_QUERY_KEY;
+    }
+
     const response = await fetch(`${BACKEND_URL}/query`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: requestHeaders,
         body: JSON.stringify(requestData),
         signal: currentAbortController.signal
     });

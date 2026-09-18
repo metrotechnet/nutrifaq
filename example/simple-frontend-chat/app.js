@@ -1,5 +1,6 @@
 const API_BASE = "https://nutrifaq-webapp.azurewebsites.net";
-const CLIENT_BEARER_TOKEN = (window.CLIENT_BEARER_TOKEN || "").trim();
+// const API_BASE = "http://localhost:8080";
+const CLIENT_QUERY_KEY = (window.CLIENT_QUERY_KEY || "").trim();
 
 const display = document.getElementById("display");
 const form = document.getElementById("composer");
@@ -62,6 +63,9 @@ async function streamQuery(question, assistantBubble) {
   };
   if (CLIENT_BEARER_TOKEN) {
     headers.Authorization = `Bearer ${CLIENT_BEARER_TOKEN}`;
+  }
+  if (CLIENT_QUERY_KEY) {
+    headers["X-Client-Key"] = CLIENT_QUERY_KEY;
   }
 
   const response = await fetch(`${API_BASE}/query`, {

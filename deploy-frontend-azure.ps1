@@ -3,12 +3,36 @@ param(
     [string]$Location = "eastus",
     [string]$StorageAccountName = "nutrifaqfeprod",
     [string]$FrontendDir = "public",
-    [string]$BackendUrl = "https://nutrifaq-webapp-b5gwbbe3g0a4a6gd.canadacentral-01.azurewebsites.net",
+    [string]$BackendUrl = "https://nutrifaq-webapp.azurewebsites.net",
     [string]$BackendAppName = "nutrifaq-webapp",
+    [string]$QueryAccessKey = "",
     [switch]$UpdateBackendCors
 )
 
 $ErrorActionPreference = "Stop"
+
+function Get-DotEnvValue {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [Parameter(Mandatory = $true)][string]$Key
+    )
+
+    if (-not (Test-Path -LiteralPath $FilePath)) {
+        return ""
+    }
+
+    $line = Get-Content -LiteralPath $FilePath | Where-Object { $_ -match "^$Key=" } | Select-Object -First 1
+    if (-not $line) {
+        return ""
+    }
+
+    $value = ($line -split "=", 2)[1]
+    if ($null -eq $value) {
+        return ""
+    }
+
+    return $value.Trim()
+}
 
 Write-Host "== NutriFAQ Frontend Azure Deployment =="
 
@@ -36,6 +60,14 @@ if ($storageProviderState -ne "Registered") {
 
 if (-not (Test-Path -LiteralPath $FrontendDir)) {
     throw "Frontend directory '$FrontendDir' does not exist."
+}
+
+if ([string]::IsNullOrWhiteSpace($QueryAccessKey)) {
+    $QueryAccessKey = $env:QUERY_ACCESS_KEY
+}
+if ([string]::IsNullOrWhiteSpace($QueryAccessKey)) {
+    $dotEnvPath = Join-Path $PSScriptRoot ".env"
+    $QueryAccessKey = Get-DotEnvValue -FilePath $dotEnvPath -Key "QUERY_ACCESS_KEY"
 }
 
 if (-not $StorageAccountName) {
@@ -82,11 +114,27 @@ try {
     Write-Host "Preparing frontend artifact from '$FrontendDir'..."
     Copy-Item -Path (Join-Path $FrontendDir "*") -Destination $tempRoot -Recurse -Force
 
+    $rootStaticDir = Join-Path $PSScriptRoot "static"
+    if (Test-Path -LiteralPath $rootStaticDir) {
+        Write-Host "Syncing root static assets into frontend artifact..."
+        $artifactStaticDir = Join-Path $tempRoot "static"
+        New-Item -Path $artifactStaticDir -ItemType Directory -Force | Out-Null
+        Copy-Item -Path (Join-Path $rootStaticDir "*") -Destination $artifactStaticDir -Recurse -Force
+    }
+
     if ($BackendUrl) {
         $backendConfigDir = Join-Path $tempRoot "static\js"
         New-Item -Path $backendConfigDir -ItemType Directory -Force | Out-Null
         $backendConfigPath = Join-Path $backendConfigDir "backend-url.js"
         "window.BACKEND_URL = '$BackendUrl';" | Set-Content -Path $backendConfigPath -Encoding UTF8
+
+        $authConfigPath = Join-Path $backendConfigDir "auth-config.js"
+        if ([string]::IsNullOrWhiteSpace($QueryAccessKey)) {
+            "window.CLIENT_QUERY_KEY = '';" | Set-Content -Path $authConfigPath -Encoding UTF8
+        }
+        else {
+            "window.CLIENT_QUERY_KEY = '$QueryAccessKey';" | Set-Content -Path $authConfigPath -Encoding UTF8
+        }
     }
 
     Write-Host "Uploading frontend files to `$web container..."
