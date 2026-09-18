@@ -14,6 +14,53 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "== NutriFAQ Azure deployment =="
 
+function Get-DotEnvMap {
+    param([string]$Path)
+
+    $map = @{}
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $map
+    }
+
+    foreach ($line in Get-Content -LiteralPath $Path) {
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith("#")) {
+            continue
+        }
+
+        $sep = $trimmed.IndexOf("=")
+        if ($sep -le 0) {
+            continue
+        }
+
+        $key = $trimmed.Substring(0, $sep).Trim()
+        $value = $trimmed.Substring($sep + 1)
+        if ($key) {
+            $map[$key] = $value
+        }
+    }
+
+    return $map
+}
+
+function Get-AppSettingValue {
+    param(
+        [string]$Key,
+        [hashtable]$DotEnvMap
+    )
+
+    $processValue = [Environment]::GetEnvironmentVariable($Key)
+    if (-not [string]::IsNullOrWhiteSpace($processValue)) {
+        return $processValue
+    }
+
+    if ($DotEnvMap.ContainsKey($Key) -and -not [string]::IsNullOrWhiteSpace($DotEnvMap[$Key])) {
+        return $DotEnvMap[$Key]
+    }
+
+    return $null
+}
+
 # Ensure Azure CLI is installed
 $azCmd = Get-Command az -ErrorAction SilentlyContinue
 if (-not $azCmd) {
@@ -75,6 +122,9 @@ if (-not $appExists) {
 # Minimal app settings
 Write-Host "Setting basic app settings..."
 $deployVersion = "az-$(Get-Date -Format yyyyMMdd-HHmmss)"
+$dotEnvPath = Join-Path $PSScriptRoot ".env"
+$dotEnvMap = Get-DotEnvMap -Path $dotEnvPath
+
 $settingsMap = [ordered]@{
     WEBSITES_PORT = "8000"
     PORT = "8000"
@@ -83,6 +133,56 @@ $settingsMap = [ordered]@{
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     ENABLE_ORYX_BUILD = "true"
     PIP_ROOT_USER_ACTION = "ignore"
+}
+
+$optionalSettingKeys = @(
+    "OPENAI_API_KEY",
+    "AI_GATEWAY_API_KEY",
+    "LLM_PROVIDER",
+    "EMBEDDING_PROVIDER",
+    "CHAT_MAX_RETRIES",
+    "CHAT_RETRY_BASE_DELAY",
+    "CHAT_RETRY_MAX_DELAY",
+    "LLM_RETRY_VERBOSE",
+    "EMBEDDING_MAX_RETRIES",
+    "EMBEDDING_RETRY_BASE_DELAY",
+    "EMBEDDING_RETRY_MAX_DELAY",
+    "EMBEDDING_SPLIT_AFTER_RETRIES",
+    "AZURE_OPENAI_CHAT_ENDPOINT",
+    "AZURE_OPENAI_CHAT_API_KEY",
+    "AZURE_OPENAI_CHAT_DEPLOYMENT",
+    "AZURE_OPENAI_EMBEDDING_ENDPOINT",
+    "AZURE_OPENAI_EMBEDDING_API_KEY",
+    "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
+    "ADMIN_ACCESS_KEY",
+    "AZURE_STORAGE_CONNECTION_STRING",
+    "AZURE_STORAGE_ACCOUNT",
+    "AZURE_STORAGE_KEY",
+    "AZURE_STORAGE_CONTAINER",
+    "AZURE_KB_BLOB_CONTAINER",
+    "AZURE_KB_BLOB_PREFIX",
+    "ADDITIONAL_CORS_ORIGINS",
+    "ADDITIONAL_CORS_ORIGIN_REGEX",
+    "ENTRA_TENANT_ID",
+    "ENTRA_CLIENT_ID",
+    "ENTRA_AUDIENCE",
+    "ENTRA_OPENID_CONFIG_URL",
+    "DEMO_MODE"
+)
+
+$injectedKeys = @()
+foreach ($key in $optionalSettingKeys) {
+    $value = Get-AppSettingValue -Key $key -DotEnvMap $dotEnvMap
+    if ($null -ne $value) {
+        $settingsMap[$key] = $value
+        $injectedKeys += $key
+    }
+}
+
+if ($injectedKeys.Count -gt 0) {
+    Write-Host "Including optional app settings from environment/.env:" ($injectedKeys -join ", ")
+} else {
+    Write-Host "No optional app settings found in process environment or .env."
 }
 
 $settingsArgs = $settingsMap.GetEnumerator() | ForEach-Object {

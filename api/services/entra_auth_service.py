@@ -27,6 +27,10 @@ _ROLE_ORDER = {
 }
 
 
+def _is_demo_mode_enabled() -> bool:
+    return os.getenv("DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass
 class EntraUser:
     object_id: str
@@ -149,6 +153,16 @@ def _build_user(claims: dict[str, Any]) -> EntraUser:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_security),
 ) -> EntraUser:
+    if _is_demo_mode_enabled():
+        return EntraUser(
+            object_id="demo-user",
+            username="demo@local",
+            display_name="Demo User",
+            role=ROLE_ADMIN,
+            token_roles=[ROLE_ADMIN],
+            claims={"mode": "demo"},
+        )
+
     if credentials is None or not credentials.credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token.")
 
