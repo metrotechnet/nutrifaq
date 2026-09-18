@@ -9,7 +9,8 @@ from typing import Any
 
 ROLE_ADMIN = "admin"
 ROLE_COLLABORATOR = "collaborator"
-VALID_ROLES = {ROLE_ADMIN, ROLE_COLLABORATOR}
+ROLE_CLIENT = "client"
+VALID_ROLES = {ROLE_ADMIN, ROLE_COLLABORATOR, ROLE_CLIENT}
 
 _API_ROOT = Path(__file__).resolve().parents[1]
 _ROLE_ASSIGNMENTS_FILE = _API_ROOT / "config" / "user_roles.json"

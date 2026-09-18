@@ -1,7 +1,7 @@
 """
 Query Routes - Main query endpoint for streaming responses
 """
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from datetime import datetime
 import json
@@ -10,11 +10,12 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from api.schemas.models import QueryRequest
+from api.services.entra_auth_service import require_client
 from api.services.sessions import get_or_create_session, is_session_rate_limited
 from api.services.logging import save_question_response, contains_medical_disclaimer
 from api.services.query_chromadb import ask_question_stream
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_client)])
 limiter = Limiter(key_func=get_remote_address)
 
 

@@ -7,8 +7,10 @@ from dataclasses import asdict
 from io import BytesIO
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
+
+from api.services.entra_auth_service import require_admin
 
 from api.services.blob_storage_service import (
     delete_blob,
@@ -19,7 +21,7 @@ from api.services.blob_storage_service import (
 )
 
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 
 @router.get("/api/blob/files")

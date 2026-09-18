@@ -1,12 +1,13 @@
 """
 Translation Routes - Translation and audio transcription endpoints
 """
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, JSONResponse
 import json
 import uuid
 
 from api.schemas.models import TranslateRequest
+from api.services.entra_auth_service import require_collaborator
 from api.services.logging import save_question_response
 from api.services.translate import (
     translate_text_stream, 
@@ -15,7 +16,7 @@ from api.services.translate import (
     get_supported_languages
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_collaborator)])
 
 
 @router.get("/api/languages")

@@ -3,15 +3,16 @@ Report API Routes
 
 This module defines endpoints for logging user feedback (comments, likes) and serving log files in the Nutrifaq Agent backend.
 """
-from fastapi import APIRouter, Body, Query, Request
+from fastapi import APIRouter, Body, Depends, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import os
 
+from api.services.entra_auth_service import EntraUser, require_admin, require_collaborator
 from api.services.logging import add_comment_to_question, add_like_to_question, _download_log_from_gcs
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_collaborator)])
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -62,7 +63,7 @@ def like_answer(
 @router.get("/api/download_log")
 
 @router.get("/api/download_log")
-def download_question_log(key: str = Query(...)):
+def download_question_log(_: EntraUser = Depends(require_admin), key: str = Query(None)):
     """
     Download the full questions log as a JSON file (admin access).
 
@@ -72,8 +73,6 @@ def download_question_log(key: str = Query(...)):
     Returns:
         FileResponse or dict: The log file or error message.
     """
-    if key != os.getenv("ADMIN_ACCESS_KEY"):
-        return {"status": "error", "message": "Unauthorized"}
     data = _download_log_from_gcs()
     if not data:
         return {"status": "error", "message": "Log file not found"}
@@ -86,7 +85,7 @@ def download_question_log(key: str = Query(...)):
 
 
 @router.get("/log_report", response_class=HTMLResponse)
-def serve_log_report(request: Request, key: str = Query(...)):
+def serve_log_report(request: Request, _: EntraUser = Depends(require_admin), key: str = Query(None)):
     """
     Serve the HTML log report page (admin access).
 
@@ -97,10 +96,4 @@ def serve_log_report(request: Request, key: str = Query(...)):
     Returns:
         HTMLResponse: The rendered log report page or unauthorized message.
     """
-    # Only allow access if key is correct
-    if key != os.getenv("ADMIN_ACCESS_KEY"):
-        return HTMLResponse(
-            "<h3 style='color:red;text-align:center;margin-top:2em'>Unauthorized: Invalid key</h3>", 
-            status_code=401
-        )
     return templates.TemplateResponse("log_report.html", {"request": request})

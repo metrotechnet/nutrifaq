@@ -5,9 +5,12 @@ This module defines endpoints for managing conversation sessions in the Nutrifaq
 """
 from fastapi import APIRouter
 
+from api.services.entra_auth_service import require_collaborator
+from fastapi import Depends
+
 from api.services.sessions import reset_session, get_session_info
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_collaborator)])
 
 
 

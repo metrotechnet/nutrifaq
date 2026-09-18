@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from api.services.entra_auth_service import EntraUser, require_admin, require_collaborator
 from api.services.user_management_service import (
     ROLE_ADMIN,
+    ROLE_CLIENT,
     ROLE_COLLABORATOR,
     VALID_ROLES,
     list_assigned_roles,
@@ -21,7 +22,7 @@ router = APIRouter()
 
 
 class UpdateUserRoleRequest(BaseModel):
-    role: str = Field(..., description="Role to assign: admin or collaborator")
+    role: str = Field(..., description="Role to assign: admin, collaborator, or client")
 
 
 @router.get("/api/users/me")
@@ -41,7 +42,7 @@ async def list_users(_: EntraUser = Depends(require_admin)):
     """List explicit role assignments stored by the API."""
     return {
         "roles": list_assigned_roles(),
-        "available_roles": [ROLE_ADMIN, ROLE_COLLABORATOR],
+        "available_roles": [ROLE_ADMIN, ROLE_COLLABORATOR, ROLE_CLIENT],
     }
 
 

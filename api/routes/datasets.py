@@ -7,10 +7,12 @@ import json
 import os
 import shutil
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from fastapi.responses import JSONResponse
 
-router = APIRouter(prefix="/datasets", tags=["datasets"])
+from api.services.entra_auth_service import require_admin
+
+router = APIRouter(prefix="/datasets", tags=["datasets"], dependencies=[Depends(require_admin)])
 VECTOR_DB_DIRNAME = os.getenv("VECTOR_DB_DIRNAME", "chroma_db")
 
 

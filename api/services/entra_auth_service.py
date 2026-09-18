@@ -14,14 +14,16 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from api.services.user_management_service import (
     ROLE_ADMIN,
+    ROLE_CLIENT,
     ROLE_COLLABORATOR,
     get_assigned_role,
 )
 
 _security = HTTPBearer(auto_error=False)
 _ROLE_ORDER = {
-    ROLE_COLLABORATOR: 1,
-    ROLE_ADMIN: 2,
+    ROLE_CLIENT: 1,
+    ROLE_COLLABORATOR: 2,
+    ROLE_ADMIN: 3,
 }
 
 
@@ -177,3 +179,4 @@ def _require_min_role(min_role: str):
 
 require_collaborator = _require_min_role(ROLE_COLLABORATOR)
 require_admin = _require_min_role(ROLE_ADMIN)
+require_client = _require_min_role(ROLE_CLIENT)
