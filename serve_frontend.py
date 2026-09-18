@@ -51,21 +51,6 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 with open(template_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                # Replace environment variables
-                replacements = {
-                    '{{FIREBASE_PROJECT_ID}}': os.getenv('FIREBASE_PROJECT_ID', ''),
-                    '{{FIREBASE_API_KEY}}': os.getenv('FIREBASE_API_KEY', ''),
-                    '{{FIREBASE_AUTH_DOMAIN}}': os.getenv('FIREBASE_AUTH_DOMAIN', ''),
-                    '{{FIREBASE_STORAGE_BUCKET}}': os.getenv('FIREBASE_STORAGE_BUCKET', ''),
-                    '{{FIREBASE_MESSAGING_SENDER_ID}}': os.getenv('FIREBASE_MESSAGING_SENDER_ID', ''),
-                    '{{FIREBASE_APP_ID}}': os.getenv('FIREBASE_APP_ID', ''),
-                    '{{FIREBASE_MEASUREMENT_ID}}': os.getenv('FIREBASE_MEASUREMENT_ID', ''),
-                    '{{RECAPTCHA_SITE_KEY}}': os.getenv('RECAPTCHA_SITE_KEY', ''),
-                }
-                
-                for placeholder, value in replacements.items():
-                    content = content.replace(placeholder, value)
-                
                 # Send response
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html; charset=utf-8')
@@ -85,9 +70,6 @@ if __name__ == '__main__':
         print(f"Frontend server running at: http://localhost:{PORT}")
         print(f"Backend should be running at: http://localhost:8080")
         print("=" * 60)
-        print(f"\nFirebase Config:")
-        print(f"  Project ID: {os.getenv('FIREBASE_PROJECT_ID', 'NOT SET')}")
-        print(f"  App ID: {os.getenv('FIREBASE_APP_ID', 'NOT SET')}")
         print("\nPress Ctrl+C to stop the server")
         print("=" * 60)
         try:

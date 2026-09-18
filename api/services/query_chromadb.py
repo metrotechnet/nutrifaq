@@ -1,7 +1,6 @@
 import os
 import json
 import re
-import time
 from typing import Any
 from urllib.parse import urlparse
 from pathlib import Path
@@ -38,6 +37,8 @@ ROOT_BLOB_CACHE_ROOT = REPO_ROOT / "nutrifaq-dbase" / "chroma_db"
 _CHROMA_CLIENT_CACHE: dict[str, Any] = {}
 _CHROMA_COLLECTION_CACHE: dict[tuple[str, str], Any] = {}
 _CHROMA_SIGNATURE_CACHE: str | None = None
+_PROMPTS_CACHE: dict[str, Any] | None = None
+_PROMPTS_CACHE_MTIME: float | None = None
 
 def load_style_guides():
     """Load style guides from JSON file"""
@@ -79,18 +80,28 @@ def load_prompts(kb_name=None):
     Args:
         kb_name: Ignored for single-agent setup
     """
+    global _PROMPTS_CACHE, _PROMPTS_CACHE_MTIME
+
     try:
-        kb_path = API_ROOT / "config"
-        prompts_path = kb_path / 'prompts.json'
+        prompts_path = API_ROOT / "config" / "prompts.json"
+        current_mtime = prompts_path.stat().st_mtime
+
+        if _PROMPTS_CACHE is not None and _PROMPTS_CACHE_MTIME == current_mtime:
+            return _PROMPTS_CACHE
+
         with open(prompts_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
+            loaded = json.load(f)
+
+        _PROMPTS_CACHE = loaded
+        _PROMPTS_CACHE_MTIME = current_mtime
+        return loaded
+    except Exception:
         return {}
 
 def build_prompt_from_template(language, context, question, history_text="", agent=None):
     """Build a complete prompt from the JSON template. Returns (prompt, model_config)"""
     prompts_data = load_prompts(kb_name=agent)
-    lang_data = prompts_data.get(language, prompts_data.get("fr", {}))
+    template_data = prompts_data.get("default", {})
     
     # Extract model configuration
     model_config = {
@@ -98,11 +109,16 @@ def build_prompt_from_template(language, context, question, history_text="", age
         "name": prompts_data.get("model_name", "gpt-4o-mini")
     }
     
-    if not lang_data:
+    if not template_data:
         return None, model_config
+
+    requested_language = (language or "").strip().lower()
+    language_constraint = template_data.get("language_constraint", {})
+    default_language = language_constraint.get("default_language", "fr")
+    response_language = requested_language or default_language
     
     # Build communication style content
-    comm_style = lang_data.get('communication_style', {})
+    comm_style = template_data.get('communication_style', {})
     tone = comm_style.get('tone_and_voice', {})
     recurring = comm_style.get('recurring_messages', {})
     
@@ -117,28 +133,37 @@ def build_prompt_from_template(language, context, question, history_text="", age
     communication_style_content = tone_content + recurring_content
     
     # Build absolute rules content
-    rules = lang_data.get('absolute_rules', {})
+    rules = template_data.get('absolute_rules', {})
     rules_content = ""
     for rule in rules.get('rules', []):
         rules_content += f"- {rule}\n"
     
     # Build behavioral constraints content
-    constraints = lang_data.get('behavioral_constraints', {})
+    constraints = template_data.get('behavioral_constraints', {})
     constraints_content = ""
     for constraint in constraints.get('constraints', []):
         constraints_content += f"- {constraint}\n"
+
+    # Build format constraints content
+    format_constraints = template_data.get('format_constraints', {})
+    format_constraints_content = ""
+    for rule in format_constraints.get('rules', []):
+        format_constraints_content += f"- {rule}\n"
     
     # Build the final prompt using the template
-    template = lang_data.get('template', '')
+    template = template_data.get('template', '')
     prompt = template.format(
-        system_role=lang_data.get('system_role', ''),
-        important_notice=lang_data.get('important_notice', ''),
+        system_role=template_data.get('system_role', ''),
+        important_notice=template_data.get('important_notice', ''),
         communication_style_title=comm_style.get('title', ''),
         communication_style_content=communication_style_content,
         absolute_rules_title=rules.get('title', ''),
         absolute_rules_content=rules_content,
         behavioral_constraints_title=constraints.get('title', ''),
         behavioral_constraints_content=constraints_content,
+        format_constraints_title=format_constraints.get('title', ''),
+        format_constraints_content=format_constraints_content,
+        response_language=response_language,
         context=context,
         history=history_text,
         question=question
@@ -409,12 +434,6 @@ def get_links_from_contexts(contexts, metadatas=None, agent=None):
 def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR", top_k=5, conversation_history=None, session=None, question_id=None, agent=None):
     """Streaming version of ask_question with language support and conversation history"""
 
-    request_started_at = time.perf_counter()
-    timings = {
-        "provider": os.getenv("LLM_PROVIDER", "vercel"),
-        "embedding_provider": os.getenv("EMBEDDING_PROVIDER", os.getenv("LLM_PROVIDER", "vercel")),
-    }
-
     # Use conversation_history if provided, otherwise empty list
     if conversation_history is None:
         conversation_history = []
@@ -429,16 +448,13 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             history_text += f"{role_label}: {msg['content']}\n"
 
     # context is not available yet (need ChromaDB), so pass empty string for now
-    refusal_started_at = time.perf_counter()
     refusal_result = validate_user_query(question, llm_call_fn=None, language=language)
-    timings["refusal_check_ms"] = round((time.perf_counter() - refusal_started_at) * 1000, 1)
     if refusal_result and refusal_result.get("decision") == "refuse":
         # Store empty links list in session for refusal
         if session is not None and question_id is not None:
             if 'links' not in session:
                 session['links'] = {}
             session['links'][question_id] = []
-            session.setdefault('timings', {})[question_id] = timings
         yield "__REFUSAL__"
         yield refusal_result["answer"]
         return
@@ -448,12 +464,9 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         client = get_gateway_client()
 
         # Get embedding for the question
-        embedding_started_at = time.perf_counter()
         query_emb = create_embedding(input_text=question, model_name="text-embedding-3-large")
-        timings["embedding_ms"] = round((time.perf_counter() - embedding_started_at) * 1000, 1)
 
         # Query ChromaDB
-        chroma_started_at = time.perf_counter()
         query_params = {
             "query_embedding": query_emb,
             "n_results": top_k,
@@ -463,7 +476,6 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
         # Ensure query_params is JSON serializable
         query_params = json.loads(json.dumps(query_params, default=str))
         results = query_chromadb(project_name="nutrifaq", collection_name="nutrifaq-collection", data=query_params)
-        timings["chroma_query_ms"] = round((time.perf_counter() - chroma_started_at) * 1000, 1)
 
         if not isinstance(results, dict):
             yield "Knowledge base query returned an unexpected response format."
@@ -505,10 +517,8 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             session['links'][question_id] = links
 
         # Build prompt using template from JSON
-        prompt_started_at = time.perf_counter()
         prompt, model_config = build_prompt_from_template(language, context, question, history_text, agent=agent)
-        timings["prompt_build_ms"] = round((time.perf_counter() - prompt_started_at) * 1000, 1)
-        
+
         if not prompt:
             yield "Error: Unable to load prompt template."
             return
@@ -522,11 +532,7 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             prompt=prompt,
             temperature=1.0,
         )
-        timings["model_name"] = model_name
-        timings["first_token_ms"] = None
         first_chunk = True
-        answer = ""
-        stream_started_at = time.perf_counter()
         for chunk in stream:
             if not getattr(chunk, "choices", None):
                 continue
@@ -540,9 +546,7 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
                 if first_chunk:
                     content = content.lstrip()
                     first_chunk = False
-                    timings["first_token_ms"] = round((time.perf_counter() - stream_started_at) * 1000, 1)
                 if content:
-                    answer += content
                     yield content
 
   

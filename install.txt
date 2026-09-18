@@ -110,7 +110,6 @@ az webapp config appsettings set \
   --name nutrifaq-chat \
   --settings \
   OPENAI_API_KEY="..." \
-  FIREBASE_PROJECT_ID="..." \
   PORT="8000"
 ```
 
