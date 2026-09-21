@@ -69,18 +69,16 @@ async function loadConfig(agent) {
             return;
         }
         
-        // Language detection priority: URL parameter > browser language > stored preference
+        // Language detection priority: explicit URL parameter > default French
         const urlLang = getUrlParameter('lang');
-        const browserLang = navigator.language || navigator.userLanguage;
-        const langCode = browserLang.startsWith('en') ? 'en' : 'fr';
-        const storedLang = localStorage.getItem('preferredLanguage');
         
         // Validate URL language parameter
         if (urlLang && (urlLang === 'en' || urlLang === 'fr')) {
             currentLanguage = urlLang;
             localStorage.setItem('preferredLanguage', urlLang);
         } else {
-            currentLanguage = langCode || storedLang;
+            currentLanguage = 'fr';
+            localStorage.setItem('preferredLanguage', 'fr');
             const url = new URL(window.location);
             url.searchParams.set('lang', currentLanguage);
             window.history.replaceState({}, '', url);

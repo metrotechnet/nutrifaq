@@ -110,7 +110,7 @@
         if (configured) {
             return configured;
         }
-        return `${window.location.origin}/login.html`;
+        return `${window.location.origin}/`;
     }
 
     function getPasswordResetUrl() {
@@ -247,32 +247,8 @@
 
     async function signIn(msalApp) {
         setStatus("Connexion en cours...", false);
-        let loginResponse;
-        try {
-            loginResponse = await msalApp.loginPopup({ scopes: buildLoginScopes() });
-        } catch (error) {
-            // Popup can be blocked in some browser settings. Fall back to redirect flow.
-            if (error && (error.errorCode === "popup_window_error" || error.errorCode === "user_cancelled" || error.errorCode === "monitor_window_timeout")) {
-                setStatus("Popup bloquée ou annulée. Redirection vers Azure...", false);
-                await msalApp.loginRedirect({ scopes: buildLoginScopes() });
-                return;
-            }
-            throw error;
-        }
-        const account = loginResponse.account;
-        if (!account) {
-            throw new Error("Connexion réussie mais aucun compte retourné.");
-        }
-
-        msalApp.setActiveAccount(account);
-        const tokenResponse = await acquireApiToken(msalApp, account);
-        const accessToken = tokenResponse.accessToken;
-        localStorage.setItem(TOKEN_KEY, accessToken);
-
-        const { profile } = await resolveUserContext(accessToken);
-
-        setStatus(`Connexion réussie (${profile.role || "role inconnu"}). Redirection...`, false);
-        setTimeout(goToApp, 200);
+        setStatus("Redirection vers Microsoft Entra ID...", false);
+        await msalApp.loginRedirect({ scopes: buildLoginScopes() });
     }
 
     async function init() {
@@ -315,7 +291,7 @@
         if (signInBtn) {
             signInBtn.addEventListener("click", async () => {
                 try {
-                    setStatus("Ouverture de la fenêtre de connexion...", false);
+                    setStatus("Redirection vers la page de connexion...", false);
                     await signIn(msalApp);
                 } catch (error) {
                     setStatus(`Connexion échouée: ${formatErrorMessage(error)}`, true);

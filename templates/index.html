@@ -20,7 +20,7 @@
         window.ENTRA_CLIENT_ID = "402e00f8-a00c-4c47-86b0-c88a6587b64c";
         window.ENTRA_AUDIENCE = "api://402e00f8-a00c-4c47-86b0-c88a6587b64c";
         window.ENTRA_UPN_DOMAIN = "imxtech.ca";
-        window.ENTRA_REDIRECT_URI = `${window.location.origin}/login.html`;
+        window.ENTRA_REDIRECT_URI = `${window.location.origin}/`;
     </script>
     
 </head>
@@ -46,8 +46,7 @@
     
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h2 data-i18n="sidebar.title">IMX Agent</h2>
-            <button class="close-sidebar" id="close-sidebar" title="" data-i18n-title="sidebar.closeButton">×</button>
+            <h2>NutriFAQ-Chat</h2>
         </div>
         <nav class="sidebar-nav">
             <a href="#" class="sidebar-link" id="download-link">
@@ -68,36 +67,6 @@
                 </svg>
                 <span data-i18n="sidebar.validate">Valider</span>
             </a>
-            <a href="#" class="sidebar-link" id="auth-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 1a5 5 0 015 5v2h1a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 015-5zm3 7V6a3 3 0 10-6 0v2h6zm-3 4a2 2 0 100 4 2 2 0 000-4z"/>
-                </svg>
-                <span>Authentification Azure</span>
-            </a>
-            <a href="https://imxtech.ca/" target="_blank" rel="noopener noreferrer" class="sidebar-link" id="about-imx-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
-                </svg>
-                <span data-i18n="sidebar.aboutImx">À propos d'IMX</span>
-            </a>
-            <a href="#" class="sidebar-link" id="about-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v2h-2zm0 4h2v6h-2z"/>
-                </svg>
-                <span data-i18n="sidebar.about">À propos</span>
-            </a>
-            <a href="#" class="sidebar-link" id="legal-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                </svg>
-                <span data-i18n="sidebar.legal">Avertissements</span>
-            </a>
-            <a href="/privacy.html" target="_blank" class="sidebar-link" id="privacy-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-                </svg>
-                <span data-i18n="sidebar.privacy">Confidentialité</span>
-            </a>
             <div class="language-selector-container">
                 <label for="language-selector" data-i18n="sidebar.language">Langue</label>
                 <select id="language-selector" class="language-selector">
@@ -107,7 +76,48 @@
             </div>
 
         </nav>
-        <div class="footer-info" data-i18n="footer.content" style="text-align:center; font-size:0.95em; color:#666; margin:10px;"></div>
+        <footer class="sidebar-footer" aria-label="Sidebar footer actions">
+            <button type="button" class="sidebar-footer-menu-button" id="sidebar-footer-menu-button" aria-expanded="false" aria-controls="sidebar-footer-menu" title="">
+                <span id="sidebar-user-email" class="sidebar-user-email">Compte</span>
+                <span class="sidebar-footer-menu-label" data-i18n="sidebar.accountMenu">Menu du compte</span>
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5z"/>
+                </svg>
+            </button>
+            <div class="sidebar-footer-menu" id="sidebar-footer-menu" hidden>
+            <a href="#" class="sidebar-link sidebar-footer-link" id="sidebar-logout-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.1 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                </svg>
+                <span data-i18n="sidebar.logout">Déconnecter</span>
+            </a>
+            <a href="https://imxtech.ca/" target="_blank" rel="noopener noreferrer" class="sidebar-link sidebar-footer-link" id="about-imx-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
+                </svg>
+                <span data-i18n="sidebar.aboutImx">À propos d'IMX</span>
+            </a>
+            <a href="#" class="sidebar-link sidebar-footer-link" id="about-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v2h-2zm0 4h2v6h-2z"/>
+                </svg>
+                <span data-i18n="sidebar.about">À propos de l'application</span>
+            </a>
+            <a href="#" class="sidebar-link sidebar-footer-link" id="legal-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                </svg>
+                <span data-i18n="sidebar.legal">Avertissements</span>
+            </a>
+            <a href="/privacy.html" target="_blank" class="sidebar-link sidebar-footer-link" id="privacy-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                </svg>
+                <span data-i18n="sidebar.privacy">Politique de confidentialité</span>
+            </a>
+            </div>
+            <div class="footer-info" data-i18n="footer.content"></div>
+        </footer>
     </div>
     
     <div class="overlay" id="overlay"></div>
@@ -122,7 +132,8 @@
 
     </header>
 
-    <div class="content" id="chat-container">
+    <div class="content">
+        <div id="chat-container">
         <div id="chat-top-spacer" style="flex: 1; min-height: 0;"></div>
         <div class="empty-state" id="empty-state">
             <img src="/static/logos/logo-imx.png" alt="IMX Multi-Agent" data-i18n-alt="intro.profileAlt" data-i18n-src="intro.profileImage" class="profile-photo">
@@ -205,8 +216,8 @@
                 </div>
             </div>
         </section>
-    </div>
-    <footer>
+        </div>
+        <footer>
             <div class="input-area">
                 <div class="input-wrapper">
                     <textarea 
@@ -229,8 +240,7 @@
                     </span>
                 </div>
             </div>
-
-    </footer>
+            </footer>
 
     </div>
     

@@ -7,9 +7,11 @@
     const loginBtn = document.getElementById("azure-login-btn");
     const refreshBtn = document.getElementById("azure-refresh-token-btn");
     const logoutBtn = document.getElementById("azure-logout-btn");
+    const sidebarLogoutLink = document.getElementById("sidebar-logout-link");
     const startupLoginBtn = document.getElementById("startup-login-btn");
     const startupForgotPasswordBtn = document.getElementById("startup-forgot-password-btn");
     const authGateOverlay = document.getElementById("auth-gate-overlay");
+    const sidebarUserEmailEl = document.getElementById("sidebar-user-email");
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
 
@@ -117,6 +119,15 @@
         el.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
     }
 
+    function setSidebarUserEmail(email) {
+        if (!sidebarUserEmailEl) {
+            return;
+        }
+        const safeEmail = typeof email === "string" ? email.trim() : "";
+        sidebarUserEmailEl.textContent = safeEmail || "Compte";
+        sidebarUserEmailEl.title = safeEmail || "Compte";
+    }
+
     function decodeJwt(token) {
         try {
             const parts = token.split(".");
@@ -160,7 +171,14 @@
         if (configured) {
             return configured;
         }
-        return `${window.location.origin}/login.html`;
+        return `${window.location.origin}/`;
+    }
+
+    function redirectToLogin() {
+        const loginPath = "/";
+        if (window.location.pathname !== loginPath) {
+            window.location.assign(loginPath);
+        }
     }
 
     function buildApiScopeCandidates() {
@@ -292,6 +310,7 @@
             tenantId: account.tenantId,
             homeAccountId: account.homeAccountId
         });
+        setSidebarUserEmail(account.username || account.name || "");
         prettyPrint(tokenClaimsEl, claims);
 
         try {
@@ -322,6 +341,7 @@
         const claims = decodeJwt(accessToken) || tokenResponse.idTokenClaims || {};
 
         pushAdminToken(accessToken);
+        setSidebarUserEmail(account.username || account.name || "");
         prettyPrint(tokenClaimsEl, claims);
 
         try {
@@ -345,13 +365,14 @@
         prettyPrint(accountInfoEl, "-");
         prettyPrint(tokenClaimsEl, "-");
         prettyPrint(meResponseEl, "-");
+        setSidebarUserEmail("");
 
         if (account) {
             await msalApp.logoutPopup({ account });
         }
 
         setStatus("Déconnecté.", false);
-        showLoginGate();
+        redirectToLogin();
     }
 
     async function init() {
@@ -372,10 +393,13 @@
                     tenantId: existingAccount.tenantId,
                     homeAccountId: existingAccount.homeAccountId
                 });
+                setSidebarUserEmail(existingAccount.username || existingAccount.name || "");
                 setStatus("Compte détecté. Cliquez sur Rafraîchir le token.", false);
                 hideLoginGate();
             } else {
-                showLoginGate();
+                setSidebarUserEmail("");
+                redirectToLogin();
+                return;
             }
         } catch (error) {
             setStatus(`Erreur initialisation Azure auth: ${error.message}`, true);
@@ -412,6 +436,17 @@
             });
         }
 
+        if (sidebarLogoutLink) {
+            sidebarLogoutLink.addEventListener("click", async (event) => {
+                event.preventDefault();
+                try {
+                    await logout(msalApp);
+                } catch (error) {
+                    setStatus(`Déconnexion échouée: ${error.message}`, true);
+                }
+            });
+        }
+
         if (startupLoginBtn) {
             startupLoginBtn.addEventListener("click", async () => {
                 try {
@@ -433,7 +468,7 @@
                 await refreshToken(msalApp);
             } catch (error) {
                 setStatus(`Rafraîchissement automatique échoué: ${error.message}`, true);
-                showLoginGate();
+                redirectToLogin();
             }
         }
     }
