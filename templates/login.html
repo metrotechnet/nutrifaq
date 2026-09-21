@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - NutriFAQ-Chat</title>
+    <title data-i18n="loginPage.title">Connexion - NutriFAQ-Chat</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.4/lib/msal-browser.min.js"></script>
@@ -20,9 +20,9 @@
         <div class="login-page-card">
             <img src="/static/logos/logo-imx.png" alt="IMX Technologie" class="login-page-logo">
             <h1>NutriFAQ-Chat</h1>
-            <p>Connectez-vous avec votre compte Azure Entra ID pour continuer.</p>
-            <button id="login-page-signin" type="button" class="dm-btn primary">Se connecter avec Azure</button>
-            <p id="login-page-status" class="status-message">Prêt.</p>
+            <p data-i18n="loginPage.description">Connectez-vous avec votre compte Azure Entra ID pour continuer.</p>
+            <button id="login-page-signin" type="button" class="dm-btn primary" data-i18n="loginPage.signIn">Se connecter avec Azure</button>
+            <p id="login-page-status" class="status-message" data-i18n="loginPage.ready">Prêt.</p>
         </div>
     </div>
 

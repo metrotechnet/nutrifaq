@@ -2,10 +2,82 @@
     const statusEl = document.getElementById("login-page-status");
     const signInBtn = document.getElementById("login-page-signin");
     const resetBtn = document.getElementById("login-page-reset");
+    const BACKEND_URL = window.BACKEND_URL || "";
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
     const USER_PROFILE_KEY = "nutrifaq_user_profile";
     const USER_ASSIGNMENTS_KEY = "nutrifaq_user_assignments";
+    let i18nConfig = null;
+    let currentLang = "fr";
+
+    function getUrlParameter(name) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+    }
+
+    function getLoginTranslation(lang) {
+        const root = i18nConfig || {};
+        const scoped = root[lang] && root[lang].loginPage ? root[lang].loginPage : null;
+        const fallback = root.fr && root.fr.loginPage ? root.fr.loginPage : null;
+        return scoped || fallback || {};
+    }
+
+    function tr(key, params) {
+        const dict = getLoginTranslation(currentLang);
+        const fallbackDict = getLoginTranslation("fr");
+        const template = dict[key] || fallbackDict[key] || key;
+        if (!params || typeof template !== "string") {
+            return template;
+        }
+        return Object.keys(params).reduce((acc, name) => {
+            return acc.replaceAll(`{${name}}`, String(params[name]));
+        }, template);
+    }
+
+    async function loadI18nConfig() {
+        const response = await fetch(`${BACKEND_URL}/api/get_config`);
+        if (!response.ok) {
+            throw new Error(`Config endpoint returned ${response.status}`);
+        }
+        i18nConfig = await response.json();
+    }
+
+    function resolveLanguage() {
+        const urlLang = getUrlParameter("lang");
+        if (urlLang === "fr" || urlLang === "en") {
+            currentLang = urlLang;
+            localStorage.setItem("preferredLanguage", urlLang);
+            return;
+        }
+        currentLang = "fr";
+        localStorage.setItem("preferredLanguage", "fr");
+        const url = new URL(window.location);
+        url.searchParams.set("lang", currentLang);
+        window.history.replaceState({}, "", url);
+    }
+
+    function applyLoginTranslations() {
+        document.querySelectorAll("[data-i18n]").forEach((element) => {
+            const key = element.getAttribute("data-i18n");
+            const translated = key ? tr(key.replace("loginPage.", "")) : "";
+            if (translated) {
+                element.textContent = translated;
+            }
+        });
+
+        const titleEl = document.querySelector("title[data-i18n]");
+        if (titleEl) {
+            const titleText = tr("title");
+            if (titleText) {
+                document.title = titleText;
+            }
+        }
+
+        const htmlEl = document.documentElement;
+        if (htmlEl) {
+            htmlEl.lang = currentLang;
+        }
+    }
 
     async function ensureMsalLoaded() {
         if (window.msal && window.msal.PublicClientApplication) {
@@ -84,7 +156,7 @@
     function getAuthority() {
         const tenant = (window.ENTRA_TENANT_ID || "").trim();
         if (!tenant) {
-            throw new Error("ENTRA_TENANT_ID manquant.");
+            throw new Error(tr("missingTenant"));
         }
         return `https://login.microsoftonline.com/${tenant}`;
     }
@@ -92,7 +164,7 @@
     function getClientId() {
         const clientId = (window.ENTRA_CLIENT_ID || "").trim();
         if (!clientId) {
-            throw new Error("ENTRA_CLIENT_ID manquant.");
+            throw new Error(tr("missingClientId"));
         }
         return clientId;
     }
@@ -139,7 +211,7 @@
 
     function getMsalInstance() {
         if (!window.msal || !window.msal.PublicClientApplication) {
-            throw new Error("MSAL indisponible.");
+            throw new Error(tr("msalNotFound"));
         }
 
         return new window.msal.PublicClientApplication({
@@ -157,7 +229,7 @@
 
     function formatErrorMessage(error) {
         if (!error) {
-            return "Erreur inconnue";
+            return tr("unknownError");
         }
         const code = error.errorCode || error.code || "";
         const message = error.errorMessage || error.message || String(error);
@@ -184,7 +256,7 @@
         if (lastError) {
             throw lastError;
         }
-        throw new Error("Impossible de récupérer le token API.");
+        throw new Error(tr("tokenAcquireFailed"));
     }
 
     function goToApp() {
@@ -192,8 +264,7 @@
     }
 
     async function fetchCurrentUserProfile(token) {
-        const backendUrl = window.BACKEND_URL || "";
-        const response = await fetch(`${backendUrl}/api/users/me`, {
+        const response = await fetch(`${BACKEND_URL}/api/users/me`, {
             headers: {
                 Authorization: `Bearer ${token}`
             }
@@ -207,8 +278,7 @@
     }
 
     async function fetchUserAssignments(token) {
-        const backendUrl = window.BACKEND_URL || "";
-        const response = await fetch(`${backendUrl}/api/users`, {
+        const response = await fetch(`${BACKEND_URL}/api/users`, {
             headers: {
                 Authorization: `Bearer ${token}`
             }
@@ -246,12 +316,19 @@
     }
 
     async function signIn(msalApp) {
-        setStatus("Connexion en cours...", false);
-        setStatus("Redirection vers Microsoft Entra ID...", false);
+        setStatus(tr("statusRedirectIdentity"), false);
         await msalApp.loginRedirect({ scopes: buildLoginScopes() });
     }
 
     async function init() {
+        try {
+            resolveLanguage();
+            await loadI18nConfig();
+            applyLoginTranslations();
+        } catch (error) {
+            console.error("Unable to initialize login i18n:", error);
+        }
+
         let msalApp;
         try {
             await ensureMsalLoaded();
@@ -267,7 +344,7 @@
                 }
             }
         } catch (error) {
-            setStatus(`Erreur config auth: ${formatErrorMessage(error)}`, true);
+            setStatus(tr("statusConfigError", { error: formatErrorMessage(error) }), true);
             return;
         }
 
@@ -280,21 +357,21 @@
                 localStorage.setItem(TOKEN_KEY, accessToken);
 
                 const { profile } = await resolveUserContext(accessToken);
-                setStatus(`Session détectée (${profile.role || "role inconnu"}). Redirection...`, false);
+                setStatus(tr("statusSessionDetected", { role: profile.role || tr("unknownRole") }), false);
                 setTimeout(goToApp, 150);
                 return;
             } catch (error) {
-                setStatus("Session détectée, mais token expiré. Reconnexion requise.", true);
+                setStatus(tr("statusSessionExpired"), true);
             }
         }
 
         if (signInBtn) {
             signInBtn.addEventListener("click", async () => {
                 try {
-                    setStatus("Redirection vers la page de connexion...", false);
+                    setStatus(tr("statusRedirectLogin"), false);
                     await signIn(msalApp);
                 } catch (error) {
-                    setStatus(`Connexion échouée: ${formatErrorMessage(error)}`, true);
+                    setStatus(tr("statusLoginFailed", { error: formatErrorMessage(error) }), true);
                 }
             });
         }

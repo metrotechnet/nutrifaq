@@ -9,6 +9,25 @@
       "menuButton": "Menu",
       "agentLabel": "Agent"
     },
+    "loginPage": {
+      "title": "Connexion - NutriFAQ-Chat",
+      "description": "Connectez-vous avec votre compte Azure Entra ID pour continuer.",
+      "signIn": "Se connecter avec Azure",
+      "ready": "Prêt.",
+      "statusRedirectIdentity": "Redirection vers Microsoft Entra ID...",
+      "statusRedirectLogin": "Redirection vers la page de connexion...",
+      "statusConfigError": "Erreur config auth: {error}",
+      "statusSessionDetected": "Session détectée ({role}). Redirection...",
+      "statusSessionExpired": "Session détectée, mais token expiré. Reconnexion requise.",
+      "statusLoginFailed": "Connexion échouée: {error}",
+      "unknownRole": "rôle inconnu",
+      "unknownError": "Erreur inconnue",
+      "msalUnavailable": "MSAL indisponible: impossible de charger la bibliothèque d'authentification.",
+      "missingTenant": "ENTRA_TENANT_ID manquant.",
+      "missingClientId": "ENTRA_CLIENT_ID manquant.",
+      "msalNotFound": "MSAL indisponible.",
+      "tokenAcquireFailed": "Impossible de récupérer le token API."
+    },
     "sidebar": {
       "title": "IMX - NutriFAQ",
       "closeButton": "Fermer",
@@ -124,6 +143,25 @@
       "title": "IMX - NutriFAQ",
       "menuButton": "Menu",
       "agentLabel": "Agent"
+    },
+    "loginPage": {
+      "title": "Sign in - NutriFAQ-Chat",
+      "description": "Sign in with your Azure Entra ID account to continue.",
+      "signIn": "Sign in with Azure",
+      "ready": "Ready.",
+      "statusRedirectIdentity": "Redirecting to Microsoft Entra ID...",
+      "statusRedirectLogin": "Redirecting to the sign-in page...",
+      "statusConfigError": "Auth config error: {error}",
+      "statusSessionDetected": "Session detected ({role}). Redirecting...",
+      "statusSessionExpired": "Session detected, but token expired. Sign-in required.",
+      "statusLoginFailed": "Sign-in failed: {error}",
+      "unknownRole": "unknown role",
+      "unknownError": "Unknown error",
+      "msalUnavailable": "MSAL unavailable: unable to load authentication library.",
+      "missingTenant": "Missing ENTRA_TENANT_ID.",
+      "missingClientId": "Missing ENTRA_CLIENT_ID.",
+      "msalNotFound": "MSAL unavailable.",
+      "tokenAcquireFailed": "Unable to retrieve API token."
     },
     "sidebar": {
       "title": "IMX - NutriFAQ",

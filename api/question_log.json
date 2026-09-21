@@ -418,5 +418,19 @@
     "response": "# Calcul des besoins caloriques personnalisés\n\nJe comprends votre question sur vos besoins caloriques, mais **je ne peux pas fournir de recommandations personnalisées** basées sur votre âge, poids et situation individuelle.\n\n## Pourquoi je ne peux pas calculer vos besoins spécifiques\n\nLes besoins caloriques dépendent de **nombreux facteurs individuels** :\n- Niveau d'activité physique\n- Composition corporelle (masse musculaire vs masse grasse)  \n- Métabolisme de base\n- Objectifs de santé\n- État de santé général\n- Historique médical\n\n## Ce que recommande la science\n\nD'après le contexte disponible, **la santé ne se résume pas à une équation énergétique**. Les recherches montrent que :\n- Compter ses calories peut être un outil éducatif à court terme\n- Mais ce n'est **pas une solution durable** à long terme\n- Il est plus bénéfique d'apprendre à mieux manger que de simplement compter\n\n## Ma recommandation\n\nPour obtenir un calcul précis et adapté à votre situation, **consultez un nutritionniste ou un professionnel de santé qualifié**. Ils pourront évaluer vos besoins spécifiques et vous accompagner dans une approche durable.\n\n> **Rappel important** : Il n'existe pas de solution universelle, et les effets dépendent du contexte individuel.",
     "timestamp": "2026-09-19T10:12:28.553434",
     "comments": []
+  },
+  {
+    "question_id": "c66c9bb3-1c85-48f8-95ba-275fb566e7cc",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "No relevant information found. Please make sure you have indexed some transcripts.",
+    "timestamp": "2026-09-21T18:52:48.564630",
+    "comments": []
+  },
+  {
+    "question_id": "bbdd1c5e-7734-4941-a48f-37c73388f77b",
+    "question": "c'est quoi de la créatine",
+    "response": "Knowledge base query failed: Error getting collection: Collection [4840f5a8-341a-4ad4-b1a9-6dd7e0c5636a] does not exist.",
+    "timestamp": "2026-09-21T18:54:03.930986",
+    "comments": []
   }
 ]
