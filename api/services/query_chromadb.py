@@ -448,16 +448,16 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             history_text += f"{role_label}: {msg['content']}\n"
 
     # context is not available yet (need ChromaDB), so pass empty string for now
-    refusal_result = validate_user_query(question, llm_call_fn=None, language=language)
-    if refusal_result and refusal_result.get("decision") == "refuse":
-        # Store empty links list in session for refusal
-        if session is not None and question_id is not None:
-            if 'links' not in session:
-                session['links'] = {}
-            session['links'][question_id] = []
-        yield "__REFUSAL__"
-        yield refusal_result["answer"]
-        return
+    # refusal_result = validate_user_query(question, llm_call_fn=None, language=language)
+    # if refusal_result and refusal_result.get("decision") == "refuse":
+    #     # Store empty links list in session for refusal
+    #     if session is not None and question_id is not None:
+    #         if 'links' not in session:
+    #             session['links'] = {}
+    #         session['links'][question_id] = []
+    #     yield "__REFUSAL__"
+    #     yield refusal_result["answer"]
+    #     return
 
 
     try:

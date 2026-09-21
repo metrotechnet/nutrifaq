@@ -16,6 +16,38 @@ let mainConfig = {};
 let currentLanguage = 'fr';
 
 /**
+ * Fetch JSON config with retry to tolerate backend cold start.
+ */
+async function fetchConfigWithRetry(url, options = {}) {
+    const timeoutMs = Number(options.timeoutMs || 30000);
+    const retryDelayMs = Number(options.retryDelayMs || 1000);
+    const attemptTimeoutMs = Number(options.attemptTimeoutMs || 5000);
+    const start = Date.now();
+    let lastError = null;
+
+    while (Date.now() - start < timeoutMs) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), attemptTimeoutMs);
+        try {
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timer);
+            if (response.ok) {
+                return await response.json();
+            }
+
+            lastError = new Error(`Config endpoint returned ${response.status}`);
+        } catch (error) {
+            clearTimeout(timer);
+            lastError = error;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    }
+
+    throw lastError || new Error('Unable to load config within timeout.');
+}
+
+/**
  * Get URL parameter by name
  */
 function getUrlParameter(name) {
@@ -29,8 +61,7 @@ function getUrlParameter(name) {
 async function loadConfig(agent) {
     try {
         // Single-agent setup - always load agent config
-        const configResponse = await fetch(`${BACKEND_URL}/api/get_config`);
-        mainConfig = await configResponse.json();
+        mainConfig = await fetchConfigWithRetry(`${BACKEND_URL}/api/get_config`);
         
         // Check for errors
         if (mainConfig.error) {

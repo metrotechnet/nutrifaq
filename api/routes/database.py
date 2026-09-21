@@ -12,7 +12,9 @@ from fastapi.responses import JSONResponse
 from api.services.entra_auth_service import require_admin
 
 from api.services.database_regeneration_service import (
+    get_regeneration_status,
     list_regeneration_steps,
+    request_regeneration_cancel,
     run_full_regeneration,
     run_extract_docx_step,
     run_extract_references_step,
@@ -91,5 +93,25 @@ def regenerate_database():
         "embedding_provider": os.getenv("EMBEDDING_PROVIDER", "azure"),
     }
 
-    status_code = 200 if result.get("status") == "success" else 500
+    status_value = result.get("status")
+    if status_value in {"success", "cancelled"}:
+        status_code = 200
+    elif status_value == "busy":
+        status_code = 409
+    else:
+        status_code = 500
     return JSONResponse(status_code=status_code, content=result)
+
+
+@router.post("/api/database/regenerate/cancel")
+def cancel_regeneration():
+    """Request cancellation of the currently running regeneration job."""
+    result = request_regeneration_cancel()
+    status_code = 200 if result.get("status") in {"cancelling", "idle"} else 500
+    return JSONResponse(status_code=status_code, content=result)
+
+
+@router.get("/api/database/regenerate/status")
+def regeneration_status():
+    """Return current regeneration execution status."""
+    return {"status": "ok", "regeneration": get_regeneration_status()}

@@ -12,6 +12,9 @@
     "sidebar": {
       "title": "IMX - NutriFAQ",
       "closeButton": "Fermer",
+      "download": "Télécharger",
+      "test": "Tester",
+      "validate": "Valider",
       "aboutImx": "À propos d'IMX",
       "legal": "Avertissements",
       "about": "À propos de l'application",
@@ -123,6 +126,9 @@
     "sidebar": {
       "title": "IMX - NutriFAQ",
       "closeButton": "Close",
+      "download": "Download",
+      "test": "Test",
+      "validate": "Validate",
       "aboutImx": "About IMX",
       "legal": "Warnings",
       "about": "About the application",

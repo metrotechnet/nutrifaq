@@ -153,7 +153,9 @@ def create_chat_completion_stream(
     resolved_model = model_name
     if provider == "azure":
         resolved_model = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or _normalize_model_name(model_name)
-
+    if provider == "vercel":
+        resolved_model = os.getenv("VERCEL_CHAT_DEPLOYMENT") or _normalize_model_name(model_name)
+        
     max_retries = max(0, int(os.getenv("CHAT_MAX_RETRIES", "3")))
     base_delay = max(0.1, float(os.getenv("CHAT_RETRY_BASE_DELAY", "1.5")))
     max_delay = max(base_delay, float(os.getenv("CHAT_RETRY_MAX_DELAY", "20")))

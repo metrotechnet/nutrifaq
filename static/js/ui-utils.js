@@ -225,27 +225,52 @@ function initSidebar() {
     const sidebar = document.getElementById('sidebar');
     const closeSidebar = document.getElementById('close-sidebar');
     const overlay = document.getElementById('overlay');
+    const testerLink = document.getElementById('tester-link');
+
+    const setSidebarState = (isOpen) => {
+        if (sidebar) sidebar.classList.toggle('open', isOpen);
+        if (overlay) overlay.classList.toggle('active', isOpen);
+        if (menuToggle) {
+            menuToggle.classList.toggle('active', isOpen);
+            menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+    };
     
     if (menuToggle) {
         menuToggle.addEventListener('click', () => {
-            if (sidebar) sidebar.classList.add('open');
-            if (overlay) overlay.classList.add('active');
+            const isOpen = sidebar ? sidebar.classList.contains('open') : false;
+            setSidebarState(!isOpen);
         });
     }
     
     if (closeSidebar) {
         closeSidebar.addEventListener('click', () => {
-            if (sidebar) sidebar.classList.remove('open');
-            if (overlay) overlay.classList.remove('active');
+            setSidebarState(false);
         });
     }
     
     if (overlay) {
         overlay.addEventListener('click', () => {
-            if (sidebar) sidebar.classList.remove('open');
-            overlay.classList.remove('active');
+            setSidebarState(false);
         });
     }
+
+    if (testerLink) {
+        testerLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            const chatContainer = document.getElementById('chat-container');
+            if (chatContainer) {
+                chatContainer.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            setSidebarState(false);
+        });
+    }
+
+    document.querySelectorAll('.sidebar-link').forEach((link) => {
+        if (link.id !== 'tester-link') {
+            link.addEventListener('click', () => setSidebarState(false));
+        }
+    });
 }
 
 /**
@@ -254,9 +279,14 @@ function initSidebar() {
 function closeSidebarMenu() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('overlay');
+    const menuToggle = document.getElementById('menu-toggle');
     
     if (sidebar) sidebar.classList.remove('open');
     if (overlay) overlay.classList.remove('active');
+    if (menuToggle) {
+        menuToggle.classList.remove('active');
+        menuToggle.setAttribute('aria-expanded', 'false');
+    }
 }
 
 // ===================================

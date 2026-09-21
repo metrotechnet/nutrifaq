@@ -16,6 +16,10 @@
     ],
     "rewrites": [
       {
+        "source": "/",
+        "destination": "/login.html"
+      },
+      {
         "source": "/log_report",
         "destination": "/log_report.html"
       },

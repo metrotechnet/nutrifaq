@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import mimetypes
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
@@ -17,6 +18,7 @@ class BlobFileInfo:
     size: int | None
     etag: str | None
     last_modified: str | None
+    content_type: str | None
 
 
 def _storage_connection_string() -> str | None:
@@ -79,6 +81,10 @@ def list_blob_files(prefix: str | None = None) -> list[BlobFileInfo]:
             size=getattr(blob, "size", None),
             etag=getattr(blob, "etag", None),
             last_modified=str(getattr(blob, "last_modified", None)) if getattr(blob, "last_modified", None) else None,
+            content_type=(
+                getattr(getattr(blob, "content_settings", None), "content_type", None)
+                or mimetypes.guess_type(blob.name)[0]
+            ),
         )
         for blob in blobs
     ]

@@ -12,6 +12,7 @@ from typing import Dict, List
 import shutil
 import subprocess
 import sys
+import threading
 import time
 
 from api.services.blob_storage_service import (
@@ -28,6 +29,15 @@ CHROMA_DB_ROOT = KB_ROOT / "chroma_db"
 LOCAL_SERVER_SQLITE_COPY = REPO_ROOT / "local-server" / "chroma.sqlite3"
 
 
+_regen_state_lock = threading.Lock()
+_regen_state: Dict[str, object] = {
+    "running": False,
+    "cancel_requested": False,
+    "current_step": None,
+    "active_process": None,
+}
+
+
 @dataclass
 class StepDefinition:
     key: str
@@ -39,6 +49,74 @@ class StepDefinition:
 
 def _python_executable() -> str:
     return sys.executable or "python"
+
+
+def _start_regeneration() -> bool:
+    with _regen_state_lock:
+        if bool(_regen_state.get("running")):
+            return False
+        _regen_state["running"] = True
+        _regen_state["cancel_requested"] = False
+        _regen_state["current_step"] = None
+        _regen_state["active_process"] = None
+        return True
+
+
+def _finish_regeneration() -> None:
+    with _regen_state_lock:
+        _regen_state["running"] = False
+        _regen_state["cancel_requested"] = False
+        _regen_state["current_step"] = None
+        _regen_state["active_process"] = None
+
+
+def _set_current_step(step_key: str | None) -> None:
+    with _regen_state_lock:
+        _regen_state["current_step"] = step_key
+
+
+def _set_active_process(process: subprocess.Popen[str] | None) -> None:
+    with _regen_state_lock:
+        _regen_state["active_process"] = process
+
+
+def _is_cancel_requested() -> bool:
+    with _regen_state_lock:
+        return bool(_regen_state.get("cancel_requested"))
+
+
+def request_regeneration_cancel() -> Dict[str, object]:
+    with _regen_state_lock:
+        if not bool(_regen_state.get("running")):
+            return {
+                "status": "idle",
+                "message": "No regeneration is currently running.",
+            }
+
+        _regen_state["cancel_requested"] = True
+        process = _regen_state.get("active_process")
+        step = _regen_state.get("current_step")
+
+    if isinstance(process, subprocess.Popen) and process.poll() is None:
+        try:
+            process.terminate()
+        except Exception:
+            pass
+
+    return {
+        "status": "cancelling",
+        "message": "Cancellation requested.",
+        "current_step": step,
+    }
+
+
+def get_regeneration_status() -> Dict[str, object]:
+    with _regen_state_lock:
+        return {
+            "running": bool(_regen_state.get("running")),
+            "cancel_requested": bool(_regen_state.get("cancel_requested")),
+            "current_step": _regen_state.get("current_step"),
+        }
 
 
 def _step_definitions() -> Dict[str, StepDefinition]:
@@ -108,16 +186,50 @@ def _run_step(step_key: str) -> Dict[str, object]:
 
     command = [_python_executable(), str(script_path), *step.args]
     started = time.time()
-    process = subprocess.run(
+    process = subprocess.Popen(
         command,
         cwd=str(step.cwd),
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=False,
     )
+    _set_current_step(step.key)
+    _set_active_process(process)
+
+    was_cancelled = False
+    while process.poll() is None:
+        if _is_cancel_requested():
+            was_cancelled = True
+            try:
+                process.terminate()
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            except Exception:
+                pass
+            break
+        time.sleep(0.25)
+
+    stdout, stderr = process.communicate()
+    _set_active_process(None)
+
     duration_seconds = round(time.time() - started, 2)
+
+    if was_cancelled:
+        return {
+            "status": "cancelled",
+            "step": step.key,
+            "description": step.description,
+            "command": " ".join(command),
+            "cwd": str(step.cwd),
+            "return_code": process.returncode,
+            "duration_seconds": duration_seconds,
+            "stdout": stdout,
+            "stderr": stderr,
+            "message": "Cancelled by user.",
+        }
 
     return {
         "status": "ok" if process.returncode == 0 else "error",
@@ -127,8 +239,8 @@ def _run_step(step_key: str) -> Dict[str, object]:
         "cwd": str(step.cwd),
         "return_code": process.returncode,
         "duration_seconds": duration_seconds,
-        "stdout": process.stdout,
-        "stderr": process.stderr,
+        "stdout": stdout,
+        "stderr": stderr,
     }
 
 
@@ -222,6 +334,12 @@ def run_full_regeneration(
     Optional preprocessing steps can be added before it.
     """
 
+    if not _start_regeneration():
+        return {
+            "status": "busy",
+            "message": "A regeneration is already running.",
+        }
+
     pipeline: List[str] = []
     if include_extract_docx:
         pipeline.append("extract_docx")
@@ -238,28 +356,51 @@ def run_full_regeneration(
         "index_chromadb_json": run_index_chromadb_json_step,
     }
 
-    for step_key in pipeline:
-        step_result = step_services[step_key]()
-        results.append(step_result)
-        if step_result.get("status") != "ok":
+    try:
+        for step_key in pipeline:
+            if _is_cancel_requested():
+                return {
+                    "status": "cancelled",
+                    "message": "Regeneration cancelled by user.",
+                    "steps": results,
+                }
+
+            step_result = step_services[step_key]()
+            results.append(step_result)
+            if step_result.get("status") == "cancelled":
+                return {
+                    "status": "cancelled",
+                    "message": f"Pipeline cancelled at step '{step_key}'.",
+                    "steps": results,
+                }
+            if step_result.get("status") != "ok":
+                return {
+                    "status": "error",
+                    "message": f"Pipeline stopped at step '{step_key}'.",
+                    "steps": results,
+                }
+
+        if _is_cancel_requested():
             return {
-                "status": "error",
-                "message": f"Pipeline stopped at step '{step_key}'.",
+                "status": "cancelled",
+                "message": "Regeneration cancelled before post-sync.",
                 "steps": results,
             }
 
-    publish_result = _save_chromadb_to_blob_and_local_copy()
-    if publish_result.get("status") != "ok":
+        publish_result = _save_chromadb_to_blob_and_local_copy()
+        if publish_result.get("status") != "ok":
+            return {
+                "status": "error",
+                "message": "Pipeline completed but post-sync failed.",
+                "steps": results,
+                "post_sync": publish_result,
+            }
+
         return {
-            "status": "error",
-            "message": "Pipeline completed but post-sync failed.",
+            "status": "success",
+            "message": "Database regeneration pipeline completed.",
             "steps": results,
             "post_sync": publish_result,
         }
-
-    return {
-        "status": "success",
-        "message": "Database regeneration pipeline completed.",
-        "steps": results,
-        "post_sync": publish_result,
-    }
+    finally:
+        _finish_regeneration()

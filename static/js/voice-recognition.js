@@ -18,6 +18,19 @@ let recordingAnimationInterval = null;
 let maxDurationTimer = null;
 let warningTimer = null;
 
+function showVoiceAlert(message) {
+    if (window.Swal && typeof window.Swal.fire === 'function') {
+        window.Swal.fire({
+            title: 'Information',
+            text: message,
+            icon: 'warning',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    alert(message);
+}
+
 /**
  * Convert language code to speech recognition locale
  */
@@ -273,7 +286,7 @@ async function initWhisperRecording() {
     } catch (error) {
         console.error('Failed to initialize Whisper recording:', error);
         const { getCurrentLanguage } = window.ConfigModule;
-        alert(getCurrentLanguage() === 'en' 
+        showVoiceAlert(getCurrentLanguage() === 'en' 
             ? 'Could not access microphone. Please check permissions.' 
             : 'Impossible d\'accéder au microphone. Vérifiez les permissions.');
         
@@ -432,7 +445,7 @@ async function transcribeWithWhisper(audioBlob) {
     } catch (error) {
         console.error('Failed to transcribe with Whisper:', error);
         const { getCurrentLanguage } = window.ConfigModule;
-        alert(getCurrentLanguage() === 'en' 
+        showVoiceAlert(getCurrentLanguage() === 'en' 
             ? 'Failed to transcribe audio. Please try again.' 
             : 'Échec de la transcription. Veuillez réessayer.');
         
@@ -463,7 +476,7 @@ function toggleRecording() {
     
     if (!recognition) {
         const { getCurrentLanguage } = window.ConfigModule;
-        alert(getCurrentLanguage() === 'en' 
+        showVoiceAlert(getCurrentLanguage() === 'en' 
             ? 'Speech recognition is not supported in your browser.' 
             : 'La reconnaissance vocale n\'est pas supportée par votre navigateur.');
         return;

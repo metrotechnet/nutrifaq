@@ -111,6 +111,10 @@ def _decode_access_token(token: str) -> dict[str, Any]:
     if not issuer:
         raise RuntimeError("issuer not found in Entra OpenID configuration.")
 
+    tenant_id = os.getenv("ENTRA_TENANT_ID", "").strip()
+    if not tenant_id:
+        raise RuntimeError("ENTRA_TENANT_ID is required for issuer validation.")
+
     audience = _expected_audience()
     signing_key = _jwks_client().get_signing_key_from_jwt(token)
     claims = jwt.decode(
@@ -118,11 +122,26 @@ def _decode_access_token(token: str) -> dict[str, Any]:
         signing_key.key,
         algorithms=["RS256"],
         audience=audience,
-        issuer=issuer,
-        options={"require": ["exp", "iat", "iss", "aud"]},
+        options={"require": ["exp", "iat", "iss", "aud"], "verify_iss": False},
     )
     if not isinstance(claims, dict):
         raise RuntimeError("Invalid token claims payload.")
+
+    # Accept equivalent Entra issuer variants for the configured tenant (v1/v2 forms).
+    token_issuer = str(claims.get("iss", "")).strip()
+    normalized_issuer = token_issuer.rstrip("/").lower()
+    allowed_issuers = {
+        issuer.rstrip("/").lower(),
+        f"https://login.microsoftonline.com/{tenant_id}/v2.0".rstrip("/").lower(),
+        f"https://sts.windows.net/{tenant_id}".rstrip("/").lower(),
+    }
+    if normalized_issuer not in allowed_issuers:
+        raise RuntimeError(f"Invalid issuer '{token_issuer}' for tenant '{tenant_id}'.")
+
+    token_tid = str(claims.get("tid", "")).strip()
+    if token_tid and token_tid.lower() != tenant_id.lower():
+        raise RuntimeError(f"Invalid tenant '{token_tid}'. Expected '{tenant_id}'.")
+
     return claims
 
 

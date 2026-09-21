@@ -822,5 +822,19 @@
     "response": "Knowledge base query failed: Collection [nutrifaq-collection] does not exist",
     "timestamp": "2026-09-17T19:38:41.369095",
     "comments": []
+  },
+  {
+    "question_id": "63931f96-60fa-481b-9c0d-38b979575131",
+    "question": "Donne-moi un exemple de menu pour une journée",
+    "response": "Je peux fournir de l'information générale à visée éducative, mais je ne peux pas donner de recommandations, de chiffres cibles, d'exemples de menus, ni répondre à des situations personnelles ou cliniques.\n\nPour ce type de question, consulte un professionnel de la santé qualifié (ou un diététiste-nutritionniste). Ne modifie pas un traitement sans avis médical. En cas d'urgence, contacte les services d'urgence.",
+    "timestamp": "2026-09-18T17:09:25.913253",
+    "comments": []
+  },
+  {
+    "question_id": "171d9e6d-fd5d-4f5e-a07a-bd96779f9977",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Knowledge base query failed: Local ChromaDB directory not found: C:\\dev\\NutriFAQ\\nutrifaq-chat\\knowledge-base\\nutria\\chroma_db",
+    "timestamp": "2026-09-18T17:09:46.374113",
+    "comments": []
   }
 ]

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriFAQ - Gestion des fichiers Azure</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body class="download-manager-page">
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>IMX Agent</h2>
+            <button class="close-sidebar" id="close-sidebar" title="Fermer">×</button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/download-manager.html" class="sidebar-link" id="download-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5 20h14v-2H5v2zM12 2v12l4-4 1.41 1.41L12 17.83l-5.41-5.42L8 10l4 4V2h0z"/>
+                </svg>
+                <span>Télécharger</span>
+            </a>
+            <a href="/" class="sidebar-link" id="tester-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8v2c5.52 0 10-4.48 10-10S17.52 2 12 2zm-1 5v6l5.25 3.15.75-1.23-4.5-2.67V7H11z"/>
+                </svg>
+                <span>Tester</span>
+            </a>
+            <a href="#" class="sidebar-link" id="validate-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+                <span>Valider</span>
+            </a>
+            <a href="https://imxtech.ca/" target="_blank" rel="noopener noreferrer" class="sidebar-link" id="about-imx-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
+                </svg>
+                <span>À propos d'IMX</span>
+            </a>
+        </nav>
+        <div class="footer-info" style="text-align:center; font-size:0.95em; color:#666; margin:10px;">© IMX Technologie inc. – 2026</div>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <header class="download-manager-header">
+        <button class="menu-toggle" id="menu-toggle" title="Menu" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <h1 class="header-title">NutriFAQ-Chat</h1>
+    </header>
+
+    <div class="content" id="chat-container">
+    <main class="download-manager-content">
+        <section class="download-dropzone-section" aria-label="Téléversement de fichier">
+            <div id="dnd-upload-area" class="dnd-upload-area" role="button" tabindex="0" aria-label="Glissez un fichier ici ou cliquez pour sélectionner">
+                <input type="file" id="upload-file" hidden>
+                <p class="dnd-upload-title">Glissez-déposez un fichier ici</p>
+                <p class="dnd-upload-subtitle">ou</p>
+                <button id="dnd-browse-btn" class="dm-btn secondary" type="button">Choisir un fichier</button>
+                <p id="dnd-file-name" class="dnd-file-name">Aucun fichier sélectionné.</p>
+            </div>
+        </section>
+
+        <section class="download-status-row">
+            <p id="status-message" class="status-message">Prêt.</p>
+            <div class="indexing-actions">
+                <button id="start-indexing" class="dm-btn indexing">Démarrer un indexage</button>
+                <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;">Annuler</button>
+            </div>
+        </section>
+        <section id="indexing-progress-wrap" class="indexing-progress-wrap" style="display:none;" aria-live="polite">
+            <div class="indexing-progress-track">
+                <div id="indexing-progress-bar" class="indexing-progress-bar" style="width:0%;"></div>
+            </div>
+            <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
+        </section>
+
+        <section class="download-files-list" aria-live="polite">
+            <table class="files-table" id="files-table">
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Taille</th>
+                        <th>Dernière modification</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="files-tbody">
+                    <tr>
+                        <td colspan="4">Chargement des fichiers...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+    </div>
+
+    <script src="/static/js/backend-url.js"></script>
+    <script src="/static/js/download-manager.js"></script>
+</body>
+</html>
