@@ -31,8 +31,28 @@
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
     let indexingProgressTimer = null;
+    let indexingStatusTimer = null;
     let indexingAbortController = null;
     let isIndexingRunning = false;
+    let hasLiveStepStatus = false;
+    let currentStepKey = null;
+    let currentStepPercent = 0;
+
+    const STEP_LABELS = {
+        extract_docx: "Extraction des documents",
+        extract_references: "Extraction des references",
+        generate_transcripts_json: "Generation des transcripts",
+        generate_questions: "Generation des questions",
+        index_chromadb_json: "Indexation ChromaDB"
+    };
+
+    const STEP_PROGRESS = {
+        extract_docx: 18,
+        extract_references: 34,
+        generate_transcripts_json: 52,
+        generate_questions: 74,
+        index_chromadb_json: 92
+    };
 
     function hasSweetAlert() {
         return Boolean(window.Swal && typeof window.Swal.fire === "function");
@@ -79,6 +99,9 @@
 
     function beginIndexingProgress() {
         isIndexingRunning = true;
+        hasLiveStepStatus = false;
+        currentStepKey = null;
+        currentStepPercent = 0;
         if (els.startIndexing) {
             els.startIndexing.disabled = true;
             els.startIndexing.textContent = "Indexage en cours...";
@@ -94,17 +117,26 @@
         let progress = 5;
         setIndexingProgress(progress, "Préparation...");
         indexingProgressTimer = window.setInterval(() => {
-            progress = Math.min(progress + Math.random() * 6 + 2, 92);
-            setIndexingProgress(progress, `Indexage en cours... ${Math.round(progress)}%`);
-        }, 1200);
+            if (hasLiveStepStatus) {
+                return;
+            }
+            progress = Math.min(progress + 1, 14);
+            setIndexingProgress(progress, "Préparation...");
+        }, 1000);
+
+        startRegenerationStatusPolling();
     }
 
     function finishIndexingProgress(success) {
         isIndexingRunning = false;
+        hasLiveStepStatus = false;
+        currentStepKey = null;
+        currentStepPercent = 0;
         if (indexingProgressTimer) {
             window.clearInterval(indexingProgressTimer);
             indexingProgressTimer = null;
         }
+        stopRegenerationStatusPolling();
 
         setIndexingProgress(100, success ? "Terminé" : "Interrompu");
 
@@ -125,6 +157,66 @@
             }
             setIndexingProgress(0, "0%");
         }, success ? 1200 : 2000);
+    }
+
+    function stopRegenerationStatusPolling() {
+        if (indexingStatusTimer) {
+            window.clearInterval(indexingStatusTimer);
+            indexingStatusTimer = null;
+        }
+    }
+
+    async function refreshRegenerationStatus() {
+        if (!isIndexingRunning) {
+            return;
+        }
+        try {
+            const payload = await fetchJson(`${BACKEND_URL}/api/database/regenerate/status`, {
+                headers: {
+                    ...authHeaders()
+                }
+            });
+
+            const regen = payload && payload.regeneration ? payload.regeneration : {};
+            const stepKey = regen.current_step || null;
+            if (!stepKey) {
+                return;
+            }
+
+            hasLiveStepStatus = true;
+            if (indexingProgressTimer) {
+                window.clearInterval(indexingProgressTimer);
+                indexingProgressTimer = null;
+            }
+
+            const label = regen.current_step_label || STEP_LABELS[stepKey] || stepKey;
+            const stepIndex = Number(regen.step_index || 0);
+            const totalSteps = Number(regen.total_steps || 0);
+
+            if (currentStepKey !== stepKey) {
+                currentStepKey = stepKey;
+                currentStepPercent = 0;
+            } else {
+                // Smooth normalized progression within the current step.
+                currentStepPercent = Math.min(currentStepPercent + 12, 96);
+            }
+
+            const countText = stepIndex > 0 && totalSteps > 0
+                ? ` (${stepIndex}/${totalSteps})`
+                : "";
+            setIndexingProgress(
+                currentStepPercent,
+                `Etape${countText}: ${label} (${Math.round(currentStepPercent)}%)`
+            );
+        } catch (_) {
+            // Ignore transient status polling errors while regeneration is running.
+        }
+    }
+
+    function startRegenerationStatusPolling() {
+        stopRegenerationStatusPolling();
+        refreshRegenerationStatus();
+        indexingStatusTimer = window.setInterval(refreshRegenerationStatus, 1500);
     }
 
     async function requestCancelIndexing() {

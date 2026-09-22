@@ -194,6 +194,67 @@ def create_chat_completion_stream(
     raise RuntimeError("Failed to create chat completion stream.")
 
 
+def create_chat_completion_text(
+    *,
+    client: OpenAI | AzureOpenAI,
+    model_name: str | None,
+    prompt: str,
+    temperature: float = 0.4,
+) -> str:
+    """Create a non-streaming chat completion and return plain text content."""
+    provider = _llm_provider()
+    requested_model = (model_name or "").strip()
+
+    if provider == "azure":
+        resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or "gpt-4o-mini"
+    elif provider == "vercel":
+        fallback = _normalize_model_name(requested_model) if requested_model else "gpt-4o-mini"
+        resolved_model = requested_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or fallback
+    else:
+        fallback = _normalize_model_name(requested_model) if requested_model else "gpt-4o-mini"
+        resolved_model = requested_model or fallback
+
+    max_retries = max(0, int(os.getenv("CHAT_MAX_RETRIES", "3")))
+    base_delay = max(0.1, float(os.getenv("CHAT_RETRY_BASE_DELAY", "1.5")))
+    max_delay = max(base_delay, float(os.getenv("CHAT_RETRY_MAX_DELAY", "20")))
+
+    last_error: Exception | None = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model=resolved_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                stream=False,
+            )
+            choices = getattr(response, "choices", None) or []
+            if not choices:
+                raise RuntimeError("Chat completion returned no choices.")
+            message = getattr(choices[0], "message", None)
+            content = getattr(message, "content", None)
+            if not content:
+                raise RuntimeError("Chat completion returned empty content.")
+            return str(content)
+        except Exception as exc:
+            last_error = exc
+            if not _is_rate_limit_error(exc):
+                raise
+
+            if attempt >= max_retries:
+                break
+
+            retry_after = _retry_after_from_error(exc)
+            delay = retry_after if retry_after is not None else min(max_delay, base_delay * (2 ** attempt))
+            _log_rate_limit_wait("chat", attempt + 1, max_retries, delay)
+            time.sleep(delay)
+
+    if last_error is not None:
+        raise last_error
+
+    raise RuntimeError("Failed to create chat completion.")
+
+
 def create_embedding(
     *,
     input_text: str,

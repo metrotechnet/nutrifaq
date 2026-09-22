@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from api.services.entra_auth_service import require_admin
 
 from api.services.database_regeneration_service import (
+    generate_questions_from_transcripts_json,
     get_regeneration_status,
     list_regeneration_steps,
     request_regeneration_cancel,
@@ -75,15 +76,42 @@ def run_index_chromadb_json():
     return JSONResponse(status_code=status_code, content=result)
 
 
+@router.post("/api/database/generate-questions")
+def generate_questions(
+    question_count: int = Query(default=3, ge=1, le=20, description="Number of questions to generate per document."),
+    source_root_folder: str | None = Query(
+        default=None,
+        description="Optional local KB folder to read transcripts_chromadb.json from.",
+    ),
+    debug_container: str | None = Query(
+        default=None,
+        description="Optional debug blob container override for output upload.",
+    ),
+    debug_root_folder: str | None = Query(
+        default=None,
+        description="Optional debug blob root folder (prefix) override for output upload.",
+    ),
+):
+    """Generate per-document questions from transcripts JSON and upload the result to debug blob storage."""
+    result = generate_questions_from_transcripts_json(
+        question_count=question_count,
+        source_root_folder=source_root_folder,
+        target_container_name=debug_container,
+        target_root_folder=debug_root_folder,
+    )
+    status_code = 200 if result.get("status") == "ok" else 500
+    return JSONResponse(status_code=status_code, content=result)
+
+
 @router.post("/api/database/regenerate")
 def regenerate_database(
     root_folder: str | None = Query(
         default=None,
-        description="Optional blob root folder (prefix) to use instead of default prefix.",
+        description="Optional blob root folder (prefix). If omitted, debug prefix is used.",
     ),
     container: str | None = Query(
         default=None,
-        description="Optional blob container name. If omitted, AZURE_STORAGE_CONTAINER is used when available.",
+        description="Optional blob container name. If omitted, debug container is used.",
     ),
 ):
     """Run the full regeneration pipeline.
