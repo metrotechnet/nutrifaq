@@ -254,6 +254,14 @@ header {
     overflow: hidden;
 }
 
+.main-pane.non-chat-mode {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+
+.main-pane.non-chat-mode .suggested-questions-panel {
+    display: none;
+}
+
 #chat-container {
     flex: 1;
     min-height: 0;

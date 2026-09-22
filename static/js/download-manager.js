@@ -896,8 +896,13 @@
         const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
         const chatTopSpacer = document.getElementById("chat-top-spacer");
+        const mainPane = document.querySelector(".main-pane");
 
         hideIntegratedPanels();
+
+        if (mainPane) {
+            mainPane.classList.add("non-chat-mode");
+        }
 
         if (chatMainLayout) {
             chatMainLayout.style.display = "none";
@@ -945,8 +950,13 @@
         const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
         const chatTopSpacer = document.getElementById("chat-top-spacer");
+        const mainPane = document.querySelector(".main-pane");
 
         hideIntegratedPanels();
+
+        if (mainPane) {
+            mainPane.classList.add("non-chat-mode");
+        }
 
         if (chatInputArea) {
             chatInputArea.style.display = "none";
@@ -998,8 +1008,13 @@
         const chatContainer = document.getElementById("chat-container");
         const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
+        const mainPane = document.querySelector(".main-pane");
 
         hideIntegratedPanels();
+
+        if (mainPane) {
+            mainPane.classList.add("non-chat-mode");
+        }
 
         if (chatInputArea) {
             chatInputArea.style.display = "none";
@@ -1041,8 +1056,12 @@
         const chatMainLayout = document.getElementById("chat-main-layout");
         const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
+        const mainPane = document.querySelector(".main-pane");
 
         hideIntegratedPanels();
+        if (mainPane) {
+            mainPane.classList.remove("non-chat-mode");
+        }
         if (chatContainer) {
             chatContainer.classList.remove("download-mode");
             chatContainer.scrollTo({ top: 0, behavior: "smooth" });
