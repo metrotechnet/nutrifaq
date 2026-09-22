@@ -14,6 +14,7 @@ from api.services.blob_storage_service import (
     has_blob_storage_config,
     sync_blob_prefix_to_local,
 )
+from api.services.query_chromadb import get_debug_local_kb_root_folder
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -39,15 +40,48 @@ async def startup_load_blob_database():
         print("[Startup] Azure Blob Storage not configured; skipping database hydration.", flush=True)
         return
 
-    source_prefix = f"{get_blob_prefix()}/chroma_db/"
-    target_root = PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
+    main_prefix = f"{get_blob_prefix()}/chroma_db/"
+    main_target_root = PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
+
+    debug_container = os.getenv("AZURE_KB_DEBUG_BLOB_CONTAINER", "nutrifaq-knowledge-base-debug").strip()
+    debug_prefix_base = os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX", "nutrifaq-dbase-debug").strip("/")
+    debug_prefix = f"{debug_prefix_base}/chroma_db/"
+    debug_local_root = get_debug_local_kb_root_folder()
+    debug_target_root = PROJECT_ROOT / debug_local_root / "chroma_db"
+
+    hydrated_targets: list[str] = []
+
     try:
-        sync_blob_prefix_to_local(prefix=source_prefix, local_root=target_root, remove_existing=False)
-        app.state.database_sync_status = "synch"
-        print(f"[Startup] Loaded blob database into {target_root}", flush=True)
+        sync_blob_prefix_to_local(prefix=main_prefix, local_root=main_target_root, remove_existing=False)
+        hydrated_targets.append(str(main_target_root))
+        print(f"[Startup] Loaded main blob database into {main_target_root}", flush=True)
     except Exception as exc:
-        app.state.database_sync_status = "synch"
-        print(f"[Startup] Blob database hydration skipped: {exc}", flush=True)
+        print(f"[Startup] Main blob database hydration skipped: {exc}", flush=True)
+
+    # Best-effort hydration for debug KB used by /query_debug.
+    try:
+        sync_blob_prefix_to_local(
+            prefix=debug_prefix,
+            local_root=debug_target_root,
+            remove_existing=False,
+            container_name=debug_container,
+        )
+        hydrated_targets.append(str(debug_target_root))
+        print(
+            f"[Startup] Loaded debug blob database into {debug_target_root} "
+            f"(container={debug_container}, prefix={debug_prefix_base}, local_root={debug_local_root})",
+            flush=True,
+        )
+    except Exception as exc:
+        print(
+            f"[Startup] Debug blob database hydration skipped: {exc} "
+            f"(container={debug_container}, prefix={debug_prefix_base}, local_root={debug_local_root})",
+            flush=True,
+        )
+
+    app.state.database_sync_status = "synch"
+    if hydrated_targets:
+        print(f"[Startup] Hydrated KB roots: {', '.join(hydrated_targets)}", flush=True)
 
 # =====================================================
 # Rate Limiting Configuration

@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
+import os
 import shutil
 import subprocess
 import sys
@@ -16,6 +17,7 @@ import threading
 import time
 
 from api.services.blob_storage_service import (
+    get_blob_container_name,
     get_blob_prefix,
     has_blob_storage_config,
     sync_local_directory_to_blob,
@@ -282,7 +284,11 @@ def run_regeneration_step(step_key: str) -> Dict[str, object]:
     return runner()
 
 
-def _save_chromadb_to_blob_and_local_copy() -> Dict[str, object]:
+def _save_chromadb_to_blob_and_local_copy(
+    *,
+    root_folder: str | None = None,
+    container_name: str | None = None,
+) -> Dict[str, object]:
     if not CHROMA_DB_ROOT.exists():
         return {
             "status": "error",
@@ -298,10 +304,23 @@ def _save_chromadb_to_blob_and_local_copy() -> Dict[str, object]:
 
     blob_result: Dict[str, object]
     if has_blob_storage_config():
-        destination_prefix = f"{get_blob_prefix()}/chroma_db"
-        uploaded = sync_local_directory_to_blob(CHROMA_DB_ROOT, destination_prefix, overwrite=True)
+        resolved_root = (root_folder or get_blob_prefix()).strip("/")
+        destination_prefix = f"{resolved_root}/chroma_db"
+        resolved_container = (
+            (container_name or "").strip()
+            or os.getenv("AZURE_STORAGE_CONTAINER")
+            or get_blob_container_name()
+        )
+        uploaded = sync_local_directory_to_blob(
+            CHROMA_DB_ROOT,
+            destination_prefix,
+            overwrite=True,
+            container_name=resolved_container,
+        )
         blob_result = {
             "status": "ok",
+            "container": resolved_container,
+            "root_folder": resolved_root,
             "destination_prefix": destination_prefix,
             "uploaded_files_count": len(uploaded),
         }
@@ -324,6 +343,8 @@ def _save_chromadb_to_blob_and_local_copy() -> Dict[str, object]:
 def run_full_regeneration(
     include_extract_docx: bool = False,
     include_extract_references: bool = False,
+    root_folder: str | None = None,
+    container_name: str | None = None,
 ) -> Dict[str, object]:
     """Run the end-to-end regeneration sequence.
 
@@ -387,7 +408,10 @@ def run_full_regeneration(
                 "steps": results,
             }
 
-        publish_result = _save_chromadb_to_blob_and_local_copy()
+        publish_result = _save_chromadb_to_blob_and_local_copy(
+            root_folder=root_folder,
+            container_name=container_name,
+        )
         if publish_result.get("status") != "ok":
             return {
                 "status": "error",

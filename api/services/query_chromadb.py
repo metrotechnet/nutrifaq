@@ -176,6 +176,16 @@ def _repo_chroma_path() -> Path:
     return REPO_ROOT / "nutrifaq-dbase" / "chroma_db"
 
 
+def _resolve_local_chroma_root(root_folder: str | None = None) -> Path:
+    folder = (root_folder or "nutrifaq-dbase").strip("/")
+    return REPO_ROOT / folder / "chroma_db"
+
+
+def get_debug_local_kb_root_folder() -> str:
+    """Return the local debug KB root folder name used by /query_debug."""
+    return os.getenv("AZURE_KB_DEBUG_LOCAL_ROOT", "nutrifaq-dbase-debug").strip("/")
+
+
 def _remote_chroma_signature() -> str:
     return get_blob_properties(f"{AZURE_BLOB_PREFIX}/chroma_db/chroma.sqlite3").etag
 
@@ -210,8 +220,8 @@ def _sync_chroma_from_blob(force: bool = False) -> Path:
     )
 
 
-def _local_chroma_client(project_name: str):
-    kb_path = ROOT_BLOB_CACHE_ROOT
+def _local_chroma_client(project_name: str, root_folder: str | None = None):
+    kb_path = _resolve_local_chroma_root(root_folder)
     if not kb_path.exists():
         raise FileNotFoundError(
             f"Local ChromaDB directory not found: {kb_path}. Blob database was not loaded at startup."
@@ -255,10 +265,11 @@ def _central_host_port():
     return host, port
 
 
-def query_chromadb(project_name, collection_name=None, data=None):
+def query_chromadb(project_name, collection_name=None, data=None, root_folder: str | None = None):
     project_name = project_name or DEFAULT_PROJECT_NAME
     collection_name = collection_name or DEFAULT_COLLECTION_NAME
     remote_host, remote_port = _central_host_port()
+    local_chroma_path = _resolve_local_chroma_root(root_folder)
 
     try:
         payload = data or {}
@@ -284,8 +295,8 @@ def query_chromadb(project_name, collection_name=None, data=None):
                 "details": "query_embedding must be a non-empty list-like vector",
             }
 
-        client = _local_chroma_client(project_name)
-        cache_key = (str(ROOT_BLOB_CACHE_ROOT), collection_name)
+        client = _local_chroma_client(project_name, root_folder=root_folder)
+        cache_key = (str(local_chroma_path), collection_name)
         collection = _CHROMA_COLLECTION_CACHE.get(cache_key)
         if collection is None:
             collection = client.get_collection(name=collection_name)
@@ -308,7 +319,7 @@ def query_chromadb(project_name, collection_name=None, data=None):
             "details": str(e),
             "project_name": project_name,
             "collection_name": collection_name,
-            "local_path": str(ROOT_BLOB_CACHE_ROOT),
+            "local_path": str(local_chroma_path),
             "remote_host": remote_host,
             "remote_port": remote_port,
             "remote_url": CHROMADB_CENTRAL_URL,
@@ -431,7 +442,19 @@ def get_links_from_contexts(contexts, metadatas=None, agent=None):
     return list(links)
 
 
-def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR", top_k=5, conversation_history=None, session=None, question_id=None, agent=None):
+def ask_question_stream(
+    question,
+    language="fr",
+    timezone="UTC",
+    locale="fr-FR",
+    llm_model=None,
+    kb_root_folder=None,
+    top_k=5,
+    conversation_history=None,
+    session=None,
+    question_id=None,
+    agent=None,
+):
     """Streaming version of ask_question with language support and conversation history"""
 
     # Use conversation_history if provided, otherwise empty list
@@ -475,7 +498,12 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             
         # Ensure query_params is JSON serializable
         query_params = json.loads(json.dumps(query_params, default=str))
-        results = query_chromadb(project_name="nutrifaq", collection_name="nutrifaq-collection", data=query_params)
+        results = query_chromadb(
+            project_name="nutrifaq",
+            collection_name="nutrifaq-collection",
+            data=query_params,
+            root_folder=kb_root_folder,
+        )
 
         if not isinstance(results, dict):
             yield "Knowledge base query returned an unexpected response format."
@@ -524,7 +552,8 @@ def ask_question_stream(question, language="fr", timezone="UTC", locale="fr-FR",
             return
 
         # Get streaming response from Vercel AI Gateway
-        model_name = model_config.get('name', 'openai/gpt-4o-mini')
+        requested_model = (llm_model or "").strip()
+        model_name = requested_model or model_config.get('name', 'openai/gpt-4o-mini')
         
         stream = create_chat_completion_stream(
             client=client,

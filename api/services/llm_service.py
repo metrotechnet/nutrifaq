@@ -145,16 +145,21 @@ def get_gateway_client() -> OpenAI | AzureOpenAI:
 def create_chat_completion_stream(
     *,
     client: OpenAI | AzureOpenAI,
-    model_name: str,
+    model_name: str | None,
     prompt: str,
     temperature: float = 1.0,
 ):
     provider = _llm_provider()
-    resolved_model = model_name
+    requested_model = (model_name or "").strip()
+
     if provider == "azure":
-        resolved_model = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or _normalize_model_name(model_name)
-    if provider == "vercel":
-        resolved_model = os.getenv("VERCEL_CHAT_DEPLOYMENT") or _normalize_model_name(model_name)
+        resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or "gpt-4o-mini"
+    elif provider == "vercel":
+        fallback = _normalize_model_name(requested_model) if requested_model else "gpt-4o-mini"
+        resolved_model = requested_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or fallback
+    else:
+        fallback = _normalize_model_name(requested_model) if requested_model else "gpt-4o-mini"
+        resolved_model = requested_model or fallback
         
     max_retries = max(0, int(os.getenv("CHAT_MAX_RETRIES", "3")))
     base_delay = max(0.1, float(os.getenv("CHAT_RETRY_BASE_DELAY", "1.5")))

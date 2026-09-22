@@ -1,7 +1,18 @@
 (function () {
     const BACKEND_URL = window.BACKEND_URL || "";
-    const DOCUMENTS_PREFIX = "nutrifaq-knowledge-base/nutrifaq-dbase/documents/";
-    const STORAGE_DOCUMENTS_PREFIX = "nutrifaq-dbase/documents/";
+    const DEBUG_BLOB_CONTAINER = window.DEBUG_BLOB_CONTAINER || "nutrifaq-knowledge-base-debug";
+    const DEBUG_BLOB_ROOT_FOLDER = window.DEBUG_BLOB_ROOT_FOLDER || "nutrifaq-dbase";
+    const DOCUMENTS_PREFIX = `${DEBUG_BLOB_ROOT_FOLDER}/documents/`;
+    const STORAGE_DOCUMENTS_PREFIX = `${DEBUG_BLOB_ROOT_FOLDER}/documents/`;
+
+    function withContainerQuery(url) {
+        const separator = url.includes("?") ? "&" : "?";
+        const params = new URLSearchParams({
+            container: DEBUG_BLOB_CONTAINER,
+            root_folder: DEBUG_BLOB_ROOT_FOLDER,
+        });
+        return `${url}${separator}${params.toString()}`;
+    }
 
     const els = {
         refreshFiles: document.getElementById("refresh-files"),
@@ -367,7 +378,7 @@
             }
             const prefix = DOCUMENTS_PREFIX;
             const query = prefix ? `?prefix=${encodeURIComponent(prefix)}` : "";
-            const data = await fetchJson(`${BACKEND_URL}/api/blob/files${query}`, {
+            const data = await fetchJson(withContainerQuery(`${BACKEND_URL}/api/blob/files${query}`), {
                 headers: {
                     ...authHeaders()
                 }
@@ -397,7 +408,7 @@
 
         try {
             setStatus(`Suppression de ${blobName}...`, false);
-            await fetchJson(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}`, {
+            await fetchJson(withContainerQuery(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}`), {
                 method: "DELETE",
                 headers: {
                     ...authHeaders()
@@ -417,7 +428,7 @@
 
         try {
             const headers = authHeaders();
-            const url = `${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}/download`;
+            const url = withContainerQuery(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}/download`);
             fetch(url, { headers }).then(async (response) => {
                 if (!response.ok) {
                     const payload = await response.json().catch(() => ({}));
@@ -454,7 +465,7 @@
             setStatus("Téléversement en cours...", false);
             const form = new FormData();
             form.append("file", inputFile);
-            const response = await fetch(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}`, {
+            const response = await fetch(withContainerQuery(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}`), {
                 method: "POST",
                 headers: {
                     ...authHeaders()

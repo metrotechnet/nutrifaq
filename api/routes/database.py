@@ -76,7 +76,16 @@ def run_index_chromadb_json():
 
 
 @router.post("/api/database/regenerate")
-def regenerate_database():
+def regenerate_database(
+    root_folder: str | None = Query(
+        default=None,
+        description="Optional blob root folder (prefix) to use instead of default prefix.",
+    ),
+    container: str | None = Query(
+        default=None,
+        description="Optional blob container name. If omitted, AZURE_STORAGE_CONTAINER is used when available.",
+    ),
+):
     """Run the full regeneration pipeline.
 
     Core steps mirror build-database.bat:
@@ -86,6 +95,8 @@ def regenerate_database():
     result = run_full_regeneration(
         include_extract_docx=True,
         include_extract_references=True,
+        root_folder=root_folder,
+        container_name=container,
     )
 
     result["provider"] = {

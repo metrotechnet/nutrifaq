@@ -19,6 +19,21 @@ let prevMessageContent = null;
 let lastRequestTime = 0;
 const MIN_REQUEST_INTERVAL = 2000; // 2 seconds minimum between requests
 const CLIENT_QUERY_KEY = (window.CLIENT_QUERY_KEY || '').trim();
+const ADMIN_BEARER_TOKEN_KEY = 'nutrifaq_admin_bearer_token';
+
+function getAdminBearerToken() {
+    try {
+        const token = localStorage.getItem(ADMIN_BEARER_TOKEN_KEY);
+        return typeof token === 'string' ? token.trim() : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function getQueryEndpoint() {
+    // Route admin sessions to the debug KB endpoint when a bearer token exists.
+    return getAdminBearerToken() ? '/query_debug' : '/query';
+}
 
 
 
@@ -416,8 +431,14 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
     if (CLIENT_QUERY_KEY) {
         requestHeaders['X-Client-Key'] = CLIENT_QUERY_KEY;
     }
+    const adminBearerToken = getAdminBearerToken();
+    if (adminBearerToken) {
+        requestHeaders.Authorization = `Bearer ${adminBearerToken}`;
+    }
 
-    const response = await fetch(`${BACKEND_URL}/query`, {
+    const endpointPath = getQueryEndpoint();
+
+    const response = await fetch(`${BACKEND_URL}${endpointPath}`, {
         method: 'POST',
         headers: requestHeaders,
         body: JSON.stringify(requestData),
