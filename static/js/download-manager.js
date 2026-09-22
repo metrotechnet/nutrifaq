@@ -544,18 +544,13 @@
     }
 
     function setResetProgress(value, text) {
-        const clamped = Math.max(0, Math.min(100, Number(value) || 0));
-        if (els.resetProgressBar) {
-            els.resetProgressBar.style.width = `${clamped}%`;
-        }
-        if (els.resetProgressText) {
-            els.resetProgressText.textContent = text || `${clamped}%`;
-        }
+        // Use a single shared progress UI in the download panel.
+        setIndexingProgress(value, text);
     }
 
     function beginResetProgress() {
-        if (els.resetProgressWrap) {
-            els.resetProgressWrap.style.display = "block";
+        if (els.indexingProgressWrap) {
+            els.indexingProgressWrap.style.display = "block";
         }
         if (els.resetDebugFiles) {
             els.resetDebugFiles.disabled = true;
@@ -586,8 +581,8 @@
         }
 
         window.setTimeout(() => {
-            if (els.resetProgressWrap) {
-                els.resetProgressWrap.style.display = "none";
+            if (els.indexingProgressWrap) {
+                els.indexingProgressWrap.style.display = "none";
             }
             setResetProgress(0, "0%");
         }, success ? 1200 : 1800);
@@ -824,10 +819,18 @@
         els.publishStatus.classList.toggle("error", Boolean(isError));
     }
 
+    function setSuggestedPanelEmpty(isEmpty) {
+        const panel = document.getElementById("suggested-questions-panel");
+        if (!panel) {
+            return;
+        }
+        panel.classList.toggle("panel-empty", Boolean(isEmpty));
+    }
+
     function activateDownloadView() {
         const panel = document.getElementById("download-manager-panel");
         const chatContainer = document.getElementById("chat-container");
-        const chatInputArea = document.querySelector("footer .input-area");
+        const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
         const chatTopSpacer = document.getElementById("chat-top-spacer");
 
@@ -854,6 +857,7 @@
             chatContainer.classList.add("download-mode");
             chatContainer.scrollTo({ top: 0, behavior: "smooth" });
         }
+        setSuggestedPanelEmpty(true);
         if (chatInputArea) {
             chatInputArea.style.display = "none";
         }
@@ -867,7 +871,7 @@
 
     function activatePublishView() {
         const chatContainer = document.getElementById("chat-container");
-        const chatInputArea = document.querySelector("footer .input-area");
+        const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
 
         hideIntegratedPanels();
@@ -889,6 +893,7 @@
             chatContainer.classList.add("download-mode");
             chatContainer.scrollTo({ top: 0, behavior: "smooth" });
         }
+        setSuggestedPanelEmpty(true);
         if (chatInputArea) {
             chatInputArea.style.display = "none";
         }
@@ -899,7 +904,7 @@
 
     function activateTesterView() {
         const chatContainer = document.getElementById("chat-container");
-        const chatInputArea = document.querySelector("footer .input-area");
+        const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
 
         hideIntegratedPanels();
@@ -907,6 +912,7 @@
             chatContainer.classList.remove("download-mode");
             chatContainer.scrollTo({ top: 0, behavior: "smooth" });
         }
+        setSuggestedPanelEmpty(false);
         if (chatInputArea) {
             chatInputArea.style.display = "";
         }
@@ -918,7 +924,7 @@
     function activateAuthView() {
         const authPanel = document.getElementById("azure-auth-panel");
         const chatContainer = document.getElementById("chat-container");
-        const chatInputArea = document.querySelector("footer .input-area");
+        const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
         const chatTopSpacer = document.getElementById("chat-top-spacer");
 
@@ -931,6 +937,7 @@
             chatContainer.classList.add("download-mode");
             chatContainer.scrollTo({ top: 0, behavior: "smooth" });
         }
+        setSuggestedPanelEmpty(true);
         if (chatInputArea) {
             chatInputArea.style.display = "none";
         }

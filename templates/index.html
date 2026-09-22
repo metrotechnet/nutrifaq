@@ -43,7 +43,19 @@
             <p id="startup-auth-status" class="status-message">En attente de connexion.</p>
         </div>
     </div>
-    
+
+    <div class="content">
+    <div class="main-workspace">
+    <header>
+        <button class="menu-toggle" id="menu-toggle" title="" data-i18n-title="header.menuButton">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <h1 class="header-title">NutriFAQ-Chat</h1>
+    </header>
+
+    <div class="main-pane">
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h2>NutriFAQ-Chat</h2>
@@ -80,7 +92,6 @@
                     <option value="en">English</option>
                 </select>
             </div>
-
         </nav>
         <footer class="sidebar-footer" aria-label="Sidebar footer actions">
             <button type="button" class="sidebar-footer-menu-button" id="sidebar-footer-menu-button" aria-expanded="false" aria-controls="sidebar-footer-menu" title="">
@@ -125,21 +136,7 @@
             <div class="footer-info" data-i18n="footer.content"></div>
         </footer>
     </div>
-    
-    <div class="overlay" id="overlay"></div>
-    
-    <header>
-        <button class="menu-toggle" id="menu-toggle" title="" data-i18n-title="header.menuButton">
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
-        <h1 class="header-title">NutriFAQ-Chat</h1>
 
-    </header>
-
-    <div class="content">
-        <div id="chat-layout-shell" class="chat-layout-shell">
         <div id="chat-container">
         <div id="chat-main-layout" class="chat-main-layout">
             <div id="chat-stream" class="chat-stream">
@@ -171,12 +168,6 @@
                     <button id="start-indexing" class="dm-btn indexing">Démarrer un indexage</button>
                     <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;">Annuler</button>
                 </div>
-            </section>
-            <section id="reset-progress-wrap" class="indexing-progress-wrap" style="display:none;" aria-live="polite">
-                <div class="indexing-progress-track">
-                    <div id="reset-progress-bar" class="reset-progress-bar" style="width:0%;"></div>
-                </div>
-                <p id="reset-progress-text" class="indexing-progress-text">0%</p>
             </section>
             <section id="indexing-progress-wrap" class="indexing-progress-wrap" style="display:none;" aria-live="polite">
                 <div class="indexing-progress-track">
@@ -231,7 +222,31 @@
                 </div>
             </div>
         </section>
+
+        <div id="chat-input-area" class="input-area">
+            <div class="input-wrapper">
+                <textarea 
+                    id="input-box" 
+                    class="input-box" 
+                    placeholder="Pose-moi une question..." 
+                    data-i18n-placeholder="components.inputArea.placeholder"
+                    rows="1"
+                ></textarea>
+                <div class="input-buttons">
+                    <button id="voice-button" class="voice-button bi bi-mic-fill" style="color: white;" title="Enregistrer un message vocal" data-i18n-title="components.inputArea.voiceButton"></button>
+                    <button id="send-button" class="send-button bi bi-send" style="color: white;" title="" data-i18n-title="components.inputArea.sendButton"> </button>
+                    <button id="stop-button" class="send-button bi bi-stop-fill" style="color: white; display: none;" title="Cancel" data-i18n-title="components.inputArea.stopButton"> </button>
+                </div>
+            </div>
+            <div class="input-disclaimer">
+                <span data-i18n="components.inputArea.disclaimer">⚠️ Peut contenir des erreurs. Ne remplace pas un avis professionnel.</span>
+                <span id="speech-method-indicator" style="margin-left: 10px; padding: 2px 8px; background: #4CAF50; color: white; border-radius: 12px; font-size: 0.75em; cursor: pointer;" title="Click to toggle recognition method">
+                    🎤 Whisper
+                </span>
+            </div>
         </div>
+        </div>
+
         <aside id="suggested-questions-panel" class="suggested-questions-panel" aria-label="Questions suggerees">
             <div class="suggested-questions-header">
                 <h3>Questions suggérées</h3>
@@ -241,32 +256,8 @@
                 <p class="suggested-questions-empty">Chargement des questions...</p>
             </div>
         </aside>
-        </div>
-        <footer>
-            <div class="input-area">
-                <div class="input-wrapper">
-                    <textarea 
-                        id="input-box" 
-                        class="input-box" 
-                        placeholder="Pose-moi une question..." 
-                        data-i18n-placeholder="components.inputArea.placeholder"
-                        rows="1"
-                    ></textarea>
-                    <div class="input-buttons">
-                        <button id="voice-button" class="voice-button bi bi-mic-fill" style="color: white;" title="Enregistrer un message vocal" data-i18n-title="components.inputArea.voiceButton"></button>
-                        <button id="send-button" class="send-button bi bi-send" style="color: white;" title="" data-i18n-title="components.inputArea.sendButton"> </button>
-                        <button id="stop-button" class="send-button bi bi-stop-fill" style="color: white; display: none;" title="Cancel" data-i18n-title="components.inputArea.stopButton"> </button>
-                    </div>
-                </div>
-                <div class="input-disclaimer">
-                    <span data-i18n="components.inputArea.disclaimer">⚠️ Peut contenir des erreurs. Ne remplace pas un avis professionnel.</span>
-                    <span id="speech-method-indicator" style="margin-left: 10px; padding: 2px 8px; background: #4CAF50; color: white; border-radius: 12px; font-size: 0.75em; cursor: pointer;" title="Click to toggle recognition method">
-                        🎤 Whisper
-                    </span>
-                </div>
-            </div>
-            </footer>
-
+    </div>
+    </div>
     </div>
     
     <!-- Cookie Consent Banner -->

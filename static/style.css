@@ -236,16 +236,21 @@ header {
     flex-direction: column;
 }
 
-.chat-layout-shell {
+.main-workspace {
     flex: 1;
+    min-width: 0;
     min-height: 0;
-    width: min(1380px, 100%);
-    margin: 0 auto;
-    padding: 2rem;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+.main-pane {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) 340px;
     gap: 1rem;
-    align-items: stretch;
+    padding: 1rem;
     overflow: hidden;
 }
 
@@ -254,35 +259,64 @@ header {
     min-height: 0;
     height: 100%;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    overflow-y: auto;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 1rem;
+    overflow: hidden;
     width: 100%;
     margin: 0;
+}
 
+#chat-container > .chat-main-layout,
+#chat-container > .download-manager-content,
+#chat-container > .azure-auth-panel {
+    grid-row: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    background: #ffffff;
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+}
+
+#chat-input-area {
+    grid-row: 2;
+}
+
+#chat-container > .chat-main-layout,
+#chat-container > .azure-auth-panel {
+    padding: 1rem;
+}
+
+#chat-container > .download-manager-content {
+    padding: 1rem;
 }
 
 .chat-main-layout {
     flex: 1;
     width: 100%;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
     min-height: 0;
-    overflow: visible;
+    overflow: hidden;
+    border-radius: 12px;
 }
 
 .chat-stream {
     min-width: 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    overflow-y: auto;
 }
 
 .suggested-questions-panel {
-    position: sticky;
-    top: 0.5rem;
-    max-height: calc(100vh - 13rem);
+    position: static;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
     overflow: auto;
     background: #ffffff;
     border: 1px solid #dbe9e5;
@@ -350,13 +384,15 @@ header {
     background: #ebf8f4;
     color: #0f5d53;
     border-radius: 8px;
-    padding: 0.32rem 0.5rem;
-    width: 72px;
-    font-size: 0.78rem;
+    padding: 0;
+    width: 34px;
+    height: 34px;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
-    white-space: nowrap;
-    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .copy-question-btn:hover {
@@ -375,16 +411,25 @@ header {
     color: #50716c;
 }
 
+.suggested-questions-panel.panel-empty {
+    background: transparent;
+    border: 1px dashed #d8e4e1;
+    box-shadow: none;
+}
+
+.suggested-questions-panel.panel-empty .suggested-questions-header,
+.suggested-questions-panel.panel-empty .suggested-questions-list {
+    display: none;
+}
+
 #chat-container.download-mode {
     width: 100%;
 }
 
 #chat-container.download-mode #download-manager-panel {
     display: flex !important;
-}
-
-#chat-container.download-mode + #suggested-questions-panel {
-    display: none !important;
+    flex: 1;
+    min-height: 0;
 }
 
 #chat-container.download-mode #chat-main-layout {
@@ -432,10 +477,9 @@ footer {
 ----------------------------------------------------
 */
 @media (max-width: 1000px) {
-    .chat-layout-shell {
-        width: 100%;
-        padding: 1rem;
+    .main-pane {
         grid-template-columns: 1fr;
+        padding: 1rem;
     }
 
     #chat-container {
@@ -456,12 +500,12 @@ footer {
 }
 
 .input-area {
-    width: min(1380px, 100%);
-    margin: 0 auto;
-    padding: 1rem 2rem;
+    width: 100%;
+    margin-top: auto;
+    padding: 1rem 1rem 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
     align-items: start;
 }
 
@@ -648,15 +692,16 @@ footer {
 }
 
 .sidebar {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
+    left: auto;
     width: var(--sidebar-width);
-    height: 100vh;
+    height: 100%;
+    max-height: 100%;
     background: #ffffff;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-    z-index: 1002;
-    transform: translateX(-100%);
+    z-index: 10;
+    transform: none;
     transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform;
     display: flex;
@@ -667,17 +712,11 @@ footer {
     transform: translateX(0);
 }
 
-header,
-.content {
-    margin-left: var(--sidebar-width);
-    width: calc(100% - var(--sidebar-width));
-    transition: margin-left 0.32s cubic-bezier(0.4, 0, 0.2, 1), width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-body.sidebar-collapsed header,
-body.sidebar-collapsed .content {
-    margin-left: 0;
-    width: 100%;
+@media (min-width: 769px) {
+    .menu-toggle,
+    .close-sidebar {
+        display: none !important;
+    }
 }
 
 .sidebar-header {
@@ -890,15 +929,33 @@ body.sidebar-collapsed .content {
 
 @media (max-width: 768px) {
     .sidebar {
+        position: fixed;
+        left: 0;
         height: 100vh;
         height: 100dvh; /* Dynamic viewport height for mobile */
+        transform: translateX(-100%);
+        z-index: 1002;
     }
 
-    header,
-    .content {
-        margin-left: 0;
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .main-workspace {
+        grid-template-rows: auto minmax(0, 1fr);
         width: 100%;
-        transition: none;
+    }
+
+    .main-pane {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr);
+        gap: 0.75rem;
+        padding: 0.75rem;
+        width: 100%;
+    }
+
+    .suggested-questions-panel {
+        order: 3;
     }
     
     .sidebar-nav {
@@ -1217,6 +1274,8 @@ body.sidebar-collapsed .content {
     padding: 1.25rem;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
     gap: 1rem;
 }
 
@@ -1440,6 +1499,8 @@ body.sidebar-collapsed .content {
 .publish-section {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
     gap: 1rem;
 }
 
@@ -1449,6 +1510,13 @@ body.sidebar-collapsed .content {
     border: 1px solid #d5e3df;
     border-radius: 12px;
     padding: 1rem;
+}
+
+.publish-logs-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 .publish-controls-card h2,
@@ -1505,8 +1573,10 @@ body.sidebar-collapsed .content {
 .publish-logs-list {
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
     gap: 0.75rem;
-    max-height: 460px;
+    max-height: none;
     overflow: auto;
 }
 
@@ -2318,19 +2388,28 @@ body.keyboard-visible .input-area {
 
 .action-btn {
     border-radius: 50%;
-    padding: 8px;
+    padding: 0;
     border: none;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
     cursor: pointer;
     width: 40px;
     height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    max-width: 40px;
+    max-height: 40px;
+    aspect-ratio: 1 / 1;
+    line-height: 1;
+    overflow: hidden;
     display: inline-flex;
     align-items: center;
     justify-content: center;
 }
 
 .action-btn i {
-    font-size: 1.3em;
+    display: block;
+    font-size: 1.1rem;
+    line-height: 1;
 }
 
 .action-btn.copy-btn {

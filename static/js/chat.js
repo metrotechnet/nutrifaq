@@ -129,19 +129,27 @@ function getSelectedLibrary() {
 function getSelectedModel() {
     const selector = document.getElementById('model-selector');
     const value = selector ? String(selector.value || '').trim() : '';
-    return value || null;
+    if (value) {
+        return value;
+    }
+    const savedModel = String(localStorage.getItem('nutrifaq_selected_model') || '').trim();
+    return savedModel || null;
 }
 
 function getSelectedModelLabel() {
     const selector = document.getElementById('model-selector');
     if (!selector) {
-        return '';
+        return String(localStorage.getItem('nutrifaq_selected_model') || '').trim();
     }
     const selectedOption = selector.options[selector.selectedIndex];
     if (!selectedOption) {
-        return '';
+        return String(localStorage.getItem('nutrifaq_selected_model') || '').trim();
     }
-    return String(selectedOption.textContent || '').trim();
+    const label = String(selectedOption.textContent || '').trim();
+    if (label) {
+        return label;
+    }
+    return String(localStorage.getItem('nutrifaq_selected_model') || '').trim();
 }
 
 function setMessageModelBadge(actionsDiv, modelId, modelLabel) {
@@ -162,7 +170,12 @@ function setMessageModelBadge(actionsDiv, modelId, modelLabel) {
         return;
     }
 
-    badge.textContent = tr('chat.modelBadge', 'Model: {value}', { value });
+    const template = String(tr('chat.modelBadge', 'Modèle: {value}') || 'Modèle: {value}');
+    const withValue = template.includes('{value}')
+        ? template.replace(/\{\s*value\s*\}/gi, value)
+        : `${template} ${value}`;
+
+    badge.textContent = withValue;
     badge.style.display = 'inline-flex';
 }
 
@@ -219,11 +232,23 @@ function copyQuestionToInput(question, button) {
     if (!button) {
         return;
     }
-    const originalText = button.textContent;
-    button.textContent = tr('chat.copyDone', 'Copied');
+    const icon = button.querySelector('i');
+    const copyTitle = tr('messages.copy', 'Copy');
+    const copiedTitle = tr('chat.copyDone', 'Copied');
+
+    if (icon) {
+        icon.className = 'bi bi-clipboard-check';
+    }
+    button.title = copiedTitle;
+    button.setAttribute('aria-label', copiedTitle);
     button.classList.add('copied');
+
     window.setTimeout(() => {
-        button.textContent = originalText;
+        if (icon) {
+            icon.className = 'bi bi-clipboard';
+        }
+        button.title = copyTitle;
+        button.setAttribute('aria-label', copyTitle);
         button.classList.remove('copied');
     }, 1000);
 }
@@ -277,7 +302,10 @@ function renderSuggestedQuestions(documents) {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'copy-question-btn';
-            button.textContent = tr('messages.copy', 'Copy');
+            const copyLabel = tr('messages.copy', 'Copy');
+            button.title = copyLabel;
+            button.setAttribute('aria-label', copyLabel);
+            button.innerHTML = '<i class="bi bi-clipboard" aria-hidden="true"></i>';
             button.addEventListener('click', () => copyQuestionToInput(question, button));
 
             item.appendChild(text);
