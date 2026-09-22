@@ -3,6 +3,7 @@
     const signInBtn = document.getElementById("login-page-signin");
     const resetBtn = document.getElementById("login-page-reset");
     const BACKEND_URL = window.BACKEND_URL || "";
+    const FRONTEND_CONFIG_BASE_URL = `${window.location.origin}/static/config`;
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
     const USER_PROFILE_KEY = "nutrifaq_user_profile";
@@ -34,12 +35,40 @@
         }, template);
     }
 
-    async function loadI18nConfig() {
-        const response = await fetch(`${BACKEND_URL}/api/get_config`);
+    function deepMerge(baseConfig, overrideConfig) {
+        const result = { ...(baseConfig || {}) };
+        Object.entries(overrideConfig || {}).forEach(([key, value]) => {
+            const baseValue = result[key];
+            if (
+                baseValue &&
+                typeof baseValue === "object" &&
+                !Array.isArray(baseValue) &&
+                value &&
+                typeof value === "object" &&
+                !Array.isArray(value)
+            ) {
+                result[key] = deepMerge(baseValue, value);
+            } else {
+                result[key] = value;
+            }
+        });
+        return result;
+    }
+
+    async function fetchJsonOrThrow(url) {
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`Config endpoint returned ${response.status}`);
         }
-        i18nConfig = await response.json();
+        return response.json();
+    }
+
+    async function loadI18nConfig() {
+        const [commonConfig, agentConfig] = await Promise.all([
+            fetchJsonOrThrow(`${FRONTEND_CONFIG_BASE_URL}/common_config.json`),
+            fetchJsonOrThrow(`${FRONTEND_CONFIG_BASE_URL}/agent_config.json`),
+        ]);
+        i18nConfig = deepMerge(commonConfig || {}, agentConfig || {});
     }
 
     function resolveLanguage() {

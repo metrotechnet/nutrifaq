@@ -14,6 +14,31 @@ console.log('Using BACKEND_URL:', BACKEND_URL);
 // Global state
 let mainConfig = {};
 let currentLanguage = 'fr';
+const FRONTEND_CONFIG_BASE_URL = `${window.location.origin}/static/config`;
+
+function deepMerge(baseConfig, overrideConfig) {
+    const result = { ...(baseConfig || {}) };
+    Object.entries(overrideConfig || {}).forEach(([key, value]) => {
+        const baseValue = result[key];
+        if (
+            baseValue &&
+            typeof baseValue === 'object' &&
+            !Array.isArray(baseValue) &&
+            value &&
+            typeof value === 'object' &&
+            !Array.isArray(value)
+        ) {
+            result[key] = deepMerge(baseValue, value);
+        } else {
+            result[key] = value;
+        }
+    });
+    return result;
+}
+
+function frontendConfigUrl(fileName) {
+    return `${FRONTEND_CONFIG_BASE_URL}/${fileName}`;
+}
 
 /**
  * Fetch JSON config with retry to tolerate backend cold start.
@@ -60,14 +85,12 @@ function getUrlParameter(name) {
  */
 async function loadConfig(agent) {
     try {
-        // Single-agent setup - always load agent config
-        mainConfig = await fetchConfigWithRetry(`${BACKEND_URL}/api/get_config`);
-        
-        // Check for errors
-        if (mainConfig.error) {
-            console.error('Config load error:', mainConfig.error);
-            return;
-        }
+        const [commonConfig, agentConfig] = await Promise.all([
+            fetchConfigWithRetry(frontendConfigUrl('common_config.json')),
+            fetchConfigWithRetry(frontendConfigUrl('agent_config.json')),
+        ]);
+
+        mainConfig = deepMerge(commonConfig || {}, agentConfig || {});
         
         // Language detection priority: explicit URL parameter > default French
         const urlLang = getUrlParameter('lang');

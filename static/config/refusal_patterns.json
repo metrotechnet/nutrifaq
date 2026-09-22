@@ -1,0 +1,128 @@
+{
+  "fr": {
+    "clinical_condition": [
+      "\\bdiab[eè]te\\b",
+      "\\bhypertension\\b",
+      "\\bcholest[eé]rol\\b",
+      "\\binsuffisance r[eé]nale\\b",
+      "\\bmaladie\\b",
+      "\\bcancer\\b",
+      "\\bceliaqu(e|ie)\\b",
+      "\\ballergie\\b",
+      "\\bintol[eé]rance\\b",
+      "\\banxi[eé]t[eé]\\b",
+      "\\bd[eé]pression\\b",
+      "\\bTCA\\b",
+      "\\btrouble(s)? alimentaire(s)?\\b",
+      "\\bgrossesse\\b",
+      "\\ballaitement\\b"
+    ],
+    "medication": [
+      "\\bmetformin(e)?\\b",
+      "\\binsuline\\b",
+      "\\bstatine(s)?\\b",
+      "\\bantid[eé]presseur(s)?\\b",
+      "\\bm[eé]dicament(s)?\\b",
+      "\\btraitement\\b",
+      "\\bposologie\\b"
+    ],
+    "personalized_request": [
+      "\\bcombien\\b.*\\b(calorie|kcal|protéine|glucide|lipide)\\b",
+      "\\b(pour moi|dans mon cas|à mon sujet)\\b",
+      "\\bje (fais|pèse)\\b",
+      "\\bj[' ]ai \\d{1,3}\\s*ans\\b",
+      "\\bobjectif\\b",
+      "\\bperdre du poids\\b",
+      "\\bmaigrir\\b",
+      "\\bs[eé]cher\\b"
+    ],
+    "meal_plan": [
+      "\\bmenu\\b",
+      "\\bplan alimentaire\\b",
+      "\\bplan de repas\\b",
+      "\\bexemple de repas\\b",
+      "\\bquoi manger\\b",
+      "\\bpetit[- ]d[eé]jeuner\\b",
+      "\\bd[eé]jeuner\\b",
+      "\\bd[iî]ner\\b",
+      "\\bcollation(s)?\\b"
+    ],
+    "numeric_targets": [
+      "\\b\\d+\\s*(kcal|calories|mg|g\\/kg|g)\\b",
+      "\\b\\d{2,4}\\s*(kcal|calories)\\b"
+    ],
+    "minor": [
+      "\\bj[' ]ai\\s*(1[0-7])\\s*ans\\b",
+      "\\b(je suis|j'ai)\\s*(1[0-7])\\b"
+    ],
+    "possible_emergency": [
+      "\\b(j[' ]ai arr[eê]t[eé] de manger|je ne mange plus)\\b",
+      "\\b(malaise|[eé]vanoui|vertige(s)?)\\b",
+      "\\b(douleur(s)? intense(s)?|saignement)\\b"
+    ]
+  },
+  "en": {
+    "clinical_condition": [
+      "\\bdiabetes\\b",
+      "\\bhypertension\\b",
+      "\\bcholesterol\\b",
+      "\\brenal (failure|insufficiency)\\b",
+      "\\bdisease\\b",
+      "\\bcancer\\b",
+      "\\bceliac\\b",
+      "\\ballergy\\b",
+      "\\bintolerance\\b",
+      "\\banxiety\\b",
+      "\\bdepression\\b",
+      "\\beating disorder(s)?\\b",
+      "\\bpregnancy\\b",
+      "\\bpregnant\\b",
+      "\\bbreastfeeding\\b"
+    ],
+    "medication": [
+      "\\bmetformin\\b",
+      "\\binsulin\\b",
+      "\\bstatin(s)?\\b",
+      "\\bantidepressant(s)?\\b",
+      "\\bmedication(s)?\\b",
+      "\\btreatment\\b",
+      "\\bdosage\\b",
+      "\\bprescription\\b"
+    ],
+    "personalized_request": [
+      "\\bhow (much|many)\\b.*\\b(calorie|kcal|protein|carb|fat)\\b",
+      "\\b(for me|in my case|about me)\\b",
+      "\\bI (am|weigh)\\b.*\\b(kg|lbs|pounds)\\b",
+      "\\bI('m| am) \\d{1,3}\\s*(years old)?\\b",
+      "\\bgoal\\b",
+      "\\blose weight\\b",
+      "\\bweight loss\\b",
+      "\\bget lean\\b",
+      "\\bshred\\b"
+    ],
+    "meal_plan": [
+      "\\bmenu\\b",
+      "\\bmeal plan\\b",
+      "\\beating plan\\b",
+      "\\bmeal example(s)?\\b",
+      "\\bwhat (to|should I) eat\\b",
+      "\\bbreakfast\\b",
+      "\\blunch\\b",
+      "\\bdinner\\b",
+      "\\bsnack(s)?\\b"
+    ],
+    "numeric_targets": [
+      "\\b\\d+\\s*(kcal|calories|mg|g\\/kg|g)\\b",
+      "\\b\\d{2,4}\\s*(kcal|calories)\\b"
+    ],
+    "minor": [
+      "\\bI('m| am)\\s*(1[0-7])\\s*(years old)?\\b",
+      "\\b(1[0-7])\\s*year(s)?\\s*old\\b"
+    ],
+    "possible_emergency": [
+      "\\b(stopped eating|not eating)\\b",
+      "\\b(faint|dizzy|dizziness)\\b",
+      "\\b(severe pain|bleeding)\\b"
+    ]
+  }
+}

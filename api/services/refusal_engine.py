@@ -26,6 +26,8 @@ class RefusalResult:
 
 # Get project root directory
 PROJECT_ROOT = Path(__file__).parent.parent
+REPO_ROOT = PROJECT_ROOT.parent
+FRONTEND_CONFIG_ROOT = REPO_ROOT / "static" / "config"
 
 # Cache for loaded responses
 _refusal_responses_cache = None
@@ -38,6 +40,7 @@ def load_refusal_responses():
     
     try:
         candidate_paths = [
+            FRONTEND_CONFIG_ROOT / 'refusal_responses.json',
             PROJECT_ROOT / 'config' / 'refusal_responses.json',
             PROJECT_ROOT / 'nutrifaq-dbase' / 'common' / 'refusal_responses.json',
         ]
@@ -69,9 +72,16 @@ def load_refusal_patterns():
         return _refusal_patterns_cache
     
     try:
-        with open(PROJECT_ROOT / 'config' / 'refusal_patterns.json', 'r', encoding='utf-8') as f:
-            _refusal_patterns_cache = json.load(f)
-        return _refusal_patterns_cache
+        candidate_paths = [
+            FRONTEND_CONFIG_ROOT / 'refusal_patterns.json',
+            PROJECT_ROOT / 'config' / 'refusal_patterns.json',
+        ]
+        for path in candidate_paths:
+            if path.exists():
+                with open(path, 'r', encoding='utf-8') as f:
+                    _refusal_patterns_cache = json.load(f)
+                return _refusal_patterns_cache
+        raise FileNotFoundError("refusal_patterns.json not found in any expected location")
     except Exception as e:
         raise Exception(f"Error loading refusal patterns: {e}")
 

@@ -236,25 +236,153 @@ header {
     flex-direction: column;
 }
 
+.chat-layout-shell {
+    flex: 1;
+    min-height: 0;
+    width: min(1380px, 100%);
+    margin: 0 auto;
+    padding: 2rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 1rem;
+    align-items: start;
+}
+
 #chat-container {
     flex: 1;
     min-height: 0;
-    padding: 2rem;
-    padding-bottom: calc(2rem - 50px);
+    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
     overflow-y: auto;
-    width: 1000px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
+
+}
+
+.chat-main-layout {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.chat-stream {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.suggested-questions-panel {
+    position: sticky;
+    top: 0.5rem;
+    max-height: calc(100vh - 13rem);
+    overflow: auto;
+    background: #ffffff;
+    border: 1px solid #dbe9e5;
+    border-radius: 12px;
+    padding: 0.9rem;
+}
+
+.suggested-questions-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #134540;
+}
+
+.suggested-questions-header p {
+    margin: 0.25rem 0 0;
+    font-size: 0.84rem;
+    color: #446963;
+}
+
+.suggested-questions-list {
+    margin-top: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.suggested-question-group {
+    border: 1px solid #e2efeb;
+    border-radius: 10px;
+    padding: 0.65rem;
+    background: #fbfefd;
+}
+
+.suggested-question-group-title {
+    margin: 0 0 0.45rem;
+    font-size: 0.9rem;
+    color: #0f3b36;
+    word-break: break-word;
+}
+
+.suggested-question-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.45rem 0;
+    border-top: 1px dashed #deebe7;
+}
+
+.suggested-question-item:first-of-type {
+    border-top: none;
+    padding-top: 0;
+}
+
+.suggested-question-text {
+    margin: 0;
+    flex: 1;
+    font-size: 0.86rem;
+    color: #1b4d47;
+    line-height: 1.35;
+}
+
+.copy-question-btn {
+    border: 1px solid #b8dcd4;
+    background: #ebf8f4;
+    color: #0f5d53;
+    border-radius: 8px;
+    padding: 0.32rem 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.copy-question-btn:hover {
+    background: #dbf2ec;
+}
+
+.copy-question-btn.copied {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.suggested-questions-empty {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #50716c;
 }
 
 #chat-container.download-mode {
-    width: 1200px;
+    width: 100%;
 }
 
 #chat-container.download-mode #download-manager-panel {
     display: flex !important;
+}
+
+#chat-container.download-mode + #suggested-questions-panel {
+    display: none !important;
+}
+
+#chat-container.download-mode #chat-main-layout {
+    display: none !important;
 }
 
 #chat-container.download-mode #empty-state,
@@ -298,14 +426,37 @@ footer {
 ----------------------------------------------------
 */
 @media (max-width: 1000px) {
-    #chat-container {
+    .chat-layout-shell {
         width: 100%;
         padding: 1rem;
+        grid-template-columns: 1fr;
+    }
+
+    #chat-container {
+        width: 100%;
+    }
+
+    .suggested-questions-panel {
+        position: static;
+        max-height: none;
+        order: 2;
+    }
+
+    .input-area {
+        width: 100%;
+        padding: 1rem;
+        grid-template-columns: 1fr;
     }
 }
 
 .input-area {
+    width: min(1380px, 100%);
+    margin: 0 auto;
     padding: 1rem 2rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 1rem;
+    align-items: start;
 }
 
 /* Disabled input-area style */
@@ -993,17 +1144,22 @@ body.sidebar-collapsed .content {
 
 @media (max-width: 768px) {
     .input-area {
+        width: 100%;
+        grid-template-columns: 1fr;
+        gap: 0;
         padding: 1rem 1rem 1rem;
     }
 }
 
 .input-wrapper {
-    max-width: 800px;
-    margin: 0 auto;
+    max-width: none;
+    width: 100%;
+    margin: 0;
     position: relative;
     display: flex;
     align-items: center;
     gap: 0;
+    grid-column: 1 / 2;
 }
 
 .input-wrapper .input-box {
@@ -1374,12 +1530,13 @@ body.sidebar-collapsed .content {
 }
 
 .input-disclaimer {
-    max-width: 800px;
-    margin: 0.5rem auto 0;
+    max-width: none;
+    margin: 0.5rem 0 0;
     font-size: 0.75rem;
     color: #718096;
     text-align: center;
     font-style: italic;
+    grid-column: 1 / 2;
 }
 
 .input-box {

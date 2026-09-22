@@ -83,7 +83,9 @@ def load_prompts(kb_name=None):
     global _PROMPTS_CACHE, _PROMPTS_CACHE_MTIME
 
     try:
-        prompts_path = API_ROOT / "config" / "prompts.json"
+        prompts_path = REPO_ROOT / "static" / "config" / "prompts.json"
+        if not prompts_path.exists():
+            prompts_path = API_ROOT / "config" / "prompts.json"
         current_mtime = prompts_path.stat().st_mtime
 
         if _PROMPTS_CACHE is not None and _PROMPTS_CACHE_MTIME == current_mtime:

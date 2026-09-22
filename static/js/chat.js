@@ -102,6 +102,161 @@ function getSelectedLibrary() {
     return selector ? selector.value : 'all';
 }
 
+function buildApiHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (CLIENT_QUERY_KEY) {
+        headers['X-Client-Key'] = CLIENT_QUERY_KEY;
+    }
+    const adminBearerToken = getAdminBearerToken();
+    if (adminBearerToken) {
+        headers.Authorization = `Bearer ${adminBearerToken}`;
+    }
+    return headers;
+}
+
+function truncateTitle(value, maxLength = 72) {
+    const text = String(value || '').trim();
+    if (!text) {
+        return 'Document';
+    }
+    if (text.length <= maxLength) {
+        return text;
+    }
+    return `${text.slice(0, maxLength - 1)}…`;
+}
+
+function setSuggestedQuestionsState({ metaText, emptyText, isError = false }) {
+    const meta = document.getElementById('suggested-questions-meta');
+    const list = document.getElementById('suggested-questions-list');
+    if (meta) {
+        meta.textContent = metaText || '';
+    }
+    if (list) {
+        list.innerHTML = `<p class="suggested-questions-empty${isError ? ' error' : ''}">${escapeHtml(emptyText || '')}</p>`;
+    }
+}
+
+function copyQuestionToInput(question, button) {
+    const inputBox = document.getElementById('input-box');
+    if (!inputBox) {
+        return;
+    }
+
+    inputBox.value = question;
+    inputBox.focus();
+    inputBox.dispatchEvent(new Event('input', { bubbles: true }));
+
+    if (!button) {
+        return;
+    }
+    const originalText = button.textContent;
+    button.textContent = 'Copié';
+    button.classList.add('copied');
+    window.setTimeout(() => {
+        button.textContent = originalText;
+        button.classList.remove('copied');
+    }, 1000);
+}
+
+function renderSuggestedQuestions(documents) {
+    const list = document.getElementById('suggested-questions-list');
+    const meta = document.getElementById('suggested-questions-meta');
+    if (!list || !meta) {
+        return;
+    }
+
+    if (!Array.isArray(documents) || documents.length === 0) {
+        setSuggestedQuestionsState({
+            metaText: '0 document',
+            emptyText: 'Aucune question générée disponible.',
+        });
+        return;
+    }
+
+    const totalQuestions = documents.reduce((count, doc) => {
+        return count + (Array.isArray(doc.questions) ? doc.questions.length : 0);
+    }, 0);
+    meta.textContent = `${documents.length} document(s) • ${totalQuestions} question(s)`;
+
+    list.innerHTML = '';
+    documents.forEach((doc) => {
+        const questions = Array.isArray(doc.questions) ? doc.questions : [];
+        if (questions.length === 0) {
+            return;
+        }
+
+        const group = document.createElement('section');
+        group.className = 'suggested-question-group';
+
+        const title = document.createElement('h4');
+        title.className = 'suggested-question-group-title';
+        title.textContent = truncateTitle(doc.document_title || doc.document_id || 'Document');
+        group.appendChild(title);
+
+        questions.forEach((question) => {
+            const item = document.createElement('div');
+            item.className = 'suggested-question-item';
+
+            const text = document.createElement('p');
+            text.className = 'suggested-question-text';
+            text.textContent = question;
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'copy-question-btn';
+            button.textContent = 'Copier';
+            button.addEventListener('click', () => copyQuestionToInput(question, button));
+
+            item.appendChild(text);
+            item.appendChild(button);
+            group.appendChild(item);
+        });
+
+        list.appendChild(group);
+    });
+
+    if (!list.children.length) {
+        setSuggestedQuestionsState({
+            metaText: `${documents.length} document(s)`,
+            emptyText: 'Aucune question exploitable trouvée.',
+        });
+    }
+}
+
+async function loadSuggestedQuestions() {
+    const panel = document.getElementById('suggested-questions-panel');
+    if (!panel) {
+        return;
+    }
+
+    setSuggestedQuestionsState({
+        metaText: 'Chargement...',
+        emptyText: 'Chargement des questions...',
+    });
+
+    try {
+        const { BACKEND_URL } = window.ConfigModule;
+        const response = await fetch(`${BACKEND_URL}/api/generated-questions`, {
+            method: 'GET',
+            headers: buildApiHeaders(),
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const errorDetail = payload.detail || payload.message || response.statusText;
+            throw new Error(errorDetail);
+        }
+
+        renderSuggestedQuestions(Array.isArray(payload.documents) ? payload.documents : []);
+    } catch (error) {
+        setSuggestedQuestionsState({
+            metaText: 'Erreur',
+            emptyText: `Impossible de charger les questions: ${error.message}`,
+            isError: true,
+        });
+    }
+}
+
 /**
  * Escape HTML to prevent XSS
  */
@@ -427,14 +582,7 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
     // Create abort controller for cancellation
     currentAbortController = new AbortController();
 
-    const requestHeaders = { 'Content-Type': 'application/json' };
-    if (CLIENT_QUERY_KEY) {
-        requestHeaders['X-Client-Key'] = CLIENT_QUERY_KEY;
-    }
-    const adminBearerToken = getAdminBearerToken();
-    if (adminBearerToken) {
-        requestHeaders.Authorization = `Bearer ${adminBearerToken}`;
-    }
+    const requestHeaders = buildApiHeaders();
 
     const endpointPath = getQueryEndpoint();
 
@@ -582,6 +730,7 @@ async function sendMessage() {
     const inputBox = document.getElementById('input-box');
     const emptyState = document.getElementById('empty-state');
     const chatContainer = document.getElementById('chat-container');
+    const chatStream = document.getElementById('chat-stream') || chatContainer;
     
     const question = inputBox ? inputBox.value.trim() : '';
     if (!question || isLoading) return;
@@ -617,8 +766,8 @@ async function sendMessage() {
     }
     prevMessageContent = messageDiv.querySelector('.message-content');
 
-    chatContainer.appendChild(userMessageDiv);
-    chatContainer.appendChild(messageDiv);
+    chatStream.appendChild(userMessageDiv);
+    chatStream.appendChild(messageDiv);
 
     const contentDiv = messageDiv.querySelector('.message-text');
     const actionsDiv = messageDiv.querySelector('.message-actions');
@@ -668,6 +817,7 @@ function isMessageLoading() {
 // Export for use in other modules
 window.ChatModule = {
     sendMessage,
+    loadSuggestedQuestions,
     createAssistantMessage,
     setupMessageActions,
     addMessage,

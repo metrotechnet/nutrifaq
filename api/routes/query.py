@@ -13,6 +13,7 @@ from api.schemas.models import QueryRequest
 from api.services.entra_auth_service import require_admin, require_client_or_query_key
 from api.services.sessions import get_or_create_session, is_session_rate_limited
 from api.services.logging import save_question_response, contains_medical_disclaimer
+from api.services.generated_questions_loader import load_generated_questions
 from api.services.query_chromadb import ask_question_stream, get_debug_local_kb_root_folder
 
 router = APIRouter(dependencies=[Depends(require_client_or_query_key)])
@@ -131,3 +132,22 @@ async def query_agent(request: Request, query_request: QueryRequest):
 async def query_agent_debug(request: Request, query_request: QueryRequest):
     """Admin-only debug query endpoint using the debug knowledge-base root."""
     return _query_agent_response(query_request, debug_mode=True)
+
+
+@router.get("/api/generated-questions")
+async def list_generated_questions():
+    """Return generated questions grouped by document title from local debug KB."""
+    try:
+        payload = load_generated_questions()
+        return {
+            "status": "ok",
+            **payload,
+        }
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": f"Unable to read generated questions: {exc}",
+            },
+        )

@@ -9,7 +9,17 @@ import os
 from typing import Optional
 
 
-PROJECT_ROOT = Path(__file__).parent.parent
+API_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = API_ROOT.parent
+FRONTEND_CONFIG_ROOT = REPO_ROOT / "static" / "config"
+LEGACY_CONFIG_ROOT = API_ROOT / "config"
+
+
+def _resolve_config_path(file_name: str) -> Path:
+    frontend_path = FRONTEND_CONFIG_ROOT / file_name
+    if frontend_path.exists():
+        return frontend_path
+    return LEGACY_CONFIG_ROOT / file_name
 
 
 def deep_merge(base_config: dict, override_config: dict) -> dict:
@@ -49,14 +59,14 @@ def get_config():
     try:
         
         # Load common config (base configuration)
-        common_config_path = PROJECT_ROOT / "config" /  "common_config.json"
+        common_config_path = _resolve_config_path("common_config.json")
         common_config = {}
         if common_config_path.exists():
             with open(common_config_path, 'r', encoding='utf-8') as f:
                 common_config = json.load(f)
         
         # Load agent-specific config (override configuration)
-        agent_config_path = PROJECT_ROOT / "config" / "agent_config.json"
+        agent_config_path = _resolve_config_path("agent_config.json")
         
         if agent_config_path.exists():
             with open(agent_config_path, 'r', encoding='utf-8') as f:
@@ -70,7 +80,7 @@ def get_config():
             return common_config
         
         # Provide detailed error with debugging info
-        kb_dir = PROJECT_ROOT / "nutrifaq-dbase"
+        kb_dir = REPO_ROOT / "nutrifaq-dbase"
         available_kbs = []
         if kb_dir.exists():
             available_kbs = [d.name for d in kb_dir.iterdir() if d.is_dir()]
@@ -87,13 +97,13 @@ def get_config():
         }
         
     except FileNotFoundError:
-        agent_config_path = PROJECT_ROOT / "config" / "agent_config.json"
+        agent_config_path = _resolve_config_path("agent_config.json")
         return {
             "error": f"config not found at {agent_config_path}",
             "debug": {"config_path": str(agent_config_path)}
         }
     except Exception as e:
-        agent_config_path = PROJECT_ROOT / "config" / "agent_config.json"
+        agent_config_path = _resolve_config_path("agent_config.json")
         return {
             "error": f"Error loading config from {agent_config_path}: {str(e)}",
             "debug": {"config_path": str(agent_config_path)}

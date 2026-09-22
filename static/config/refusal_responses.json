@@ -1,0 +1,14 @@
+{
+  "fr": {
+    "general_refusal": "Je peux fournir de l'information générale à visée éducative, mais je ne peux pas donner de recommandations, de chiffres cibles, d'exemples de menus, ni répondre à des situations personnelles ou cliniques.\n\nPour ce type de question, consulte un professionnel de la santé qualifié (ou un diététiste-nutritionniste). Ne modifie pas un traitement sans avis médical. En cas d'urgence, contacte les services d'urgence.",
+    "minor_refusal": "Je peux fournir de l'information générale à visée éducative, mais je ne peux pas répondre à des demandes liées à la perte de poids ou à des objectifs corporels chez les mineurs.\n\nPour un accompagnement sécuritaire, parle à un parent/tuteur et consulte un professionnel de la santé qualifié. En cas d'urgence, contacte les services d'urgence.",
+    "medication_refusal": "Je ne peux pas répondre aux questions sur la compatibilité d'un médicament avec un régime, un jeûne, un supplément ou un changement d'alimentation, car cela relève d'un avis clinique.\n\nConsulte un professionnel de la santé qualifié (médecin ou pharmacien) pour une réponse adaptée à ta situation. Ne modifie pas ton traitement sans avis médical.",
+    "emergency_refusal": "Ta question suggère une situation qui pourrait nécessiter une attention médicale urgente.\n\nJe ne peux pas fournir de conseil médical. En cas d'urgence ou de symptômes inquiétants, contacte immédiatement les services d'urgence ou consulte un professionnel de la santé."
+  },
+  "en": {
+    "general_refusal": "I can provide general educational information, but I cannot give recommendations, target numbers, meal examples, or respond to personal or clinical situations.\n\nFor this type of question, consult a qualified healthcare professional (or a registered dietitian/nutritionist). Do not modify any treatment without medical advice. In case of emergency, contact emergency services.",
+    "minor_refusal": "I can provide general educational information, but I cannot respond to requests related to weight loss or body goals for minors.\n\nFor safe guidance, speak to a parent/guardian and consult a qualified healthcare professional. In case of emergency, contact emergency services.",
+    "medication_refusal": "I cannot answer questions about the compatibility of a medication with a diet, fasting, supplement, or dietary change, as this requires clinical advice.\n\nConsult a qualified healthcare professional (doctor or pharmacist) for an answer adapted to your situation. Do not modify your treatment without medical advice.",
+    "emergency_refusal": "Your question suggests a situation that may require urgent medical attention.\n\nI cannot provide medical advice. In case of emergency or concerning symptoms, immediately contact emergency services or consult a healthcare professional."
+  }
+}

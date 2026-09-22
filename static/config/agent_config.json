@@ -1,0 +1,92 @@
+{
+  "fr": {
+    "app": {
+      "title": "IMX - Nutrifaq | Agent Nutritionniste",
+      "description": "Agent IA nutritionniste par IMX Multi-Agent"
+    },
+    "intro": {
+      "title": "Des questions sur la nutrition ?",
+      "description": "Posez vos questions à notre agent IA et obtenez des réponses claires instantanément. Luttons contre la désinformation, une question à la fois.",
+      "disclaimer": "Note : Cet agent IA fournit uniquement des informations. Pour des conseils personnalisés, consultez un professionnel de santé qualifié.",
+      "profileAlt": "Nutrifaq Agent",
+      "profileImage": "/static/logos/logo-nutrifaq.png"
+    },
+    "suggestions": [
+      {
+        "id": "health",
+        "title": "💡 Santé",
+        "description": "Bien-être général et habitudes de vie",
+        "event": "display: Bien-être général et habitudes de vie",
+        "color": "#fff9c4"
+      },
+      {
+        "id": "training",
+        "title": "🏋️ Entraînement",
+        "description": "Performance et récupération sportive",
+        "event": "display: Performance et récupération sportive",
+        "color": "#ffe0b2"
+      },
+      {
+        "id": "supplements",
+        "title": "💊 Suppléments",
+        "description": "Questions sur les suppléments et leur utilisation",
+        "event": "display: Questions sur les suppléments et leur utilisation",
+        "color": "#b2dfdb"
+      }
+    ],
+    "components": {
+      "inputArea": {
+        "showInputOnLoad": true,
+        "placeholder": "Pose-moi une question sur la nutrition...",
+        "sendButton": "Envoyer",
+        "voiceButton": "Enregistrer un message vocal",
+        "disclaimer": "⚠️ Peut contenir des erreurs. Ne remplace pas un avis professionnel."
+      }
+    }
+  },
+  "en": {
+    "app": {
+      "title": "IMX - Nutrifaq | Nutritionist Agent",
+      "description": "AI Nutritionist Agent by IMX Multi-Agent"
+    },
+    "intro": {
+      "title": "Questions about nutrition?",
+      "description": "Ask our AI agent and get clear answers instantly. Fighting misinformation, one question at a time.",
+      "disclaimer": "Note: This AI agent provides information only. For personalized advice, consult a qualified health professional.",
+      "profileAlt": "Nutrifaq Agent",
+      "profileImage": "/static/logos/logo-nutrifaq.png"
+    },
+    "suggestions": [
+      {
+        "id": "health",
+        "title": "💡 Health",
+        "description": "General wellness and lifestyle habits",
+        "event": "display: General wellness and lifestyle habits",
+        "color": "#fff9c4"
+      },
+      {
+        "id": "training",
+        "title": "🏋️ Training",
+        "description": "Athletic performance and recovery",
+        "event": "display: Athletic performance and recovery",
+        "color": "#ffe0b2"
+      },
+      {
+        "id": "supplements",
+        "title": "💊 Supplements",
+        "description": "Questions about supplements and their use",
+        "event": "display: Questions about supplements and their use",
+        "color": "#b2dfdb"
+      }
+    ],
+    "components": {
+      "inputArea": {
+        "showInputOnLoad": true,
+        "placeholder": "Ask me a question about nutrition...",
+        "sendButton": "Send",
+        "voiceButton": "Record voice message",
+        "disclaimer": "⚠️ May contain errors. Does not replace professional advice."
+      }
+    }
+  }
+}

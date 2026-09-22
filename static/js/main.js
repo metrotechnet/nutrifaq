@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const { loadConfig, switchLanguage, getCurrentLanguage, getMainConfig, populateSuggestionCards } = window.ConfigModule;
     const { isMobileDevice, initKeyboardDetection, createScrollIndicator, updateScrollIndicator, 
             initSidebar, initCookieConsent, initLegalLinks } = window.UIUtilsModule;
-    const { sendMessage } = window.ChatModule;
+    const { sendMessage, loadSuggestedQuestions } = window.ChatModule;
     const { initSpeechRecognition, toggleRecording, toggleRecognitionMethod, useWhisper } = window.VoiceRecognitionModule;
     const { switchAgent, updateAgentSelectorLabels } = window.AgentsModule;
     const { componentRegistry } = window.ComponentsModule;
@@ -101,6 +101,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     initCookieConsent();
     initLegalLinks();
     initSpeechRecognition();
+    if (loadSuggestedQuestions) {
+        loadSuggestedQuestions();
+    }
     
     // Create scroll indicator
     const scrollIndicator = createScrollIndicator();

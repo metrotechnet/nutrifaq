@@ -11,6 +11,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).parent.parent
+REPO_ROOT = PROJECT_ROOT.parent
 load_dotenv(dotenv_path=PROJECT_ROOT / '.env')
 
 def get_openai_client() -> OpenAI:
@@ -61,7 +62,9 @@ def load_translator_prompts(language: str = "en") -> tuple:
     Returns:
         tuple: (prompts dict for the specified language, model_config dict)
     """
-    prompts_path = PROJECT_ROOT / "config" / "prompts.json"
+    prompts_path = REPO_ROOT / "static" / "config" / "prompts.json"
+    if not prompts_path.exists():
+        prompts_path = PROJECT_ROOT / "config" / "prompts.json"
     try:
         with open(prompts_path, 'r', encoding='utf-8') as f:
             prompts_data = json.load(f)
