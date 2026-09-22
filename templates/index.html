@@ -61,6 +61,12 @@
             <h2>NutriFAQ-Chat</h2>
         </div>
         <nav class="sidebar-nav">
+            <a href="#" class="sidebar-link" id="instructions-link">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm1 9V3.5L18.5 10H15zm-6 4h8v2H9v-2zm0-4h8v2H9v-2zm0-4h5v2H9V7z"/>
+                </svg>
+                <span>Instructions</span>
+            </a>
             <a href="#" class="sidebar-link" id="download-link">
                 <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M5 20h14v-2H5v2zM12 2v12l4-4 1.41 1.41L12 17.83l-5.41-5.42L8 10l4 4V2h0z"/>
@@ -150,8 +156,57 @@
             </div>
         </div>
 
-        <main class="download-manager-content" id="download-manager-panel" style="display:none;">
-            <section class="download-dropzone-section" aria-label="Téléversement de fichier">
+        <main class="download-manager-content" id="download-manager-panel" style="display:flex;">
+            <section id="instructions-section" class="instructions-section" aria-label="Instructions de mise à jour NutriFAQ-Chat">
+                <div class="instructions-header">
+                    <span class="instructions-badge">Guide</span>
+                    <h2>Instructions de mise à jour NutriFAQ-Chat</h2>
+                </div>
+
+                <div class="instruction-steps">
+                    <article class="instruction-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Télécharger</h3>
+                            <p>Utilisez cette section pour préparer le contenu de la base de connaissances avant de l’intégrer à NutriFAQ-Chat.</p>
+                            <ul>
+                                <li>Glissez-déposez un fichier ou sélectionnez-le avec le bouton <strong>Choisir un fichier</strong>.</li>
+                                <li>Vérifiez le nom du fichier affiché dans la zone de sélection.</li>
+                                <li>Si nécessaire, réinitialisez les fichiers avant de relancer un indexage.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <article class="instruction-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Tester</h3>
+                            <p>Une fois les fichiers chargés et indexés, passez en mode <strong>Tester</strong> pour valider le comportement réel.</p>
+                            <ul>
+                                <li>Poser une question de test en rapport avec le contenu indexé.</li>
+                                <li>Vérifier que la réponse est cohérente et qu’elle utilise bien les bons documents.</li>
+                                <li>Contrôler la qualité du formatage, du contexte et des réponses générées par le modèle.</li>
+                            </ul>
+                        </div>
+                    </article>
+
+                    <article class="instruction-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Publier</h3>
+                            <p>Quand le résultat est satisfaisant, utilisez la section <strong>Publier</strong> pour finaliser la mise en production.</p>
+                            <ul>
+                                <li>Choisir le bon modèle IA disponible dans la liste.</li>
+                                <li>Définir une date et une heure de publication.</li>
+                                <li>Valider le contenu et consulter les logs de questions pour vérifier les réponses envoyées.</li>
+                                <li>Exporter les logs si vous devez archiver ou analyser les interactions.</li>
+                            </ul>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="download-dropzone-section" aria-label="Téléversement de fichier" style="display:none;">
                 <div id="dnd-upload-area" class="dnd-upload-area" role="button" tabindex="0" aria-label="Glissez un fichier ici ou cliquez pour sélectionner">
                     <input type="file" id="upload-file" hidden>
                     <p class="dnd-upload-title">Glissez-déposez un fichier ici</p>
@@ -161,7 +216,7 @@
                 </div>
             </section>
 
-            <section class="download-status-row">
+            <section class="download-status-row" style="display:none;">
                 <p id="status-message" class="status-message">Prêt.</p>
                 <div class="indexing-actions">
                     <button id="reset-debug-files" class="dm-btn secondary" type="button">Réinitialiser les fichiers</button>
@@ -176,7 +231,7 @@
                 <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
             </section>
 
-            <section class="download-files-list" aria-live="polite">
+            <section class="download-files-list" aria-live="polite" style="display:none;">
                 <table class="files-table" id="files-table">
                     <thead>
                         <tr>

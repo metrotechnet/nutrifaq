@@ -51,6 +51,7 @@
     }
 
     const els = {
+        instructionsSection: document.getElementById("instructions-section"),
         downloadSection: document.getElementById("download-section"),
         publishSection: document.getElementById("publish-section"),
         refreshFiles: document.getElementById("refresh-files"),
@@ -80,6 +81,7 @@
     };
 
     function hydratePublishElements() {
+        els.instructionsSection = document.getElementById("instructions-section");
         els.publishSection = document.getElementById("publish-section");
         els.publishModelSelector = document.getElementById("publish-model-selector");
         els.publishDatetime = document.getElementById("publish-datetime");
@@ -887,6 +889,56 @@
         panel.classList.toggle("panel-empty", Boolean(isEmpty));
     }
 
+    function activateInstructionsView() {
+        const panel = document.getElementById("download-manager-panel");
+        const chatContainer = document.getElementById("chat-container");
+        const chatMainLayout = document.getElementById("chat-main-layout");
+        const chatInputArea = document.getElementById("chat-input-area");
+        const emptyState = document.getElementById("empty-state");
+        const chatTopSpacer = document.getElementById("chat-top-spacer");
+
+        hideIntegratedPanels();
+
+        if (chatMainLayout) {
+            chatMainLayout.style.display = "none";
+        }
+        if (chatInputArea) {
+            chatInputArea.style.display = "none";
+        }
+
+        const panelSections = panel ? panel.querySelectorAll("section") : [];
+        panelSections.forEach((section) => {
+            section.style.display = (section.id === "instructions-section") ? "flex" : "none";
+        });
+
+        if (els.instructionsSection) {
+            els.instructionsSection.style.display = "flex";
+        }
+        if (els.downloadSection) {
+            els.downloadSection.style.display = "none";
+        }
+        if (els.publishSection) {
+            els.publishSection.style.display = "none";
+        }
+        if (panel) {
+            panel.style.display = "flex";
+        }
+        if (chatContainer) {
+            chatContainer.classList.add("download-mode");
+            chatContainer.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        setSuggestedPanelEmpty(true);
+        if (chatInputArea) {
+            chatInputArea.style.display = "none";
+        }
+        if (emptyState) {
+            emptyState.style.display = "none";
+        }
+        if (chatTopSpacer) {
+            chatTopSpacer.style.display = "none";
+        }
+    }
+
     function activateDownloadView() {
         const panel = document.getElementById("download-manager-panel");
         const chatContainer = document.getElementById("chat-container");
@@ -896,18 +948,30 @@
 
         hideIntegratedPanels();
 
+        if (chatInputArea) {
+            chatInputArea.style.display = "none";
+        }
+
         ensurePublishSectionMounted();
 
+        const panelSections = panel ? panel.querySelectorAll("section") : [];
+        panelSections.forEach((section) => {
+            const shouldShow = section.id === "download-section" ||
+                section.classList.contains("download-dropzone-section") ||
+                section.classList.contains("download-status-row") ||
+                section.classList.contains("download-files-list") ||
+                section.id === "indexing-progress-wrap";
+            section.style.display = shouldShow ? "" : "none";
+        });
+
+        if (els.instructionsSection) {
+            els.instructionsSection.style.display = "none";
+        }
         if (els.downloadSection) {
             els.downloadSection.style.display = "flex";
         }
         if (els.publishSection) {
             els.publishSection.style.display = "none";
-        }
-        if (!els.downloadSection) {
-            document.querySelectorAll("#download-manager-panel > section:not(#publish-section)").forEach((section) => {
-                section.style.display = "";
-            });
         }
 
         if (panel) {
@@ -930,24 +994,34 @@
     }
 
     function activatePublishView() {
+        const panel = document.getElementById("download-manager-panel");
         const chatContainer = document.getElementById("chat-container");
         const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
 
         hideIntegratedPanels();
 
+        if (chatInputArea) {
+            chatInputArea.style.display = "none";
+        }
+
         ensurePublishSectionMounted();
 
+        if (panel) {
+            const panelSections = panel.querySelectorAll("section");
+            panelSections.forEach((section) => {
+                section.style.display = (section.id === "publish-section") ? "flex" : "none";
+            });
+        }
+
+        if (els.instructionsSection) {
+            els.instructionsSection.style.display = "none";
+        }
         if (els.downloadSection) {
             els.downloadSection.style.display = "none";
         }
         if (els.publishSection) {
             els.publishSection.style.display = "flex";
-        }
-        if (!els.downloadSection) {
-            document.querySelectorAll("#download-manager-panel > section:not(#publish-section)").forEach((section) => {
-                section.style.display = "none";
-            });
         }
         if (chatContainer) {
             chatContainer.classList.add("download-mode");
@@ -964,6 +1038,7 @@
 
     function activateTesterView() {
         const chatContainer = document.getElementById("chat-container");
+        const chatMainLayout = document.getElementById("chat-main-layout");
         const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
 
@@ -972,9 +1047,12 @@
             chatContainer.classList.remove("download-mode");
             chatContainer.scrollTo({ top: 0, behavior: "smooth" });
         }
+        if (chatMainLayout) {
+            chatMainLayout.style.display = "grid";
+        }
         setSuggestedPanelEmpty(false);
         if (chatInputArea) {
-            chatInputArea.style.display = "";
+            chatInputArea.style.display = "flex";
         }
         if (emptyState && !document.querySelector("#chat-container .message")) {
             emptyState.style.display = "";
@@ -1010,10 +1088,18 @@
     }
 
     function bindNavigationToggles() {
+        const instructionsLink = document.getElementById("instructions-link");
         const downloadLink = document.getElementById("download-link");
         const testerLink = document.getElementById("tester-link");
         const authLink = document.getElementById("auth-link");
         const validateLink = document.getElementById("validate-link");
+
+        if (instructionsLink) {
+            instructionsLink.addEventListener("click", (event) => {
+                event.preventDefault();
+                activateInstructionsView();
+            });
+        }
 
         if (downloadLink) {
             downloadLink.addEventListener("click", (event) => {
@@ -1052,6 +1138,14 @@
                 localStorage.setItem(TOKEN_KEY, token);
             }
         });
+    }
+
+    function initializeLandingView() {
+        const hasAnyExplicitView = window.location.hash && window.location.hash !== "#";
+        if (hasAnyExplicitView) {
+            return;
+        }
+        activateInstructionsView();
     }
 
     function setStatus(message, isError) {
@@ -1619,6 +1713,7 @@
         ensurePublishRefreshControl();
         bindNavigationToggles();
         bindTokenSync();
+        initializeLandingView();
 
         if (els.refreshFiles) {
             els.refreshFiles.addEventListener("click", loadFiles);

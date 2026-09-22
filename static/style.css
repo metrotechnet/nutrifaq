@@ -272,16 +272,30 @@ header {
 #chat-container > .azure-auth-panel {
     grid-row: 1;
     min-height: 0;
-    width: 100%;
+    width: min(100%, 1200px);
     max-width: none;
-    margin: 0;
+    margin: 0 auto;
+    justify-self: center;
     background: #ffffff;
     border: 1px solid #d5e3df;
     border-radius: 12px;
 }
 
+#chat-main-layout {
+    display: none;
+}
+
 #chat-input-area {
     grid-row: 2;
+    display: none !important;
+}
+
+#chat-container:not(.download-mode) #chat-input-area {
+    display: grid !important;
+}
+
+#chat-container.download-mode #chat-input-area {
+    display: none !important;
 }
 
 #chat-container > .chat-main-layout,
@@ -476,10 +490,104 @@ footer {
  Responsive Layouts
 ----------------------------------------------------
 */
+.instructions-section {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    gap: 1.25rem;
+    background: linear-gradient(180deg, #f7fbfa 0%, #f2f7f6 100%);
+    border: 1px solid #d5e3df;
+    border-radius: 14px;
+    padding: 1.25rem;
+}
+
+.instructions-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin-bottom: 0.25rem;
+}
+
+.instructions-badge {
+    align-self: flex-start;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: #dff7ee;
+    color: #0f766e;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.instructions-header h2 {
+    margin: 0;
+    color: #153f39;
+    font-size: clamp(1.5rem, 2vw, 2.1rem);
+}
+
+.instruction-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.instruction-step {
+    display: flex;
+    gap: 0.9rem;
+    padding: 1rem;
+    background: #ffffff;
+    border: 1px solid #dfeae7;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 2.3rem;
+    height: 2.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.step-content {
+    min-width: 0;
+}
+
+.step-content h3 {
+    margin: 0 0 0.5rem;
+    color: #13453f;
+    font-size: 1.1rem;
+}
+
+.step-content p,
+.step-content li {
+    color: #365b59;
+    line-height: 1.6;
+    font-size: 0.96rem;
+}
+
+.step-content ul {
+    margin: 0.5rem 0 0;
+    padding-left: 1.2rem;
+}
+
 @media (max-width: 1000px) {
     .main-pane {
         grid-template-columns: 1fr;
         padding: 1rem;
+    }
+
+    .instruction-steps {
+        grid-template-columns: 1fr;
     }
 
     #chat-container {
