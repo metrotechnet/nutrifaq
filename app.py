@@ -59,6 +59,7 @@ async def startup_load_blob_database():
         print(f"[Startup] Main blob database hydration skipped: {exc}", flush=True)
 
     # Best-effort hydration for debug KB used by /query_debug.
+    debug_hydrated = False
     try:
         sync_blob_prefix_to_local(
             prefix=debug_prefix,
@@ -66,7 +67,9 @@ async def startup_load_blob_database():
             remove_existing=False,
             container_name=debug_container,
         )
-        hydrated_targets.append(str(debug_target_root))
+        if str(debug_target_root) not in hydrated_targets:
+            hydrated_targets.append(str(debug_target_root))
+        debug_hydrated = True
         print(
             f"[Startup] Loaded debug blob database into {debug_target_root} "
             f"(container={debug_container}, prefix={debug_prefix_base}, local_root={debug_local_root})",
@@ -78,6 +81,27 @@ async def startup_load_blob_database():
             f"(container={debug_container}, prefix={debug_prefix_base}, local_root={debug_local_root})",
             flush=True,
         )
+
+    # Ensure debug local folder is populated even if debug blob source is unavailable.
+    if not debug_hydrated:
+        try:
+            sync_blob_prefix_to_local(
+                prefix=main_prefix,
+                local_root=debug_target_root,
+                remove_existing=False,
+            )
+            if str(debug_target_root) not in hydrated_targets:
+                hydrated_targets.append(str(debug_target_root))
+            print(
+                f"[Startup] Fallback loaded main blob database into debug local root {debug_target_root}",
+                flush=True,
+            )
+        except Exception as fallback_exc:
+            print(
+                f"[Startup] Debug local fallback hydration skipped: {fallback_exc} "
+                f"(local_root={debug_local_root})",
+                flush=True,
+            )
 
     app.state.database_sync_status = "synch"
     if hydrated_targets:

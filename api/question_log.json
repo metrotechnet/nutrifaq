@@ -446,5 +446,26 @@
     "response": "Knowledge base query failed: Collection [nutrifaq-collection] does not exist",
     "timestamp": "2026-09-21T20:09:26.796451",
     "comments": []
+  },
+  {
+    "question_id": "eb33a0ec-8e46-477f-a7bd-07ed32191444",
+    "question": "Bonjour, donne un bref resume nutrition.",
+    "response": "Knowledge base query failed: Collection [nutrifaq-collection] does not exist",
+    "timestamp": "2026-09-21T20:12:59.752353",
+    "comments": []
+  },
+  {
+    "question_id": "a32c0e3e-5780-42d6-953e-54e26bfcf351",
+    "question": "Bonjour, donne un bref resume nutrition.",
+    "response": "Knowledge base query failed: Collection [nutrifaq-collection] does not exist",
+    "timestamp": "2026-09-21T20:13:14.683297",
+    "comments": []
+  },
+  {
+    "question_id": "20c30782-4610-4302-ae31-5138666d54d9",
+    "question": "Bien-être général et habitudes de vie",
+    "response": "Résumé rapide\n- Sujet : bien‑être général et habitudes de vie (nutritionnel et comportemental).\n- Ton : information générale à visée éducative — je ne suis pas un professionnel de santé.\n\nAlimentation et santé\n- Les diètes « anti‑inflammatoires » (ex. méditerranéen, DASH) montrent une réduction modérée et consistante de marqueurs d’inflammation sanguine (CRP, certaines cytokines).\n- Les suppléments de vitamines/minéraux offrent peu d’avantage pour la prévention des maladies majeures chez les adultes en bonne santé ; ils peuvent toutefois aider à l’adéquation nutritionnelle dans certains cas.\n- **Ne pas considérer les suppléments comme une béquille unique** : développer des habitudes alimentaires variées et végétales est essentiel.\n\nHabitudes pratiques pour intégrer de meilleures habitudes\n- Structurer son environnement facilite l’adoption d’assiettes équilibrées.\n- Méthodes utiles : batch cooking, lunchs prêts, épicerie futée.\n- Exemples d’aliments accessibles et nutritifs : œufs, avoine, pois chiches, tofu, bananes, riz.\n- Congelé vs conserve vs frais : **les légumes congelés peuvent être aussi — ou plus — nutritifs que le frais**.\n\nAlimentation bienveillante et intuitive\n- Écouter signaux de faim et de satiété est central pour une gestion du poids durable.\n- Une approche non restrictive peut améliorer la santé globale, même si la perte de poids n’est pas toujours importante.\n- « Il n’existe pas de solution universelle » et les effets varient selon le contexte et les quantités.\n\nPerte de poids : limites et défis\n- La reprise de poids est fréquente après perte pondérale en raison de changements physiologiques (thermogenèse adaptative, augmentation de l’appétit) et psychocomportementaux (pensées alimentaires accrues, risque de symptômes dépressifs, suralimentation émotionnelle).\n- Les bénéfices à long terme et le maintien restent peu élucidés dans la littérature.\n\nMessages clés\n- Il n’y a pas de solution universelle.\n- Les effets dépendent du contexte et des quantités.\n- La nutrition fait partie d’une approche holistique : alimentation, sommeil et activité physique sont interreliés.\n\nLimites et orientation\n- Je ne suis pas un professionnel de santé et je ne fournis pas de diagnostics ni de recommandations personnalisées.\n- Pour des préoccupations médicales, cliniques ou personnelles, consultez un professionnel de santé qualifié.",
+    "timestamp": "2026-09-21T20:16:59.675090",
+    "comments": []
   }
 ]
