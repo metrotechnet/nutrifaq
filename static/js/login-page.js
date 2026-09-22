@@ -402,11 +402,6 @@
                 localStorage.setItem(TOKEN_KEY, accessToken);
 
                 const { profile } = await resolveUserContext(accessToken);
-                try {
-                    await resetUserLog(accessToken);
-                } catch (error) {
-                    console.warn("Unable to reset the question log on login:", error);
-                }
                 setStatus(tr("statusSessionDetected", { role: profile.role || tr("unknownRole") }), false);
                 setTimeout(goToApp, 150);
                 return;

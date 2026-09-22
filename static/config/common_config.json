@@ -272,6 +272,7 @@
         "error": "Erreur chargement logs: {error}",
         "modelUnknown": "inconnu",
         "refresh": "Rafraichir",
+        "reset": "Réinitialiser",
         "export": "Exporter",
         "exportTitle": "Export des logs",
         "nothingToExport": "Aucun log a exporter.",
@@ -280,7 +281,10 @@
         "exportDone": "PDF telecharge.",
         "exportFailed": "Echec de l'export PDF.",
         "exportFailedWithError": "Echec de l'export PDF: {error}",
-        "pdfLibUnavailable": "Librairie PDF indisponible."
+        "pdfLibUnavailable": "Librairie PDF indisponible.",
+        "resetConfirm": "Voulez-vous vraiment réinitialiser le fichier de logs sur le serveur ?",
+        "resetSuccess": "Les logs ont été réinitialisés.",
+        "resetError": "Erreur lors de la réinitialisation des logs: {error}"
       }
     },
     "about": {

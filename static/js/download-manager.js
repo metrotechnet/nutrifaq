@@ -75,6 +75,7 @@
         publishStatus: document.getElementById("publish-status"),
         publishLogsList: document.getElementById("publish-logs-list"),
         publishRefreshLogs: document.getElementById("publish-refresh-logs"),
+        publishResetLogs: document.getElementById("publish-reset-logs"),
         publishExportLogs: document.getElementById("publish-export-logs")
     };
 
@@ -86,6 +87,7 @@
         els.publishStatus = document.getElementById("publish-status");
         els.publishLogsList = document.getElementById("publish-logs-list");
         els.publishRefreshLogs = document.getElementById("publish-refresh-logs");
+        els.publishResetLogs = document.getElementById("publish-reset-logs");
         els.publishExportLogs = document.getElementById("publish-export-logs");
     }
 
@@ -130,6 +132,15 @@
             refreshBtn.className = "dm-btn secondary publish-refresh-logs-btn";
             refreshBtn.textContent = tr("publish.logs.refresh", "Refresh");
             headerActions.appendChild(refreshBtn);
+        }
+
+        if (!headerActions.querySelector("#publish-reset-logs")) {
+            const resetBtn = document.createElement("button");
+            resetBtn.id = "publish-reset-logs";
+            resetBtn.type = "button";
+            resetBtn.className = "dm-btn secondary publish-reset-logs-btn";
+            resetBtn.textContent = tr("publish.logs.reset", "Reset");
+            headerActions.appendChild(resetBtn);
         }
 
         if (!headerActions.querySelector("#publish-export-logs")) {
@@ -178,6 +189,10 @@
             els.publishRefreshLogs.textContent = tr("publish.logs.refresh", "Refresh");
         }
 
+        if (els.publishResetLogs) {
+            els.publishResetLogs.textContent = tr("publish.logs.reset", "Reset");
+        }
+
         if (els.publishExportLogs) {
             els.publishExportLogs.textContent = tr("publish.logs.export", "Export");
         }
@@ -195,6 +210,50 @@
         els.publishRefreshLogs.dataset.bound = "1";
         els.publishRefreshLogs.addEventListener("click", async () => {
             await loadPublishLogs();
+        });
+    }
+
+    async function resetPublishLogs() {
+        const confirmed = await confirmAction({
+            title: tr("publish.logs.reset", "Reset"),
+            text: tr("publish.logs.resetConfirm", "Voulez-vous vraiment réinitialiser le fichier de logs sur le serveur ?"),
+            confirmText: tr("publish.logs.reset", "Reset")
+        });
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setPublishStatus(tr("publish.logs.reset", "Reset"), false);
+            const response = await fetch(`${BACKEND_URL}/api/reset_question_log`, {
+                method: "POST",
+                headers: {
+                    ...authHeaders(),
+                    "Content-Type": "application/json",
+                }
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.detail || payload.message || response.statusText || tr("publish.logs.resetError", "Erreur lors de la réinitialisation des logs: {error}", { error: response.statusText }));
+            }
+
+            await loadPublishLogs();
+            setPublishStatus(tr("publish.logs.resetSuccess", "Les logs ont été réinitialisés."), false);
+        } catch (error) {
+            const message = error && error.message ? error.message : tr("publish.logs.resetError", "Erreur lors de la réinitialisation des logs: {error}", { error: "inconnu" });
+            setPublishStatus(message, true);
+        }
+    }
+
+    function bindPublishResetButton() {
+        if (!els.publishResetLogs || els.publishResetLogs.dataset.bound === "1") {
+            return;
+        }
+        els.publishResetLogs.dataset.bound = "1";
+        els.publishResetLogs.addEventListener("click", async () => {
+            await resetPublishLogs();
         });
     }
 
@@ -455,6 +514,7 @@
         }
         ensurePublishRefreshControl();
         bindPublishRefreshButton();
+        bindPublishResetButton();
         bindPublishExportButton();
     }
 

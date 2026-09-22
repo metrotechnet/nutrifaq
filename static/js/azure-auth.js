@@ -358,11 +358,6 @@
 
         try {
             const me = await fetchMe(accessToken);
-            try {
-                await resetQuestionLog(accessToken);
-            } catch (error) {
-                console.warn("Unable to reset the question log after login:", error);
-            }
             const usersData = (me && String(me.role || "").toLowerCase() === "admin")
                 ? await fetchUsers(accessToken).catch((error) => ({ error: error.message }))
                 : { status: "skipped", detail: tr("azureAuth.usersAdminOnly", "Users endpoint is restricted to admins.") };
