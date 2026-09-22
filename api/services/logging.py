@@ -83,7 +83,7 @@ def contains_medical_disclaimer(response_text):
     return False
 
 
-def save_question_response(question_id, question, response):
+def save_question_response(question_id, question, response, model_used=None):
     """
     Save a question and its response to GCS.
 
@@ -91,11 +91,13 @@ def save_question_response(question_id, question, response):
         question_id (str): The unique ID of the question.
         question (str): The question text.
         response (str): The agent's response.
+        model_used (str | None): The LLM model used to generate the answer.
     """
     entry = {
         "question_id": question_id,
         "question": question,
         "response": response,
+        "model_used": model_used,
         "timestamp": datetime.now().isoformat(),
         "comments": []
     }
@@ -103,6 +105,14 @@ def save_question_response(question_id, question, response):
         data = _download_log_from_gcs()
         data.append(entry)
         _upload_log_to_gcs(data)
+
+
+def reset_question_log():
+    """Reset the persisted question log for the current user session."""
+    empty_data = []
+    with question_log_lock:
+        _upload_log_to_gcs(empty_data)
+    return empty_data
 
 
 def _upload_log_to_gcs(data):

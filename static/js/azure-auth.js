@@ -289,6 +289,23 @@
         window.dispatchEvent(new CustomEvent("nutrifaq:admin-token-updated", { detail: { token } }));
     }
 
+    async function resetQuestionLog(token) {
+        const backendUrl = window.BACKEND_URL || "";
+        const response = await fetch(`${backendUrl}/api/reset_question_log`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.detail || payload.message || response.statusText || "Unable to reset the log.");
+        }
+        return payload;
+    }
+
     async function loginAndExtract(msalApp) {
         setStatus("Connexion Azure en cours...", false);
 
@@ -315,6 +332,11 @@
 
         try {
             const me = await fetchMe(accessToken);
+            try {
+                await resetQuestionLog(accessToken);
+            } catch (error) {
+                console.warn("Unable to reset the question log after login:", error);
+            }
             const usersData = (me && String(me.role || "").toLowerCase() === "admin")
                 ? await fetchUsers(accessToken).catch((error) => ({ error: error.message }))
                 : { status: "skipped", detail: "Liste utilisateurs reservee aux admins." };

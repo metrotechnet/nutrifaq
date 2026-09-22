@@ -45,9 +45,10 @@ async def translate_text_endpoint(request: TranslateRequest):
         
         # Save translation to log
         save_question_response(
-            question_id, 
+            question_id,
             f"[TRANSLATION {request.source_language}→{request.target_language}] {request.text}",
-            translated
+            translated,
+            model_used="translation-service"
         )
 
     return StreamingResponse(

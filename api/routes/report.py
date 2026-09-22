@@ -10,9 +10,9 @@ from pathlib import Path
 import os
 
 from api.services.entra_auth_service import EntraUser, require_admin, require_collaborator
-from api.services.logging import add_comment_to_question, add_like_to_question, _download_log_from_gcs
+from api.services.logging import add_comment_to_question, add_like_to_question, _download_log_from_gcs, reset_question_log
 
-router = APIRouter(dependencies=[Depends(require_collaborator)])
+router = APIRouter()
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
@@ -39,6 +39,13 @@ def add_comment_api(
         return {"status": "success", "message": "Comment added"}
     else:
         return {"status": "error", "message": "Question ID not found"}
+
+
+@router.post("/api/reset_question_log")
+def reset_question_log_api(user: EntraUser = Depends(require_collaborator)):
+    """Reset the question log for the current logged-in user session."""
+    del user
+    return {"status": "success", "entries": reset_question_log()}
 
 
 

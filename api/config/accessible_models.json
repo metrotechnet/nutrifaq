@@ -1,19 +1,35 @@
 {
   "models": [
     {
-      "id": "anthropic/claude-sonnet-4",
+      "id": "deepseek/deepseek-v4-pro",
       "provider": "vercel",
-      "label": "Claude Sonnet 4 (Vercel)"
+      "label": "DeepSeek V4 Pro (Vercel)"
     },
     {
-      "id": "DeepSeek-V4-Pro",
-      "provider": "azure",
-      "label": "DeepSeek V4 Pro (Azure)"
+      "id": "anthropic/claude-haiku-4.5",
+      "provider": "vercel",
+      "label": "Claude Haiku 4.5 (Vercel)"
     },
     {
-      "id": "gpt-4o-mini",
-      "provider": "azure",
-      "label": "GPT-4o mini (Azure)"
+      "id": "deepseek/deepseek-v4-flash",
+      "provider": "vercel",
+      "label": "DeepSeek V4 Flash (Vercel)"
+    },
+    {
+      "id": "openai/gpt-4o-mini",
+      "provider": "vercel",
+      "label": "OpenAI GPT-4o Mini (Vercel)"
+    },
+
+    {
+      "id": "google/gemini-2.5-flash-lite",
+      "provider": "vercel",
+      "label": "Gemini 2.5 Flash Lite (Vercel)"
+    },
+    {
+      "id": "google/gemini-3.7-flash",
+      "provider": "vercel",
+      "label": "Gemini 3.7 Flash (Vercel)"
     }
   ]
 }

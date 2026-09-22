@@ -344,6 +344,22 @@
         return { profile, assignments };
     }
 
+    async function resetUserLog(token) {
+        const response = await fetch(`${BACKEND_URL}/api/reset_question_log`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.detail || payload.message || response.statusText || "Unable to reset the log.");
+        }
+        return payload;
+    }
+
     async function signIn(msalApp) {
         setStatus(tr("statusRedirectIdentity"), false);
         await msalApp.loginRedirect({ scopes: buildLoginScopes() });
@@ -386,6 +402,11 @@
                 localStorage.setItem(TOKEN_KEY, accessToken);
 
                 const { profile } = await resolveUserContext(accessToken);
+                try {
+                    await resetUserLog(accessToken);
+                } catch (error) {
+                    console.warn("Unable to reset the question log on login:", error);
+                }
                 setStatus(tr("statusSessionDetected", { role: profile.role || tr("unknownRole") }), false);
                 setTimeout(goToApp, 150);
                 return;
