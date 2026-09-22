@@ -43,9 +43,17 @@ AZURE_BLOB_PREFIX = get_blob_prefix()
 
 def _sync_transcripts_json_from_blob(kb_path: Path) -> Path:
     local_json = kb_path / "transcripts_chromadb.json"
+    if local_json.exists():
+        return local_json
+
     blob_name = f"{AZURE_BLOB_PREFIX}/transcripts_chromadb.json"
     kb_path.mkdir(parents=True, exist_ok=True)
-    download_blob_to_path(blob_name, local_json)
+    try:
+        download_blob_to_path(blob_name, local_json)
+    except Exception as exc:
+        raise FileNotFoundError(
+            f"transcripts_chromadb.json not found locally and not available in blob: {blob_name}"
+        ) from exc
     return local_json
 
 

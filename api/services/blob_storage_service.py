@@ -46,15 +46,19 @@ def get_blob_container_name(container_name: str | None = None) -> str:
     if container_name:
         return container_name
 
-    # Prefer generic storage container env var as requested for regeneration defaults.
+    # Default to the debug container for KB operations so the admin UI and file actions
+    # stay aligned with the debug dataset unless an explicit override is passed.
     return os.getenv(
-        "AZURE_STORAGE_CONTAINER",
-        os.getenv("AZURE_KB_BLOB_CONTAINER", "nutrifaq-knowledge-base"),
+        "AZURE_KB_DEBUG_BLOB_CONTAINER",
+        os.getenv("AZURE_STORAGE_CONTAINER", os.getenv("AZURE_KB_BLOB_CONTAINER", "nutrifaq-knowledge-base-debug")),
     )
 
 
 def get_blob_prefix() -> str:
-    return os.getenv("AZURE_KB_BLOB_PREFIX", "nutrifaq-dbase").strip("/")
+    return os.getenv(
+        "AZURE_KB_DEBUG_BLOB_PREFIX",
+        os.getenv("AZURE_KB_BLOB_PREFIX", "nutrifaq-dbase-debug"),
+    ).strip("/")
 
 
 def get_blob_service_client() -> BlobServiceClient:
@@ -223,10 +227,14 @@ def copy_blobs_between_containers(
             f"{destination_prefix_clean}/{relative_name}" if destination_prefix_clean else relative_name
         )
         destination_blob = destination_client.get_blob_client(destination_blob_name)
+        destination_exists = destination_blob.exists()
 
-        if not overwrite and destination_blob.exists():
+        if destination_exists and not overwrite:
             skipped.append({"source": source_blob_name, "destination": destination_blob_name, "reason": "exists"})
             continue
+
+        if destination_exists and overwrite:
+            destination_blob.delete_blob(delete_snapshots="include")
 
         source_blob = source_client.get_blob_client(source_blob_name)
         copy_result = destination_blob.start_copy_from_url(source_blob.url)

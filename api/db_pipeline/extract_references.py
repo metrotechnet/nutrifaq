@@ -9,15 +9,25 @@ Outputs JSON file: nutrifaq-dbase/references.json
 """
 
 import json
+import os
 import re
+import sys
 from pathlib import Path
 
 import docx
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-KB_PATH = SCRIPT_DIR.parents[1] / "nutrifaq-dbase"
-DOCUMENTS_DIR = KB_PATH / "documents"
-OUTPUT_FILE = KB_PATH / "references.json"
+
+
+def resolve_kb_path() -> Path:
+    if len(sys.argv) >= 2 and sys.argv[1].strip():
+        return Path(sys.argv[1]).resolve()
+
+    kb_root_env = os.getenv("NUTRIFAQ_KB_ROOT", "").strip()
+    if kb_root_env:
+        return Path(kb_root_env).resolve()
+
+    return SCRIPT_DIR.parents[1] / "nutrifaq-dbase"
 
 
 def read_docx(path):
@@ -80,18 +90,18 @@ def extract_bibliography(text):
     return entries
 
 
-def process_documents():
+def process_documents(documents_dir: Path):
     """Process all .docx files and extract references."""
-    if not DOCUMENTS_DIR.exists():
-        print(f"Documents directory not found: {DOCUMENTS_DIR}")
+    if not documents_dir.exists():
+        print(f"Documents directory not found: {documents_dir}")
         return []
 
     results = []
     files = sorted(
-        f for f in DOCUMENTS_DIR.iterdir() if f.suffix.lower() == ".docx" and not f.name.startswith("~$")
+        f for f in documents_dir.iterdir() if f.suffix.lower() == ".docx" and not f.name.startswith("~$")
     )
 
-    print(f"Found {len(files)} .docx files in {DOCUMENTS_DIR}\n")
+    print(f"Found {len(files)} .docx files in {documents_dir}\n")
 
     for fpath in files:
         try:
@@ -127,7 +137,11 @@ def process_documents():
 
 
 def main():
-    documents = process_documents()
+    kb_path = resolve_kb_path()
+    documents_dir = kb_path / "documents"
+    output_file = kb_path / "references.json"
+
+    documents = process_documents(documents_dir)
 
     output = []
     for doc in documents:
@@ -139,10 +153,10 @@ def main():
             }
         )
 
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
 
-    print(f"Done. Output: {OUTPUT_FILE}")
+    print(f"Done. Output: {output_file}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 (function () {
     const BACKEND_URL = window.BACKEND_URL || "";
     const DEBUG_BLOB_CONTAINER = window.DEBUG_BLOB_CONTAINER || "nutrifaq-knowledge-base-debug";
-    const DEBUG_BLOB_ROOT_FOLDER = window.DEBUG_BLOB_ROOT_FOLDER || "nutrifaq-dbase";
+    const DEBUG_BLOB_ROOT_FOLDER = window.DEBUG_BLOB_ROOT_FOLDER || "nutrifaq-dbase-debug";
     const DOCUMENTS_PREFIX = `${DEBUG_BLOB_ROOT_FOLDER}/documents/`;
     const STORAGE_DOCUMENTS_PREFIX = `${DEBUG_BLOB_ROOT_FOLDER}/documents/`;
 
@@ -37,6 +37,8 @@
     let hasLiveStepStatus = false;
     let currentStepKey = null;
     let currentStepPercent = 0;
+    let isStepTransitioning = false;
+    let stepSwitchTimer = null;
 
     const STEP_LABELS = {
         extract_docx: "Extraction des documents",
@@ -102,6 +104,11 @@
         hasLiveStepStatus = false;
         currentStepKey = null;
         currentStepPercent = 0;
+        isStepTransitioning = false;
+        if (stepSwitchTimer) {
+            window.clearTimeout(stepSwitchTimer);
+            stepSwitchTimer = null;
+        }
         if (els.startIndexing) {
             els.startIndexing.disabled = true;
             els.startIndexing.textContent = "Indexage en cours...";
@@ -132,6 +139,11 @@
         hasLiveStepStatus = false;
         currentStepKey = null;
         currentStepPercent = 0;
+        isStepTransitioning = false;
+        if (stepSwitchTimer) {
+            window.clearTimeout(stepSwitchTimer);
+            stepSwitchTimer = null;
+        }
         if (indexingProgressTimer) {
             window.clearInterval(indexingProgressTimer);
             indexingProgressTimer = null;
@@ -193,7 +205,38 @@
             const stepIndex = Number(regen.step_index || 0);
             const totalSteps = Number(regen.total_steps || 0);
 
+            if (isStepTransitioning) {
+                return;
+            }
+
             if (currentStepKey !== stepKey) {
+                if (currentStepKey) {
+                    const previousLabel = STEP_LABELS[currentStepKey] || currentStepKey;
+                    const previousStepIndex = Math.max(1, stepIndex - 1);
+                    const previousCountText = previousStepIndex > 0 && totalSteps > 0
+                        ? ` (${previousStepIndex}/${totalSteps})`
+                        : "";
+                    setIndexingProgress(
+                        100,
+                        `Etape${previousCountText}: ${previousLabel} (100%)`
+                    );
+                    isStepTransitioning = true;
+                    if (stepSwitchTimer) {
+                        window.clearTimeout(stepSwitchTimer);
+                    }
+                    stepSwitchTimer = window.setTimeout(() => {
+                        currentStepKey = stepKey;
+                        currentStepPercent = 0;
+                        const countText = stepIndex > 0 && totalSteps > 0
+                            ? ` (${stepIndex}/${totalSteps})`
+                            : "";
+                        setIndexingProgress(0, `Etape${countText}: ${label} (0%)`);
+                        isStepTransitioning = false;
+                        stepSwitchTimer = null;
+                    }, 260);
+                    return;
+                }
+
                 currentStepKey = stepKey;
                 currentStepPercent = 0;
             } else {

@@ -1,11 +1,24 @@
 import os
+import sys
 from pathlib import Path
 
 from docx import Document
 
 # Resolve repo and nutrifaq-dbase roots from api/db_pipeline/
 REPO_ROOT = Path(__file__).resolve().parents[2]
-KB_ROOT = REPO_ROOT / "nutrifaq-dbase"
+DEFAULT_KB_ROOT = REPO_ROOT / "nutrifaq-dbase"
+
+
+def resolve_kb_root() -> Path:
+    """Resolve knowledge-base root from CLI arg, env, or default path."""
+    if len(sys.argv) >= 2 and sys.argv[1].strip():
+        return Path(sys.argv[1]).resolve()
+
+    kb_root_env = os.getenv("NUTRIFAQ_KB_ROOT", "").strip()
+    if kb_root_env:
+        return Path(kb_root_env).resolve()
+
+    return DEFAULT_KB_ROOT
 
 
 def extract_text_from_docx(docx_path):
@@ -18,8 +31,10 @@ def extract_text_from_docx(docx_path):
     return "\n".join(full_text)
 
 
-def extract_all_documents(folder_path, output_folder=str(KB_ROOT / "transcripts")):
+def extract_all_documents(folder_path, output_folder=None):
     """Extract text from all .docx files and save as .txt."""
+    if output_folder is None:
+        output_folder = str(Path(folder_path).parent / "transcripts")
     os.makedirs(output_folder, exist_ok=True)
 
     docx_files = [f for f in os.listdir(folder_path) if f.endswith(".docx") and not f.startswith("~$")]
@@ -50,7 +65,8 @@ def extract_all_documents(folder_path, output_folder=str(KB_ROOT / "transcripts"
 
 
 if __name__ == "__main__":
-    transcript_folder = str(KB_ROOT / "documents")
+    kb_root = resolve_kb_root()
+    transcript_folder = str(kb_root / "documents")
 
     if not os.path.exists(transcript_folder):
         print(f"Error: Folder '{transcript_folder}' not found")

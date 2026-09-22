@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from api.services.entra_auth_service import require_admin, require_collaborator
 from api.schemas.models import BlobContainerCopyRequest
+from api.services.query_chromadb import get_debug_local_kb_root_folder
 
 from api.services.blob_storage_service import (
     copy_blobs_between_containers,
@@ -23,6 +24,8 @@ from api.services.blob_storage_service import (
     upload_file_to_blob,
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 router = APIRouter()
 
@@ -30,6 +33,42 @@ router = APIRouter()
 def _documents_prefix(root_folder: str | None = None) -> str:
     base_root = (root_folder or get_blob_prefix()).strip("/")
     return f"{base_root}/documents/"
+
+
+def _debug_local_root(root_folder: str | None = None) -> Path:
+    resolved_root = (root_folder or get_debug_local_kb_root_folder()).strip("/")
+    return REPO_ROOT / resolved_root
+
+
+def _strip_known_root_prefix(path_value: str, root_folder: str | None = None) -> str:
+    raw = (path_value or "").strip().lstrip("/")
+    if not raw:
+        return ""
+
+    known_root = (root_folder or get_debug_local_kb_root_folder()).strip("/")
+    variants = [
+        f"{known_root}/",
+        f"{known_root}",
+        "nutrifaq-dbase-debug/",
+        "nutrifaq-dbase-debug",
+        "nutrifaq-dbase/",
+        "nutrifaq-dbase",
+    ]
+    for variant in variants:
+        if raw.lower().startswith(variant.lower()):
+            raw = raw[len(variant):].lstrip("/")
+            break
+
+    if raw.lower().startswith("documents/") or raw.lower() == "documents":
+        return raw.strip("/")
+    return raw.strip("/")
+
+
+def _local_file_path(blob_name: str, root_folder: str | None = None) -> Path:
+    relative_name = _strip_known_root_prefix(blob_name, root_folder=root_folder)
+    if not relative_name:
+        raise HTTPException(status_code=400, detail="Invalid local file path for debug KB.")
+    return _debug_local_root(root_folder) / relative_name
 
 
 def _normalize_requested_prefix(prefix: str, container_name: str | None = None) -> str:
@@ -46,21 +85,57 @@ def _normalize_requested_prefix(prefix: str, container_name: str | None = None) 
 
 
 def _resolve_upload_target(blob_name: str, root_folder: str | None = None) -> str:
-    """Force uploads into the documents subtree regardless of provided path."""
-    normalized = _normalize_requested_prefix(blob_name)
-    base_prefix = _documents_prefix(root_folder)
+    """Force uploads into the debug KB local documents subtree regardless of provided path."""
+    normalized = _strip_known_root_prefix(blob_name, root_folder=root_folder)
+    if not normalized:
+        raise HTTPException(status_code=400, detail="Invalid target file name for upload.")
 
-    if normalized.lower().startswith(base_prefix.lower()):
+    if normalized.lower().startswith("documents/") or normalized.lower() == "documents":
         candidate = normalized
     else:
         leaf = normalized.split("/")[-1] if normalized else ""
-        candidate = f"{base_prefix}{leaf}" if leaf else base_prefix
+        candidate = f"documents/{leaf}" if leaf else "documents"
 
-    # Ensure no trailing separator and no empty target file name.
-    candidate = candidate.rstrip("/")
-    if candidate.lower() == base_prefix.rstrip("/").lower():
+    candidate = candidate.strip("/")
+    if not candidate or candidate.lower() == "documents":
         raise HTTPException(status_code=400, detail="Invalid target file name for upload.")
     return candidate
+
+
+def _list_local_debug_files(prefix: str | None = None, root_folder: str | None = None) -> list[dict]:
+    local_root = _debug_local_root(root_folder)
+    documents_root = local_root / "documents"
+    if not documents_root.exists():
+        return []
+
+    normalized_prefix = (_strip_known_root_prefix(prefix or "", root_folder=root_folder)).strip("/")
+    if normalized_prefix.lower().startswith("documents/"):
+        requested_prefix = normalized_prefix[len("documents/"):].strip("/")
+    elif normalized_prefix.lower() == "documents":
+        requested_prefix = ""
+    else:
+        requested_prefix = normalized_prefix
+
+    files: list[dict] = []
+    for path in sorted(documents_root.rglob("*")):
+        if not path.is_file():
+            continue
+
+        relative_name = path.relative_to(documents_root).as_posix()
+        if requested_prefix and not relative_name.startswith(requested_prefix):
+            continue
+
+        files.append(
+            {
+                "name": f"{(root_folder or get_debug_local_kb_root_folder()).strip('/')}/documents/{relative_name}",
+                "size": path.stat().st_size,
+                "etag": None,
+                "last_modified": path.stat().st_mtime,
+                "content_type": None,
+            }
+        )
+
+    return files
 
 
 @router.get("/api/blob/files")
@@ -70,25 +145,17 @@ def list_files(
     root_folder: str | None = Query(default=None, description="Optional blob root folder override."),
     _: object = Depends(require_collaborator),
 ):
-    """List files currently stored in the Azure blob container."""
-    base_prefix = _documents_prefix(root_folder)
-    user_prefix = _normalize_requested_prefix(prefix or "", container)
-
-    # Keep listing constrained to the documents subtree.
-    if user_prefix and user_prefix.lower().startswith(base_prefix.lower()):
-        effective_prefix = user_prefix
-    elif user_prefix:
-        effective_prefix = f"{base_prefix}{user_prefix}"
-    else:
-        effective_prefix = base_prefix
-
-    files = list_blob_files(prefix=effective_prefix, container_name=container)
+    """List files from the local debug KB working directory."""
+    resolved_root = (root_folder or get_debug_local_kb_root_folder()).strip("/")
+    local_files = _list_local_debug_files(prefix or "", root_folder=root_folder)
+    effective_prefix = _strip_known_root_prefix(prefix or "", root_folder=root_folder)
+    effective_prefix = effective_prefix.strip("/")
     return {
         "status": "ok",
         "container": get_blob_container_name(container),
-        "prefix": effective_prefix,
-        "count": len(files),
-        "files": [asdict(file) for file in files],
+        "prefix": effective_prefix or resolved_root,
+        "count": len(local_files),
+        "files": local_files,
     }
 
 
@@ -98,14 +165,16 @@ def download_file(
     container: str | None = Query(default=None, description="Optional blob container name override."),
     _: object = Depends(require_collaborator),
 ):
-    """Download a blob as a streamed response."""
+    """Download a file from the local debug KB working directory."""
     try:
-        blob_client = get_container_client(container).get_blob_client(blob_name)
-        stream = blob_client.download_blob()
+        local_path = _local_file_path(blob_name)
+        if not local_path.exists() or not local_path.is_file():
+            raise FileNotFoundError(f"File not found: {blob_name}")
+
         return StreamingResponse(
-            BytesIO(stream.readall()),
+            local_path.open("rb"),
             media_type="application/octet-stream",
-            headers={"Content-Disposition": f'attachment; filename="{blob_name.split("/")[-1]}"'},
+            headers={"Content-Disposition": f'attachment; filename="{local_path.name}"'},
         )
     except Exception as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -119,26 +188,17 @@ async def upload_file(
     root_folder: str | None = Query(default=None, description="Optional blob root folder override."),
     _: object = Depends(require_admin),
 ):
-    """Upload a file into the Azure blob container."""
+    """Upload a file into the local debug KB working directory."""
     try:
-        target_blob_name = _resolve_upload_target(blob_name, root_folder)
-        from tempfile import NamedTemporaryFile
+        target_relative_name = _resolve_upload_target(blob_name, root_folder)
+        target_path = _debug_local_root(root_folder) / target_relative_name
+        target_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with NamedTemporaryFile(delete=False) as temp_file:
-            temp_file.write(await file.read())
-            temp_path = temp_file.name
+        content = await file.read()
+        with open(target_path, "wb") as target_file:
+            target_file.write(content)
 
-        try:
-            upload_file_to_blob(
-                target_blob_name,
-                source_path=Path(temp_path),
-                overwrite=True,
-                container_name=container,
-            )
-        finally:
-            os.unlink(temp_path)
-
-        return {"status": "ok", "blob_name": target_blob_name, "filename": file.filename}
+        return {"status": "ok", "blob_name": target_relative_name, "filename": file.filename}
     except HTTPException:
         raise
     except Exception as exc:
@@ -151,9 +211,12 @@ def remove_file(
     container: str | None = Query(default=None, description="Optional blob container name override."),
     _: object = Depends(require_admin),
 ):
-    """Delete a blob from the Azure container."""
+    """Delete a file from the local debug KB working directory."""
     try:
-        delete_blob(blob_name, container_name=container)
+        target_path = _local_file_path(blob_name)
+        if not target_path.exists():
+            raise FileNotFoundError(f"File not found: {blob_name}")
+        target_path.unlink()
         return JSONResponse(status_code=200, content={"status": "ok", "blob_name": blob_name})
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -166,6 +229,7 @@ def copy_container_files(
 ):
     """Copy blobs from a source container to a destination container."""
     try:
+        effective_overwrite = True
         return {
             "status": "ok",
             "result": copy_blobs_between_containers(
@@ -173,7 +237,7 @@ def copy_container_files(
                 destination_container=copy_request.destination_container,
                 source_prefix=copy_request.source_prefix,
                 destination_prefix=copy_request.destination_prefix,
-                overwrite=copy_request.overwrite,
+                overwrite=effective_overwrite,
                 wait_for_completion=copy_request.wait_for_completion,
                 timeout_seconds=copy_request.timeout_seconds,
             ),

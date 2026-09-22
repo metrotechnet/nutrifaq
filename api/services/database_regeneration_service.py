@@ -22,11 +22,11 @@ from api.services.blob_storage_service import (
     get_blob_container_name,
     get_blob_prefix,
     has_blob_storage_config,
+    sync_blob_prefix_to_local,
     sync_local_directory_to_blob,
     upload_file_to_blob,
 )
 from api.services.query_chromadb import get_debug_local_kb_root_folder
-from api.services.llm_service import create_chat_completion_text, get_gateway_client
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -132,133 +132,74 @@ def generate_questions_from_transcripts_json(
     target_root_folder: str | None = None,
     output_filename: str = "generated_questions.json",
 ) -> Dict[str, object]:
-    """Generate N questions per document from transcripts_chromadb.json and upload to blob."""
+    """Generate N questions per document from transcripts_chromadb.json to local JSON."""
     if question_count < 1:
         return {"status": "error", "message": "question_count must be >= 1."}
 
     local_root_folder = (source_root_folder or get_debug_local_kb_root_folder()).strip("/")
     local_kb_root = REPO_ROOT / local_root_folder
-    transcripts_path = local_kb_root / "transcripts_chromadb.json"
-
-    if not transcripts_path.exists():
-        fallback_path = KB_ROOT / "transcripts_chromadb.json"
-        if fallback_path.exists():
-            transcripts_path = fallback_path
-        else:
-            return {
-                "status": "error",
-                "message": "transcripts_chromadb.json not found in configured local KB roots.",
-                "searched_paths": [str(local_kb_root / "transcripts_chromadb.json"), str(fallback_path)],
-            }
-
-    with open(transcripts_path, "r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-
-    documents = payload.get("documents", []) if isinstance(payload, dict) else []
-    if not isinstance(documents, list) or not documents:
+    script_path = SCRIPTS_DIR / "generate_questions_json.py"
+    if not script_path.exists():
         return {
             "status": "error",
-            "message": "No documents found in transcripts_chromadb.json.",
-            "transcripts_path": str(transcripts_path),
+            "message": f"Missing script: {script_path}",
         }
 
-    generated_documents: list[Dict[str, object]] = []
-    llm_failures = 0
-    client = get_gateway_client()
-    llm_model = os.getenv("QUESTION_GENERATION_MODEL", "").strip() or None
+    command = [
+        _python_executable(),
+        str(script_path),
+        str(local_kb_root),
+        str(question_count),
+    ]
 
-    for doc in documents:
-        if not isinstance(doc, dict):
-            continue
-        doc_id = str(doc.get("id", "unknown"))
-        metadata = doc.get("metadata", {}) if isinstance(doc.get("metadata"), dict) else {}
-        source_name = str(metadata.get("source") or metadata.get("reference") or doc_id)
-        full_text = str(doc.get("text", ""))
-        topic = _sanitize_question_topic(full_text)
-        text_excerpt = re.sub(r"\s+", " ", full_text).strip()[:2200]
+    process = subprocess.run(
+        command,
+        cwd=str(local_kb_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
 
-        llm_questions: list[str] = []
-        llm_error: str | None = None
-        try:
-            prompt = _build_llm_prompt_for_questions(text_excerpt, topic, question_count)
-            raw_output = create_chat_completion_text(
-                client=client,
-                model_name=llm_model,
-                prompt=prompt,
-                temperature=0.4,
-            )
-            llm_questions = _extract_json_array_from_text(raw_output)
-        except Exception as exc:
-            llm_error = str(exc)
-
-        if len(llm_questions) < question_count:
-            llm_failures += 1
-            fallback_questions = _build_questions_for_document(topic, question_count)
-            merged = llm_questions + fallback_questions
-            questions = merged[:question_count]
-            generation_mode = "fallback"
-        else:
-            questions = llm_questions[:question_count]
-            generation_mode = "llm"
-
-        generated_documents.append(
-            {
-                "document_id": doc_id,
-                "source": source_name,
-                "topic": topic,
-                "questions": questions,
-                "generation_mode": generation_mode,
-                "llm_error": llm_error,
-            }
-        )
-
-    output_data = {
-        "status": "ok",
-        "question_count_per_document": question_count,
-        "total_documents": len(generated_documents),
-        "generated_from": str(transcripts_path),
-        "documents": generated_documents,
-    }
+    if process.returncode != 0:
+        return {
+            "status": "error",
+            "message": "Question generation script failed.",
+            "command": " ".join(command),
+            "stdout": process.stdout,
+            "stderr": process.stderr,
+            "return_code": process.returncode,
+        }
 
     output_path = local_kb_root / output_filename
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as handle:
-        json.dump(output_data, handle, ensure_ascii=False, indent=2)
-
-    resolved_root = (target_root_folder or os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX") or local_root_folder).strip("/")
-    resolved_container = (
-        (target_container_name or "").strip()
-        or os.getenv("AZURE_KB_DEBUG_BLOB_CONTAINER")
-        or "nutrifaq-knowledge-base-debug"
-    )
-    blob_name = f"{resolved_root}/{output_filename}"
-
-    if has_blob_storage_config():
-        upload_file_to_blob(
-            blob_name=blob_name,
-            source_path=output_path,
-            overwrite=True,
-            container_name=resolved_container,
-        )
-        upload_status: Dict[str, object] = {
-            "status": "ok",
-            "container": resolved_container,
-            "blob_name": blob_name,
+    if not output_path.exists():
+        return {
+            "status": "error",
+            "message": f"Generated file not found: {output_path}",
+            "command": " ".join(command),
+            "stdout": process.stdout,
+            "stderr": process.stderr,
         }
-    else:
-        upload_status = {
-            "status": "skipped",
-            "message": "Azure Blob Storage not configured; upload skipped.",
-        }
+
+    total_documents = None
+    llm_failures = None
+    try:
+        with open(output_path, "r", encoding="utf-8") as handle:
+            output_data = json.load(handle)
+        total_documents = output_data.get("total_documents")
+        llm_failures = output_data.get("llm_failures")
+    except Exception:
+        pass
 
     return {
         "status": "ok",
         "message": "Questions generated successfully.",
         "question_count_per_document": question_count,
-        "total_documents": len(generated_documents),
+        "total_documents": total_documents,
         "llm_failures": llm_failures,
         "local_output_path": str(output_path),
-        "blob_upload": upload_status,
+        "stdout": process.stdout,
+        "stderr": process.stderr,
     }
 
 
@@ -387,6 +328,13 @@ def _step_definitions() -> Dict[str, StepDefinition]:
             cwd=KB_ROOT,
             args=[str(KB_ROOT)],
         ),
+        "generate_questions": StepDefinition(
+            key="generate_questions",
+            description="Generate per-document questions from transcripts_chromadb.json.",
+            script_name="generate_questions_json.py",
+            cwd=KB_ROOT,
+            args=[str(KB_ROOT), "3"],
+        ),
         "index_chromadb_json": StepDefinition(
             key="index_chromadb_json",
             description="Index transcripts_chromadb.json into nutrifaq-dbase/chroma_db.",
@@ -401,14 +349,6 @@ def list_regeneration_steps() -> List[Dict[str, str]]:
     steps = _step_definitions()
     listed_steps: list[dict[str, str]] = []
     for key in STEP_ORDER:
-        if key == "generate_questions":
-            listed_steps.append(
-                {
-                    "key": key,
-                    "description": "Generate per-document questions from transcripts and upload JSON to blob.",
-                }
-            )
-            continue
         if key in steps:
             listed_steps.append({"key": steps[key].key, "description": steps[key].description})
     return listed_steps
@@ -418,7 +358,12 @@ def _run_step(step_key: str) -> Dict[str, object]:
     return _run_step_with_env(step_key)
 
 
-def _run_step_with_env(step_key: str, env_overrides: Dict[str, str] | None = None) -> Dict[str, object]:
+def _run_step_with_env(
+    step_key: str,
+    env_overrides: Dict[str, str] | None = None,
+    step_args_override: List[str] | None = None,
+    cwd_override: Path | None = None,
+) -> Dict[str, object]:
     steps = _step_definitions()
     if step_key not in steps:
         return {
@@ -437,7 +382,8 @@ def _run_step_with_env(step_key: str, env_overrides: Dict[str, str] | None = Non
             "message": f"Missing script: {script_path}",
         }
 
-    command = [_python_executable(), str(script_path), *step.args]
+    command_args = step_args_override if step_args_override is not None else step.args
+    command = [_python_executable(), str(script_path), *command_args]
     started = time.time()
     process_env = os.environ.copy()
     if env_overrides:
@@ -445,7 +391,7 @@ def _run_step_with_env(step_key: str, env_overrides: Dict[str, str] | None = Non
 
     process = subprocess.Popen(
         command,
-        cwd=str(step.cwd),
+        cwd=str(cwd_override or step.cwd),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -481,7 +427,7 @@ def _run_step_with_env(step_key: str, env_overrides: Dict[str, str] | None = Non
             "step": step.key,
             "description": step.description,
             "command": " ".join(command),
-            "cwd": str(step.cwd),
+            "cwd": str(cwd_override or step.cwd),
             "return_code": process.returncode,
             "duration_seconds": duration_seconds,
             "stdout": stdout,
@@ -494,7 +440,7 @@ def _run_step_with_env(step_key: str, env_overrides: Dict[str, str] | None = Non
         "step": step.key,
         "description": step.description,
         "command": " ".join(command),
-        "cwd": str(step.cwd),
+        "cwd": str(cwd_override or step.cwd),
         "return_code": process.returncode,
         "duration_seconds": duration_seconds,
         "stdout": stdout,
@@ -569,16 +515,19 @@ def run_regeneration_step(step_key: str) -> Dict[str, object]:
 
 def _save_chromadb_to_blob_and_local_copy(
     *,
+    local_kb_root: Path,
     root_folder: str | None = None,
     container_name: str | None = None,
 ) -> Dict[str, object]:
-    if not CHROMA_DB_ROOT.exists():
+    local_chroma_root = local_kb_root / "chroma_db"
+
+    if not local_chroma_root.exists():
         return {
             "status": "error",
-            "message": f"ChromaDB directory not found: {CHROMA_DB_ROOT}",
+            "message": f"ChromaDB directory not found: {local_chroma_root}",
         }
 
-    sqlite_path = CHROMA_DB_ROOT / "chroma.sqlite3"
+    sqlite_path = local_chroma_root / "chroma.sqlite3"
     if not sqlite_path.exists():
         return {
             "status": "error",
@@ -587,25 +536,75 @@ def _save_chromadb_to_blob_and_local_copy(
 
     blob_result: Dict[str, object]
     if has_blob_storage_config():
-        resolved_root = (root_folder or get_blob_prefix()).strip("/")
-        destination_prefix = f"{resolved_root}/chroma_db"
+        resolved_root = (
+            (root_folder or "").strip()
+            or os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX", "").strip()
+            or "nutrifaq-dbase-debug"
+        ).strip("/")
         resolved_container = (
             (container_name or "").strip()
+            or os.getenv("AZURE_KB_DEBUG_BLOB_CONTAINER")
             or os.getenv("AZURE_STORAGE_CONTAINER")
             or get_blob_container_name()
         )
+
+        # Upload the full local KB root back to blob after indexing. This ensures local
+        # debug work is preserved and the debug blob stays in sync with the regenerated data.
+        root_uploads = sync_local_directory_to_blob(
+            local_kb_root,
+            resolved_root,
+            overwrite=True,
+            container_name=resolved_container,
+        )
+
+        destination_prefix = f"{resolved_root}/chroma_db"
         uploaded = sync_local_directory_to_blob(
-            CHROMA_DB_ROOT,
+            local_chroma_root,
             destination_prefix,
             overwrite=True,
             container_name=resolved_container,
         )
+
+        artifact_files = [
+            "generated_questions.json",
+            "transcripts_chromadb.json",
+            "references.json",
+        ]
+        artifact_uploads: list[dict[str, object]] = []
+        for artifact_name in artifact_files:
+            artifact_path = local_kb_root / artifact_name
+            if not artifact_path.exists() or not artifact_path.is_file():
+                artifact_uploads.append(
+                    {
+                        "file": artifact_name,
+                        "status": "missing",
+                    }
+                )
+                continue
+
+            artifact_blob_name = f"{resolved_root}/{artifact_name}"
+            upload_file_to_blob(
+                blob_name=artifact_blob_name,
+                source_path=artifact_path,
+                overwrite=True,
+                container_name=resolved_container,
+            )
+            artifact_uploads.append(
+                {
+                    "file": artifact_name,
+                    "status": "ok",
+                    "blob_name": artifact_blob_name,
+                }
+            )
+
         blob_result = {
             "status": "ok",
             "container": resolved_container,
             "root_folder": resolved_root,
             "destination_prefix": destination_prefix,
-            "uploaded_files_count": len(uploaded),
+            "uploaded_files_count": len(root_uploads),
+            "chroma_uploaded_files_count": len(uploaded),
+            "artifact_uploads": artifact_uploads,
         }
     else:
         blob_result = {
@@ -655,6 +654,7 @@ def run_full_regeneration(
         or os.getenv("AZURE_KB_DEBUG_BLOB_CONTAINER", "").strip()
         or "nutrifaq-knowledge-base-debug"
     )
+    resolved_local_kb_root = REPO_ROOT / resolved_root_folder
 
     pipeline: List[str] = []
     if include_extract_docx:
@@ -669,19 +669,40 @@ def run_full_regeneration(
         "AZURE_KB_BLOB_PREFIX": resolved_root_folder,
         "AZURE_STORAGE_CONTAINER": resolved_container_name,
         "AZURE_KB_BLOB_CONTAINER": resolved_container_name,
+        "NUTRIFAQ_KB_ROOT": str(resolved_local_kb_root),
     }
 
     step_services = {
-        "extract_docx": lambda: _run_step_with_env("extract_docx", env_overrides=regen_env),
-        "extract_references": lambda: _run_step_with_env("extract_references", env_overrides=regen_env),
-        "generate_transcripts_json": lambda: _run_step_with_env("generate_transcripts_json", env_overrides=regen_env),
+        "extract_docx": lambda: _run_step_with_env(
+            "extract_docx",
+            env_overrides=regen_env,
+            step_args_override=[str(resolved_local_kb_root)],
+            cwd_override=resolved_local_kb_root,
+        ),
+        "extract_references": lambda: _run_step_with_env(
+            "extract_references",
+            env_overrides=regen_env,
+            step_args_override=[str(resolved_local_kb_root)],
+            cwd_override=resolved_local_kb_root,
+        ),
+        "generate_transcripts_json": lambda: _run_step_with_env(
+            "generate_transcripts_json",
+            env_overrides=regen_env,
+            step_args_override=[str(resolved_local_kb_root)],
+            cwd_override=resolved_local_kb_root,
+        ),
         "generate_questions": lambda: run_generate_questions_step(
             question_count=3,
             source_root_folder=resolved_root_folder,
             target_container_name=resolved_container_name,
             target_root_folder=resolved_root_folder,
         ),
-        "index_chromadb_json": lambda: _run_step_with_env("index_chromadb_json", env_overrides=regen_env),
+        "index_chromadb_json": lambda: _run_step_with_env(
+            "index_chromadb_json",
+            env_overrides=regen_env,
+            step_args_override=[str(resolved_local_kb_root)],
+            cwd_override=resolved_local_kb_root,
+        ),
     }
 
     try:
@@ -717,6 +738,7 @@ def run_full_regeneration(
             }
 
         publish_result = _save_chromadb_to_blob_and_local_copy(
+            local_kb_root=resolved_local_kb_root,
             root_folder=resolved_root_folder,
             container_name=resolved_container_name,
         )
@@ -731,6 +753,10 @@ def run_full_regeneration(
         return {
             "status": "success",
             "message": "Database regeneration pipeline completed.",
+            "effective_target": {
+                "container": resolved_container_name,
+                "root_folder": resolved_root_folder,
+            },
             "steps": results,
             "post_sync": publish_result,
         }
