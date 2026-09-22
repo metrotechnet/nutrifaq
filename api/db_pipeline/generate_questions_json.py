@@ -8,6 +8,7 @@ Usage:
 import json
 import re
 import sys
+import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -15,6 +16,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from api.services.llm_service import create_chat_completion_text, get_gateway_client  # noqa: E402
+from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
 
 
 def _sanitize_question_topic(text: str, *, max_words: int = 8) -> str:
@@ -95,7 +97,10 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
     client = get_gateway_client()
     generated_documents = []
     llm_failures = 0
+    total_questions = len(documents) * question_count
+    _write_progress_snapshot("generate_questions", 0, total_questions, "questions")
 
+    processed_questions = 0
     for doc in documents:
         if not isinstance(doc, dict):
             continue
@@ -139,6 +144,9 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
                 "llm_error": llm_error,
             }
         )
+        processed_questions += len(questions)
+        _write_progress_snapshot("generate_questions", processed_questions, total_questions, "questions")
+        time.sleep(0.05)
 
     output_data = {
         "status": "ok",

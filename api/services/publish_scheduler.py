@@ -20,6 +20,54 @@ _LOCK = threading.Lock()
 _SCHEDULED_JOBS: dict[str, dict[str, Any]] = {}
 
 
+def sync_debug_to_blob(
+    debug_root: Path | str | None = None,
+    prefix: str | None = None,
+    container_name: str | None = None,
+) -> dict[str, Any]:
+    source_root = Path(debug_root or DEBUG_KB_ROOT).resolve()
+    effective_prefix = (
+        prefix
+        or os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX")
+        or os.getenv("AZURE_KB_BLOB_PREFIX")
+        or "nutrifaq-dbase-debug"
+    ).strip("/")
+    effective_container = (
+        container_name
+        or os.getenv("AZURE_KB_DEBUG_BLOB_CONTAINER")
+        or os.getenv("AZURE_STORAGE_CONTAINER")
+        or os.getenv("AZURE_KB_BLOB_CONTAINER")
+        or "nutrifaq-knowledge-base-debug"
+    ).strip()
+
+    if not source_root.exists():
+        return {"status": "error", "message": f"Debug KB root not found: {source_root}"}
+
+    try:
+        uploaded = sync_local_directory_to_blob(
+            source_root,
+            effective_prefix,
+            overwrite=True,
+            container_name=effective_container,
+        )
+        return {
+            "status": "ok",
+            "source_root": str(source_root),
+            "prefix": effective_prefix,
+            "container": effective_container,
+            "uploaded_files_count": len(uploaded),
+            "uploaded": uploaded,
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "message": str(exc),
+            "source_root": str(source_root),
+            "prefix": effective_prefix,
+            "container": effective_container,
+        }
+
+
 def _parse_publish_datetime(value: datetime | str | None) -> datetime:
     if value is None:
         raise ValueError("A publish date/time is required.")
@@ -195,6 +243,10 @@ def schedule_publish(
 ) -> dict[str, Any]:
     if not model or not str(model).strip():
         raise ValueError("A model is required for publication.")
+
+    debug_sync_result = sync_debug_to_blob()
+    if debug_sync_result.get("status") != "ok":
+        raise RuntimeError(debug_sync_result.get("message") or "Debug local-to-blob sync failed.")
 
     publish_dt = _parse_publish_datetime(publish_at)
     job_id = uuid.uuid4().hex

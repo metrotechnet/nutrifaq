@@ -4,6 +4,13 @@ from datetime import datetime, timedelta, timezone
 
 import api.services.logging as logging_service
 import api.services.publish_scheduler as publish_scheduler
+import api.services.database_regeneration_service as regen_service
+
+
+def test_question_log_defaults_to_debug_kb_path():
+    path = logging_service.QUESTION_LOG_PATH
+    assert path.name == "question_log.json"
+    assert path.parent.name == "nutrifaq-dbase-debug"
 
 
 def test_reset_question_log_clears_file(tmp_path, monkeypatch):
@@ -43,8 +50,13 @@ def test_schedule_publish_executes_debug_to_main_sync_and_indexing(tmp_path, mon
         events.append(("sync", str(root), str(prefix), str(container)))
         return {"status": "ok"}
 
+    def fake_debug_sync(*args, **kwargs):
+        events.append(("debug_sync",))
+        return {"status": "ok"}
+
     monkeypatch.setattr(publish_scheduler, "DEBUG_KB_ROOT", debug_root)
     monkeypatch.setattr(publish_scheduler, "MAIN_KB_ROOT", main_root)
+    monkeypatch.setattr(publish_scheduler, "sync_debug_to_blob", fake_debug_sync)
     monkeypatch.setattr(publish_scheduler, "copy_debug_to_main_local", fake_copy)
     monkeypatch.setattr(publish_scheduler, "restart_main_indexing", fake_index)
     monkeypatch.setattr(publish_scheduler, "sync_main_to_blob", fake_sync)
@@ -58,6 +70,7 @@ def test_schedule_publish_executes_debug_to_main_sync_and_indexing(tmp_path, mon
     assert job["status"] == "scheduled"
     assert job["model"] == "gpt-4o-mini"
     assert job["provider"] == "azure"
+    assert ("debug_sync",) in events
 
     deadline = time.time() + 3
     while time.time() < deadline and len(events) < 3:
@@ -66,3 +79,35 @@ def test_schedule_publish_executes_debug_to_main_sync_and_indexing(tmp_path, mon
     assert ("copy", str(debug_root), str(main_root)) in events
     assert ("index", str(main_root)) in events
     assert ("sync", str(main_root), "nutrifaq-dbase", "nutrifaq-knowledge-base") in events
+
+
+def test_regeneration_progress_uses_question_and_token_totals(monkeypatch):
+    monkeypatch.setattr(regen_service, "_regen_state", {
+        "running": True,
+        "cancel_requested": False,
+        "current_step": "generate_questions",
+        "progress_value": 40,
+        "progress_total": 100,
+        "progress_kind": "questions",
+        "active_process": None,
+    })
+
+    status = regen_service.get_regeneration_status()
+    assert status["progress_kind"] == "questions"
+    assert status["progress_total"] == 100
+    assert status["progress_percent"] == 40.0
+
+    monkeypatch.setattr(regen_service, "_regen_state", {
+        "running": True,
+        "cancel_requested": False,
+        "current_step": "index_chromadb_json",
+        "progress_value": 2500,
+        "progress_total": 5000,
+        "progress_kind": "tokens",
+        "active_process": None,
+    })
+
+    status = regen_service.get_regeneration_status()
+    assert status["progress_kind"] == "tokens"
+    assert status["progress_total"] == 5000
+    assert status["progress_percent"] == 50.0

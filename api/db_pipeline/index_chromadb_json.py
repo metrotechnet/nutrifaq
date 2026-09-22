@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import sys
+import time
 from pathlib import Path
 
 import chromadb
@@ -25,6 +26,7 @@ from api.services.blob_storage_service import (  # noqa: E402
     get_blob_prefix,
 )
 from api.services.llm_service import create_embeddings  # noqa: E402
+from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
 
 # Get main root directory (where .env is located)
 MAIN_ROOT = Path.cwd()
@@ -159,6 +161,9 @@ def index_chromadb_json(kb_path):
     all_metadatas = []
 
     total_chunks = 0
+    total_tokens = sum(len(str(doc.get("text", "")).split()) for doc in documents)
+    processed_tokens = 0
+    _write_progress_snapshot("index_chromadb_json", 0, max(total_tokens, 1), "tokens")
 
     for doc in documents:
         doc_id = doc["id"]
@@ -186,7 +191,11 @@ def index_chromadb_json(kb_path):
             }
             all_metadatas.append(chunk_metadata)
 
+            processed_tokens += len(str(chunk).split())
+            _write_progress_snapshot("index_chromadb_json", processed_tokens, max(total_tokens, 1), "tokens")
+
         print(f"  Successfully prepared {doc_id}")
+        time.sleep(0.05)
 
     print(f"\nIndexing {total_chunks} chunks into ChromaDB...")
 

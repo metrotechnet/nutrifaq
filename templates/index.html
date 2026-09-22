@@ -71,13 +71,13 @@
                 <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M5 20h14v-2H5v2zM12 2v12l4-4 1.41 1.41L12 17.83l-5.41-5.42L8 10l4 4V2h0z"/>
                 </svg>
-                <span data-i18n="sidebar.download">Télécharger</span>
+                <span data-i18n="sidebar.download">Indexer</span>
             </a>
             <a href="#chat-container" class="sidebar-link" id="tester-link">
                 <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8v2c5.52 0 10-4.48 10-10S17.52 2 12 2zm-1 5v6l5.25 3.15.75-1.23-4.5-2.67V7H11z"/>
                 </svg>
-                <span data-i18n="sidebar.test">Tester</span>
+                <span data-i18n="sidebar.test">Valider</span>
             </a>
             <a href="#" class="sidebar-link" id="validate-link">
                 <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
@@ -167,12 +167,12 @@
                     <article class="instruction-step">
                         <div class="step-number">1</div>
                         <div class="step-content">
-                            <h3 data-i18n="instructions.downloadTitle">Télécharger</h3>
+                            <h3 data-i18n="instructions.downloadTitle">Indexer</h3>
                             <p data-i18n="instructions.downloadDescription">Utilisez cette section pour préparer le contenu de la base de connaissances avant de l’intégrer à NutriFAQ-Chat.</p>
                             <ul>
                                 <li data-i18n="instructions.downloadItem1">Glissez-déposez un fichier ou sélectionnez-le avec le bouton Choisir un fichier.</li>
-                                <li data-i18n="instructions.downloadItem2">Vérifiez le nom du fichier affiché dans la zone de sélection.</li>
-                                <li data-i18n="instructions.downloadItem3">Si nécessaire, réinitialisez les fichiers avant de relancer un indexage.</li>
+                                <li data-i18n="instructions.downloadItem2">Indexez la base de données pour transformer les fichiers en données consultables par le système.</li>
+                                <li data-i18n="instructions.downloadItem3">Cette étape permet au chatbot de retrouver les bons contenus lors des réponses et d’améliorer la précision des résultats.</li>
                             </ul>
                         </div>
                     </article>
@@ -180,8 +180,8 @@
                     <article class="instruction-step">
                         <div class="step-number">2</div>
                         <div class="step-content">
-                            <h3 data-i18n="instructions.testTitle">Tester</h3>
-                            <p data-i18n="instructions.testDescription">Une fois les fichiers chargés et indexés, passez en mode Tester pour valider le comportement réel.</p>
+                            <h3 data-i18n="instructions.testTitle">Valider</h3>
+                            <p data-i18n="instructions.testDescription">Une fois les fichiers chargés et indexés, passez en mode Valider pour vérifier le comportement réel.</p>
                             <ul>
                                 <li data-i18n="instructions.testItem1">Posez une question de test en rapport avec le contenu indexé.</li>
                                 <li data-i18n="instructions.testItem2">Vérifiez que la réponse est cohérente et qu’elle utilise bien les bons documents.</li>
@@ -204,6 +204,10 @@
                         </div>
                     </article>
                 </div>
+
+                <p class="instructions-support-note" data-i18n="instructions.supportNote">
+                    Besoin d’aide ? Écrivez-nous à info@imxtech.ca
+                </p>
             </section>
 
             <section class="download-dropzone-section" aria-label="Téléversement de fichier" style="display:none;">

@@ -757,6 +757,16 @@
             const label = regen.current_step_label || getStepLabel(stepKey);
             const stepIndex = Number(regen.step_index || 0);
             const totalSteps = Number(regen.total_steps || 0);
+            const liveProgressPercent = Number.isFinite(Number(regen.progress_percent))
+                ? Number(regen.progress_percent)
+                : null;
+            const liveProgressValue = Number.isFinite(Number(regen.progress_value))
+                ? Number(regen.progress_value)
+                : null;
+            const liveProgressTotal = Number.isFinite(Number(regen.progress_total))
+                ? Number(regen.progress_total)
+                : null;
+            const liveProgressKind = regen.progress_kind || "";
 
             if (isStepTransitioning) {
                 return;
@@ -784,17 +794,17 @@
                     }
                     stepSwitchTimer = window.setTimeout(() => {
                         currentStepKey = stepKey;
-                        currentStepPercent = 0;
+                        currentStepPercent = liveProgressPercent !== null ? liveProgressPercent : 0;
                         const countText = stepIndex > 0 && totalSteps > 0
                             ? ` (${stepIndex}/${totalSteps})`
                             : "";
-                        setIndexingProgress(0, tr(
+                        setIndexingProgress(currentStepPercent, tr(
                             "downloadManager.progress.step",
-                            `Etape${countText}: ${label} (0%)`,
+                            `Etape${countText}: ${label} (${Math.round(currentStepPercent)}%)`,
                             {
                                 countText,
                                 label,
-                                percent: 0
+                                percent: Math.round(currentStepPercent)
                             }
                         ));
                         isStepTransitioning = false;
@@ -804,23 +814,28 @@
                 }
 
                 currentStepKey = stepKey;
-                currentStepPercent = 0;
+                currentStepPercent = liveProgressPercent !== null ? liveProgressPercent : 0;
+            } else if (liveProgressPercent !== null) {
+                currentStepPercent = liveProgressPercent;
             } else {
-                // Smooth normalized progression within the current step.
                 currentStepPercent = Math.min(currentStepPercent + 12, 96);
             }
 
             const countText = stepIndex > 0 && totalSteps > 0
                 ? ` (${stepIndex}/${totalSteps})`
                 : "";
+            const metricText = liveProgressTotal && liveProgressValue !== null
+                ? ` (${Math.round(liveProgressValue)}/${Math.round(liveProgressTotal)} ${liveProgressKind === "tokens" ? "tokens" : "questions"})`
+                : "";
             setIndexingProgress(
                 currentStepPercent,
                 tr(
                     "downloadManager.progress.step",
-                    `Etape${countText}: ${label} (${Math.round(currentStepPercent)}%)`,
+                    `Etape${countText}: ${label}${metricText} (${Math.round(currentStepPercent)}%)`,
                     {
                         countText,
                         label,
+                        metricText,
                         percent: Math.round(currentStepPercent)
                     }
                 )
@@ -1346,7 +1361,37 @@
         }
 
         try {
-            setPublishStatus(tr("publish.status.scheduling", "Planification de la publication..."), false);
+            setPublishStatus(tr("publish.status.syncingDebug", "Synchronisation des fichiers debug vers le blob..."), false);
+
+            const syncResponse = await fetch(
+                `${BACKEND_URL}/api/blob/debug/sync-local-to-blob?container=${encodeURIComponent(DEBUG_BLOB_CONTAINER)}&root_folder=${encodeURIComponent(DEBUG_BLOB_ROOT_FOLDER)}`,
+                {
+                    method: "POST",
+                    headers: {
+                        ...authHeaders(),
+                    },
+                }
+            );
+
+            const syncPayload = await syncResponse.json().catch(() => ({}));
+            if (!syncResponse.ok) {
+                throw new Error(
+                    syncPayload.detail ||
+                    syncPayload.message ||
+                    syncResponse.statusText ||
+                    tr("publish.status.syncFailed", "Echec de la synchronisation debug vers blob.")
+                );
+            }
+
+            const uploadedCount = Number(syncPayload.uploaded_files_count || 0);
+            setPublishStatus(
+                tr(
+                    "publish.status.syncDone",
+                    "Synchronisation terminee ({count} fichiers). Planification de la publication...",
+                    { count: uploadedCount }
+                ),
+                false
+            );
 
             const body = {
                 model: selectedModel,
@@ -1451,7 +1496,7 @@
                     <td>${escapeHtml(size)}</td>
                     <td>${escapeHtml(lastModified)}</td>
                     <td>
-                        <button class="dm-btn table-action" data-action="download" data-name="${encodeURIComponent(blobName)}">${escapeHtml(tr("downloadManager.table.download", "Télécharger"))}</button>
+                        <button class="dm-btn table-action" data-action="download" data-name="${encodeURIComponent(blobName)}">${escapeHtml(tr("downloadManager.table.download", "Indexer"))}</button>
                         <button class="dm-btn table-action danger" data-action="delete" data-name="${encodeURIComponent(blobName)}">${escapeHtml(tr("downloadManager.table.delete", "Supprimer"))}</button>
                     </td>
                 </tr>

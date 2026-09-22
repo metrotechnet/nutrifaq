@@ -9,9 +9,10 @@ import json
 import os
 import threading
 
-PROJECT_ROOT = Path(__file__).parent.parent
-PROJECT_NAME = PROJECT_ROOT.name.replace("-agent", "")
-QUESTION_LOG_PATH = PROJECT_ROOT / "question_log.json"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = PROJECT_ROOT.parent
+DEFAULT_DEBUG_KB_ROOT = REPO_ROOT / "nutrifaq-dbase-debug"
+QUESTION_LOG_PATH = DEFAULT_DEBUG_KB_ROOT / "question_log.json"
 question_log_lock = threading.Lock()
 
 GCS_LOG_BLOB_NAME = "question_log.json"
@@ -118,6 +119,7 @@ def reset_question_log():
 def _upload_log_to_gcs(data):
     """Upload question log data to GCS bucket (server) or local file (local dev)."""
     if not os.getenv("K_SERVICE"):
+        QUESTION_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(QUESTION_LOG_PATH, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return

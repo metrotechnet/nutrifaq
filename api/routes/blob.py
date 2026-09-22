@@ -21,6 +21,7 @@ from api.services.blob_storage_service import (
     get_blob_container_name,
     get_container_client,
     list_blob_files,
+    sync_local_directory_to_blob,
     sync_blob_prefix_to_local,
     upload_file_to_blob,
 )
@@ -276,5 +277,42 @@ def reset_local_debug_from_blob(
             "documents_count": len(local_files),
             "message": "Debug files synced from blob to local.",
         }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/api/blob/debug/sync-local-to-blob")
+def sync_local_debug_to_blob(
+    container: str | None = Query(default=None, description="Optional blob container name override."),
+    root_folder: str | None = Query(default=None, description="Optional blob root folder override."),
+    _: object = Depends(require_admin),
+):
+    """Sync local debug KB files to blob and wait for completion before returning."""
+    try:
+        resolved_root = (root_folder or get_debug_local_kb_root_folder()).strip("/")
+        resolved_container = get_blob_container_name(container)
+        local_root = _debug_local_root(root_folder)
+
+        if not local_root.exists() or not local_root.is_dir():
+            raise HTTPException(status_code=404, detail=f"Debug local root not found: {local_root}")
+
+        uploaded = sync_local_directory_to_blob(
+            local_root,
+            resolved_root,
+            overwrite=True,
+            container_name=resolved_container,
+        )
+
+        return {
+            "status": "ok",
+            "container": resolved_container,
+            "root_folder": resolved_root,
+            "local_path": str(local_root),
+            "uploaded_files_count": len(uploaded),
+            "uploaded_files": uploaded,
+            "message": "Debug local files synced to blob.",
+        }
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
