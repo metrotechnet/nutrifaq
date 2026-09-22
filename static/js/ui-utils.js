@@ -11,6 +11,30 @@
 let isKeyboardVisible = false;
 let previousViewportHeight = window.innerHeight;
 
+function isElementScrollable(el) {
+    return Boolean(el) && el.scrollHeight - el.clientHeight > 4;
+}
+
+function getChatScrollContainer() {
+    const chatContainer = document.getElementById('chat-container');
+    const chatMainLayout = document.getElementById('chat-main-layout');
+    const chatStream = document.getElementById('chat-stream');
+
+    if (chatContainer) {
+        return chatContainer;
+    }
+
+    if (chatMainLayout && window.getComputedStyle(chatMainLayout).display !== 'none') {
+        return chatMainLayout;
+    }
+
+    if (isElementScrollable(chatStream) && !isElementScrollable(chatContainer)) {
+        return chatStream;
+    }
+
+    return chatContainer || chatStream || null;
+}
+
 /**
  * Detect if the device is mobile
  */
@@ -121,15 +145,15 @@ function onKeyboardShow() {
     console.log('Mobile keyboard shown');
     document.body.classList.add('keyboard-visible');
     
-    const chatContainer = document.getElementById('chat-container');
-    if (chatContainer && isMobileDevice()) {
+    const scrollTarget = getChatScrollContainer();
+    if (scrollTarget && isMobileDevice()) {
         setTimeout(() => {
             document.documentElement.scrollTop = 0;
             document.body.scrollTop = 0;
             window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
             
-            chatContainer.scrollTo({
-                top: chatContainer.scrollHeight,
+            scrollTarget.scrollTo({
+                top: scrollTarget.scrollHeight,
                 behavior: 'smooth'
             });
         }, 100);
@@ -143,15 +167,15 @@ function onKeyboardHide() {
     console.log('Mobile keyboard hidden');
     document.body.classList.remove('keyboard-visible');
     
-    const chatContainer = document.getElementById('chat-container');
-    if (isMobileDevice() && chatContainer) {
+    const scrollTarget = getChatScrollContainer();
+    if (isMobileDevice() && scrollTarget) {
         setTimeout(() => {
             document.documentElement.scrollTop = 0;
             document.body.scrollTop = 0;
             window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
             
-            chatContainer.scrollTo({
-                top: chatContainer.scrollHeight,
+            scrollTarget.scrollTo({
+                top: scrollTarget.scrollHeight,
                 behavior: 'smooth'
             });
         }, 100);
@@ -180,12 +204,11 @@ function createScrollIndicator() {
         mainContainer.appendChild(scrollIndicator);
     }
     
-    const chatContainer = document.getElementById('chat-container');
-    
     scrollIndicator.addEventListener('click', () => {
-        if (chatContainer) {
-            chatContainer.scrollTo({
-                top: chatContainer.scrollHeight,
+        const scrollTarget = getChatScrollContainer();
+        if (scrollTarget) {
+            scrollTarget.scrollTo({
+                top: scrollTarget.scrollHeight,
                 behavior: 'smooth'
             });
         }
@@ -198,7 +221,7 @@ function createScrollIndicator() {
  * Update scroll indicator visibility
  */
 function updateScrollIndicator() {
-    const chatContainer = document.getElementById('chat-container');
+    const chatContainer = getChatScrollContainer();
     const scrollIndicator = document.querySelector('.scroll-indicator');
     
     if (!chatContainer || !scrollIndicator) return;
@@ -524,6 +547,7 @@ function initLegalLinks() {
 window.UIUtilsModule = {
     isMobileDevice,
     handleFocus,
+    getChatScrollContainer,
     initKeyboardDetection,
     createScrollIndicator,
     updateScrollIndicator,

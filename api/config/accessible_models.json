@@ -1,0 +1,19 @@
+{
+  "models": [
+    {
+      "id": "anthropic/claude-sonnet-4",
+      "provider": "vercel",
+      "label": "Claude Sonnet 4 (Vercel)"
+    },
+    {
+      "id": "DeepSeek-V4-Pro",
+      "provider": "azure",
+      "label": "DeepSeek V4 Pro (Azure)"
+    },
+    {
+      "id": "gpt-4o-mini",
+      "provider": "azure",
+      "label": "GPT-4o mini (Azure)"
+    }
+  ]
+}

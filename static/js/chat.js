@@ -102,6 +102,46 @@ function getSelectedLibrary() {
     return selector ? selector.value : 'all';
 }
 
+function getSelectedModel() {
+    const selector = document.getElementById('model-selector');
+    const value = selector ? String(selector.value || '').trim() : '';
+    return value || null;
+}
+
+function getSelectedModelLabel() {
+    const selector = document.getElementById('model-selector');
+    if (!selector) {
+        return '';
+    }
+    const selectedOption = selector.options[selector.selectedIndex];
+    if (!selectedOption) {
+        return '';
+    }
+    return String(selectedOption.textContent || '').trim();
+}
+
+function setMessageModelBadge(actionsDiv, modelId, modelLabel) {
+    if (!actionsDiv) {
+        return;
+    }
+    const badge = actionsDiv.querySelector('.message-model-name');
+    if (!badge) {
+        return;
+    }
+
+    const label = String(modelLabel || '').trim();
+    const id = String(modelId || '').trim();
+    const value = label || id;
+    if (!value) {
+        badge.textContent = '';
+        badge.style.display = 'none';
+        return;
+    }
+
+    badge.textContent = `Modele: ${value}`;
+    badge.style.display = 'inline-flex';
+}
+
 function buildApiHeaders() {
     const headers = { 'Content-Type': 'application/json' };
     if (CLIENT_QUERY_KEY) {
@@ -145,6 +185,12 @@ function copyQuestionToInput(question, button) {
     inputBox.value = question;
     inputBox.focus();
     inputBox.dispatchEvent(new Event('input', { bubbles: true }));
+
+    if (typeof window.ChatModule?.sendMessage === 'function') {
+        window.ChatModule.sendMessage();
+    } else if (typeof sendMessage === 'function') {
+        sendMessage();
+    }
 
     if (!button) {
         return;
@@ -304,6 +350,7 @@ function createAssistantMessage() {
                 </div>
             </div>
             <div class="message-actions" style="display:none">
+                <span class="message-model-name" style="display:none"></span>
                 <button class="action-btn copy-btn" title="">
                     <i class="bi bi-clipboard"></i>
                 </button>
@@ -572,6 +619,7 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
         language: getCurrentLanguage(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         locale: navigator.language || (getCurrentLanguage() === 'en' ? 'en-US' : 'fr-FR'),
+        llm_model: getSelectedModel(),
         session_id: sessionId,
         bibliotheque: getSelectedLibrary()
     };
@@ -583,6 +631,10 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
     currentAbortController = new AbortController();
 
     const requestHeaders = buildApiHeaders();
+    const selectedModel = getSelectedModel();
+    if (selectedModel) {
+        requestHeaders['X-Selected-Model'] = selectedModel;
+    }
 
     const endpointPath = getQueryEndpoint();
 
@@ -596,13 +648,13 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
     console.log('[Frontend][query] response status:', response.status, response.statusText);
 
     if (!response.ok) {
-        if (response.status === 429) {
-            const lang = getCurrentLanguage();
-            const rateLimitMsg = lang === 'fr' 
-                ? 'Limite de requêtes atteinte. Vous avez dépassé le nombre maximum de questions autorisées (10 par heure). Veuillez réessayer plus tard.'
-                : 'Rate limit reached. You have exceeded the maximum number of allowed questions (10 per hour). Please try again later.';
-            throw new Error(rateLimitMsg);
-        }
+        // if (response.status === 429) {
+        //     const lang = getCurrentLanguage();
+        //     const rateLimitMsg = lang === 'fr' 
+        //         ? 'Limite de requêtes atteinte. Vous avez dépassé le nombre maximum de questions autorisées (10 par heure). Veuillez réessayer plus tard.'
+        //         : 'Rate limit reached. You have exceeded the maximum number of allowed questions (10 per hour). Please try again later.';
+        //     throw new Error(rateLimitMsg);
+        // }
         throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -730,7 +782,9 @@ async function sendMessage() {
     const inputBox = document.getElementById('input-box');
     const emptyState = document.getElementById('empty-state');
     const chatContainer = document.getElementById('chat-container');
+    const { getChatScrollContainer } = window.UIUtilsModule || {};
     const chatStream = document.getElementById('chat-stream') || chatContainer;
+    const chatScrollContainer = getChatScrollContainer ? getChatScrollContainer() : chatContainer;
     
     const question = inputBox ? inputBox.value.trim() : '';
     if (!question || isLoading) return;
@@ -773,10 +827,11 @@ async function sendMessage() {
     const actionsDiv = messageDiv.querySelector('.message-actions');
     
     setupMessageActions(messageDiv, contentDiv);
+    setMessageModelBadge(actionsDiv, getSelectedModel(), getSelectedModelLabel());
     prepareUIForLoading();
 
     setTimeout(() => {
-        positionMessageAtBottom(chatContainer, userMessageDiv, messageDiv);
+        positionMessageAtBottom(chatScrollContainer || chatContainer, userMessageDiv, messageDiv);
     }, 100);
 
     try {

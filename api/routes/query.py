@@ -20,17 +20,31 @@ router = APIRouter(dependencies=[Depends(require_client_or_query_key)])
 limiter = Limiter(key_func=get_remote_address)
 
 
-def _query_agent_response(query_request: QueryRequest, *, debug_mode: bool = False):
+def _resolve_requested_model(request: Request, query_request: QueryRequest) -> str | None:
+    body_model = (query_request.llm_model or "").strip()
+    if body_model:
+        return body_model
+
+    header_model = (request.headers.get("x-selected-model") or "").strip()
+    return header_model or None
+
+
+def _query_agent_response(
+    request: Request,
+    query_request: QueryRequest,
+    *,
+    debug_mode: bool = False,
+):
     """Shared streaming response builder for /query and /query_debug."""
-    # Check session-based rate limiting
-    if query_request.session_id and is_session_rate_limited(query_request.session_id):
-        return JSONResponse(
-            status_code=429,
-            content={
-                "error": "Rate limit exceeded",
-                "message": "Trop de requêtes. Veuillez patienter quelques instants."
-            }
-        )
+    # Rate-limit enforcement disabled temporarily.
+    # if query_request.session_id and is_session_rate_limited(query_request.session_id):
+    #     return JSONResponse(
+    #         status_code=429,
+    #         content={
+    #             "error": "Rate limit exceeded",
+    #             "message": "Trop de requêtes. Veuillez patienter quelques instants."
+    #         }
+    #     )
 
     session_id, session = get_or_create_session(query_request.session_id)
 
@@ -57,7 +71,7 @@ def _query_agent_response(query_request: QueryRequest, *, debug_mode: bool = Fal
                 language=query_request.language,
                 timezone=query_request.timezone,
                 locale=query_request.locale,
-                llm_model=query_request.llm_model,
+                llm_model=_resolve_requested_model(request, query_request),
                 kb_root_folder=(get_debug_local_kb_root_folder() if debug_mode else None),
                 conversation_history=conversation_history,
                 session=session,
@@ -119,19 +133,19 @@ def _query_agent_response(query_request: QueryRequest, *, debug_mode: bool = Fal
 
 
 @router.post("/query")
-@limiter.limit("10/hour")  # Max 10 questions per hour per IP
+# @limiter.limit("10/hour")  # Max 10 questions per hour per IP
 async def query_agent(request: Request, query_request: QueryRequest):
     """
     Main endpoint to ask questions to the agent and receive streaming responses
     """
-    return _query_agent_response(query_request, debug_mode=False)
+    return _query_agent_response(request, query_request, debug_mode=False)
 
 
 @router.post("/query_debug", dependencies=[Depends(require_admin)])
-@limiter.limit("10/hour")
+# @limiter.limit("10/hour")
 async def query_agent_debug(request: Request, query_request: QueryRequest):
     """Admin-only debug query endpoint using the debug knowledge-base root."""
-    return _query_agent_response(query_request, debug_mode=True)
+    return _query_agent_response(request, query_request, debug_mode=True)
 
 
 @router.get("/api/generated-questions")

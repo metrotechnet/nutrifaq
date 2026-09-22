@@ -10,6 +10,79 @@
 /**
  * Keep startup overlay visible until app initialization finishes.
  */
+const MODEL_STORAGE_KEY = 'nutrifaq_selected_model';
+
+async function loadModelSelectorOptions() {
+    const modelSelector = document.getElementById('model-selector');
+    if (!modelSelector) {
+        return;
+    }
+
+    modelSelector.innerHTML = '<option value="">Chargement des modèles...</option>';
+    modelSelector.disabled = true;
+
+    try {
+        const { BACKEND_URL } = window.ConfigModule;
+        const response = await fetch(`${BACKEND_URL}/api/models`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.message || payload.detail || response.statusText);
+        }
+
+        const models = Array.isArray(payload.models) ? payload.models : [];
+        if (!models.length) {
+            modelSelector.innerHTML = '<option value="">Aucun modèle disponible</option>';
+            return;
+        }
+
+        modelSelector.innerHTML = '';
+        models.forEach((model) => {
+            const option = document.createElement('option');
+            option.value = model.id || '';
+            option.textContent = model.label || model.id || 'Model';
+            modelSelector.appendChild(option);
+        });
+
+        const savedModel = localStorage.getItem(MODEL_STORAGE_KEY) || '';
+        const defaultModel = payload.default_model || '';
+        const candidate = savedModel || defaultModel;
+
+        if (candidate && models.some((m) => m.id === candidate)) {
+            modelSelector.value = candidate;
+        }
+
+        if (!modelSelector.value && models[0] && models[0].id) {
+            modelSelector.value = models[0].id;
+        }
+
+        if (modelSelector.value) {
+            localStorage.setItem(MODEL_STORAGE_KEY, modelSelector.value);
+        }
+
+        modelSelector.disabled = false;
+    } catch (error) {
+        modelSelector.innerHTML = '<option value="">Erreur chargement modèles</option>';
+        modelSelector.disabled = true;
+        console.error('Failed to load model catalog:', error);
+    }
+}
+
+function bindModelSelector() {
+    const modelSelector = document.getElementById('model-selector');
+    if (!modelSelector) {
+        return;
+    }
+
+    modelSelector.addEventListener('change', function() {
+        const selected = (this.value || '').trim();
+        if (selected) {
+            localStorage.setItem(MODEL_STORAGE_KEY, selected);
+        } else {
+            localStorage.removeItem(MODEL_STORAGE_KEY);
+        }
+    });
+}
+
 function warmupBackend() {
     const overlay = document.getElementById('initial-loading-overlay');
     const minDelayPromise = new Promise((resolve) => setTimeout(resolve, 350));
@@ -38,7 +111,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const finishWarmup = warmupBackend();
     // Get modules
     const { loadConfig, switchLanguage, getCurrentLanguage, getMainConfig, populateSuggestionCards } = window.ConfigModule;
-    const { isMobileDevice, initKeyboardDetection, createScrollIndicator, updateScrollIndicator, 
+    const { isMobileDevice, initKeyboardDetection, createScrollIndicator, updateScrollIndicator, getChatScrollContainer,
             initSidebar, initCookieConsent, initLegalLinks } = window.UIUtilsModule;
     const { sendMessage, loadSuggestedQuestions } = window.ChatModule;
     const { initSpeechRecognition, toggleRecording, toggleRecognitionMethod, useWhisper } = window.VoiceRecognitionModule;
@@ -50,6 +123,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const sendButton = document.getElementById('send-button');
     const voiceButton = document.getElementById('voice-button');
     const languageSelector = document.getElementById('language-selector');
+    const modelSelector = document.getElementById('model-selector');
     const chatContainer = document.getElementById('chat-container');
     const emptyState = document.getElementById('empty-state');
     
@@ -89,6 +163,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         populateSuggestionCards(getCurrentLanguage());
         updateSourceLanguageDisplay();
+        await loadModelSelectorOptions();
     } finally {
         await finishWarmup();
     }
@@ -107,8 +182,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Create scroll indicator
     const scrollIndicator = createScrollIndicator();
-    if (chatContainer && scrollIndicator) {
-        chatContainer.addEventListener('scroll', updateScrollIndicator);
+    const chatScrollContainer = getChatScrollContainer ? getChatScrollContainer() : chatContainer;
+    if (chatScrollContainer && scrollIndicator) {
+        chatScrollContainer.addEventListener('scroll', updateScrollIndicator);
         updateScrollIndicator();
     }
     
@@ -199,6 +275,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         languageSelector.addEventListener('change', function() {
             switchLanguage(this.value);
         });
+    }
+
+    if (modelSelector) {
+        bindModelSelector();
     }
     
     // ===================================
