@@ -33,7 +33,7 @@
       "closeButton": "Fermer",
       "download": "Télécharger",
       "test": "Tester",
-      "validate": "Valider",
+      "validate": "Publier",
       "logout": "Déconnecter",
       "accountMenu": "Menu du compte",
       "aboutImx": "À propos d'IMX",
@@ -116,6 +116,173 @@
       "comment_required": "Veuillez entrer un commentaire.",
       "network_error": "Erreur réseau."
     },
+    "azureAuth": {
+      "accountDefault": "Compte",
+      "msalUnavailable": "MSAL indisponible: impossible de charger la bibliothèque d'authentification.",
+      "missingTenantFrontend": "ENTRA_TENANT_ID manquant dans la configuration frontend.",
+      "missingClientIdFrontend": "ENTRA_CLIENT_ID manquant dans la configuration frontend.",
+      "msalLibraryNotFound": "Bibliothèque MSAL introuvable.",
+      "tokenScopesFailed": "Impossible d'acquérir un token avec les scopes configurés.",
+      "usersAdminOnly": "Endpoint réservé aux admins.",
+      "unableResetLog": "Impossible de réinitialiser le journal.",
+      "statusConnecting": "Connexion Azure en cours...",
+      "statusConnected": "Connecté. Token extrait et injecté dans la section Télécharger.",
+      "statusRefreshing": "Rafraîchissement du token en cours...",
+      "statusRefreshed": "Token rafraîchi et informations mises à jour.",
+      "statusDisconnected": "Déconnecté.",
+      "statusAccountDetectedRefresh": "Compte détecté. Cliquez sur Rafraîchir le token.",
+      "statusInitError": "Erreur initialisation Azure auth: {error}",
+      "statusLoginFailed": "Connexion échouée: {error}",
+      "statusRefreshFailed": "Rafraîchissement échoué: {error}",
+      "statusLogoutFailed": "Déconnexion échouée: {error}",
+      "statusAutoRefreshFailed": "Rafraîchissement automatique échoué: {error}",
+      "noAccountAfterLogin": "Aucun compte retourné après la connexion.",
+      "noActiveAccount": "Aucun compte actif. Connectez-vous d'abord."
+    },
+    "voice": {
+      "alertTitle": "Information",
+      "ok": "OK",
+      "processingAudio": "⏳ Traitement audio...",
+      "recordingRemaining": "⏱️ Enregistrement (5s restantes...)",
+      "recordingBase": "🎤 Enregistrement",
+      "micAccessError": "Impossible d'accéder au microphone. Vérifiez les permissions.",
+      "transcriptionFailed": "Échec de la transcription. Veuillez réessayer.",
+      "browserNotSupported": "La reconnaissance vocale n'est pas supportée par votre navigateur.",
+      "translatorPlaceholderFallback": "Entrez le texte à traduire...",
+      "inputPlaceholderFallback": "Pose-moi une question..."
+    },
+    "downloadManager": {
+      "confirm": {
+        "default": "Confirmer",
+        "cancel": "Annuler",
+        "deleteTitle": "Supprimer ce fichier ?",
+        "delete": "Supprimer",
+        "startIndexingTitle": "Démarrer l'indexage ?",
+        "startIndexingText": "La régénération et l'indexation peuvent prendre plusieurs minutes.",
+        "start": "Démarrer",
+        "resetTitle": "Réinitialiser les fichiers ?",
+        "resetText": "Cette action va rétablir les fichiers précédents.",
+        "reset": "Réinitialiser"
+      },
+      "alert": {
+        "errorTitle": "Erreur",
+        "infoTitle": "Information",
+        "ok": "OK"
+      },
+      "buttons": {
+        "resetInProgress": "Reset en cours...",
+        "resetFiles": "Réinitialiser les fichiers",
+        "indexingInProgress": "Indexage en cours...",
+        "startIndexing": "Démarrer un indexage"
+      },
+      "progress": {
+        "preparing": "Préparation...",
+        "syncing": "Synchronisation... {progress}%",
+        "completed": "Terminé",
+        "interrupted": "Interrompu",
+        "step": "Etape{countText}: {label} ({percent}%)"
+      },
+      "steps": {
+        "extract_docx": "Extraction des documents",
+        "extract_references": "Extraction des references",
+        "generate_transcripts_json": "Generation des transcripts",
+        "generate_questions": "Generation des questions",
+        "index_chromadb_json": "Indexation ChromaDB"
+      },
+      "errors": {
+        "tokenRequired": "Token admin requis."
+      },
+      "table": {
+        "noFiles": "Aucun fichier trouvé pour ce filtre.",
+        "loading": "Chargement...",
+        "errorPrefix": "Erreur: ",
+        "download": "Télécharger",
+        "delete": "Supprimer"
+      },
+      "status": {
+        "defaultContainer": "le conteneur",
+        "cancelRequested": "Annulation de l'indexage demandée...",
+        "cancelError": "Erreur annulation: {error}",
+        "loadingFiles": "Chargement des fichiers Azure...",
+        "filesFound": "{count} fichier(s) trouvé(s) dans {container}.",
+        "loadError": "Erreur de chargement: {error}",
+        "deleting": "Suppression de {name}...",
+        "deleted": "Fichier supprimé: {name}",
+        "deleteError": "Erreur suppression: {error}",
+        "downloadStarted": "Téléchargement lancé: {name}",
+        "downloadError": "Erreur téléchargement: {error}",
+        "selectLocalFile": "Sélectionnez un fichier local.",
+        "uploading": "Téléversement en cours...",
+        "uploaded": "Fichier téléversé: {name}",
+        "uploadError": "Erreur upload: {error}",
+        "fileSelected": "Fichier sélectionné: {name}",
+        "indexingInProgress": "Indexage en cours... cela peut prendre plusieurs minutes.",
+        "indexingCancelled": "Indexage annulé.",
+        "indexingCompleted": "Indexage terminé. Statut: {status}",
+        "indexingDone": "Indexage terminé.",
+        "indexingError": "Erreur indexage: {error}",
+        "resetInProgress": "Réinitialisation depuis le blob en cours...",
+        "resetDone": "Reset terminé. {count} fichier(s) dans documents/.",
+        "resetError": "Erreur reset: {error}"
+      }
+    },
+    "chat": {
+      "modelBadge": "Modèle: {value}",
+      "copyDone": "Copié",
+      "errorTitle": "Erreur",
+      "suggested": {
+        "zeroDocuments": "0 document",
+        "summary": "{documents} document(s) • {questions} question(s)",
+        "documentCount": "{documents} document(s)",
+        "documentFallback": "Document",
+        "loadingQuestions": "Chargement des questions...",
+        "noGeneratedQuestions": "Aucune question générée disponible.",
+        "noUsableQuestions": "Aucune question exploitable trouvée.",
+        "loadQuestionsError": "Impossible de charger les questions: {error}"
+      }
+    },
+    "main": {
+      "models": {
+        "loading": "Chargement des modèles...",
+        "noneAvailable": "Aucun modèle disponible",
+        "loadError": "Erreur chargement modèles"
+      }
+    },
+    "publish": {
+      "ui": {
+        "sectionTitle": "Publier",
+        "modelLabel": "Modele",
+        "datetimeLabel": "Date et heure de publication",
+        "logsTitle": "Logs de questions"
+      },
+      "status": {
+        "ready": "Pret.",
+        "modelRequired": "Veuillez selectionner un modele.",
+        "datetimeRequired": "Veuillez selectionner une date et heure.",
+        "endpointPending": "Publication confirmee. Endpoint a creer ensuite."
+      },
+      "confirm": {
+        "title": "Confirmer la publication ?",
+        "text": "Modele: {model} - Date: {date}",
+        "action": "Publier"
+      },
+      "logs": {
+        "loading": "Chargement des logs...",
+        "empty": "Aucun log disponible.",
+        "error": "Erreur chargement logs: {error}",
+        "modelUnknown": "inconnu",
+        "refresh": "Rafraichir",
+        "export": "Exporter",
+        "exportTitle": "Export des logs",
+        "nothingToExport": "Aucun log a exporter.",
+        "popupBlocked": "Impossible d'ouvrir la fenetre d'export. Verifiez le bloqueur de pop-up.",
+        "exportInProgress": "Generation du PDF en cours...",
+        "exportDone": "PDF telecharge.",
+        "exportFailed": "Echec de l'export PDF.",
+        "exportFailedWithError": "Echec de l'export PDF: {error}",
+        "pdfLibUnavailable": "Librairie PDF indisponible."
+      }
+    },
     "about": {
       "title": "À propos de l'application",
       "content": [
@@ -168,7 +335,7 @@
       "closeButton": "Close",
       "download": "Download",
       "test": "Test",
-      "validate": "Validate",
+      "validate": "Publish",
       "logout": "Logout",
       "accountMenu": "Account menu",
       "aboutImx": "About IMX",
@@ -250,6 +417,173 @@
       "comment_error": "Error adding comment.",
       "comment_required": "Please enter a comment.",
       "network_error": "Network error."
+    },
+    "azureAuth": {
+      "accountDefault": "Account",
+      "msalUnavailable": "MSAL unavailable: unable to load authentication library.",
+      "missingTenantFrontend": "Missing ENTRA_TENANT_ID in frontend configuration.",
+      "missingClientIdFrontend": "Missing ENTRA_CLIENT_ID in frontend configuration.",
+      "msalLibraryNotFound": "MSAL library not found.",
+      "tokenScopesFailed": "Unable to acquire a token with configured scopes.",
+      "usersAdminOnly": "Users endpoint is restricted to admins.",
+      "unableResetLog": "Unable to reset the log.",
+      "statusConnecting": "Signing in with Azure...",
+      "statusConnected": "Connected. Token extracted and injected into the Download section.",
+      "statusRefreshing": "Refreshing token...",
+      "statusRefreshed": "Token refreshed and information updated.",
+      "statusDisconnected": "Signed out.",
+      "statusAccountDetectedRefresh": "Account detected. Click Refresh token.",
+      "statusInitError": "Azure auth initialization error: {error}",
+      "statusLoginFailed": "Sign-in failed: {error}",
+      "statusRefreshFailed": "Refresh failed: {error}",
+      "statusLogoutFailed": "Sign-out failed: {error}",
+      "statusAutoRefreshFailed": "Automatic refresh failed: {error}",
+      "noAccountAfterLogin": "No account returned after sign-in.",
+      "noActiveAccount": "No active account. Please sign in first."
+    },
+    "voice": {
+      "alertTitle": "Information",
+      "ok": "OK",
+      "processingAudio": "⏳ Processing audio...",
+      "recordingRemaining": "⏱️ Recording (5s remaining...)",
+      "recordingBase": "🎤 Recording",
+      "micAccessError": "Could not access microphone. Please check permissions.",
+      "transcriptionFailed": "Failed to transcribe audio. Please try again.",
+      "browserNotSupported": "Speech recognition is not supported in your browser.",
+      "translatorPlaceholderFallback": "Enter text to translate...",
+      "inputPlaceholderFallback": "Ask me a question..."
+    },
+    "downloadManager": {
+      "confirm": {
+        "default": "Confirm",
+        "cancel": "Cancel",
+        "deleteTitle": "Delete this file?",
+        "delete": "Delete",
+        "startIndexingTitle": "Start indexing?",
+        "startIndexingText": "Regeneration and indexing can take several minutes.",
+        "start": "Start",
+        "resetTitle": "Reset files?",
+        "resetText": "This action will restore previous files.",
+        "reset": "Reset"
+      },
+      "alert": {
+        "errorTitle": "Error",
+        "infoTitle": "Information",
+        "ok": "OK"
+      },
+      "buttons": {
+        "resetInProgress": "Reset in progress...",
+        "resetFiles": "Reset files",
+        "indexingInProgress": "Indexing in progress...",
+        "startIndexing": "Start indexing"
+      },
+      "progress": {
+        "preparing": "Preparing...",
+        "syncing": "Synchronizing... {progress}%",
+        "completed": "Completed",
+        "interrupted": "Interrupted",
+        "step": "Step{countText}: {label} ({percent}%)"
+      },
+      "steps": {
+        "extract_docx": "Document extraction",
+        "extract_references": "References extraction",
+        "generate_transcripts_json": "Transcript generation",
+        "generate_questions": "Question generation",
+        "index_chromadb_json": "ChromaDB indexing"
+      },
+      "errors": {
+        "tokenRequired": "Admin token required."
+      },
+      "table": {
+        "noFiles": "No files found for this filter.",
+        "loading": "Loading...",
+        "errorPrefix": "Error: ",
+        "download": "Download",
+        "delete": "Delete"
+      },
+      "status": {
+        "defaultContainer": "the container",
+        "cancelRequested": "Indexing cancellation requested...",
+        "cancelError": "Cancel error: {error}",
+        "loadingFiles": "Loading Azure files...",
+        "filesFound": "{count} file(s) found in {container}.",
+        "loadError": "Loading error: {error}",
+        "deleting": "Deleting {name}...",
+        "deleted": "File deleted: {name}",
+        "deleteError": "Delete error: {error}",
+        "downloadStarted": "Download started: {name}",
+        "downloadError": "Download error: {error}",
+        "selectLocalFile": "Select a local file.",
+        "uploading": "Uploading...",
+        "uploaded": "File uploaded: {name}",
+        "uploadError": "Upload error: {error}",
+        "fileSelected": "Selected file: {name}",
+        "indexingInProgress": "Indexing in progress... this may take several minutes.",
+        "indexingCancelled": "Indexing cancelled.",
+        "indexingCompleted": "Indexing completed. Status: {status}",
+        "indexingDone": "Indexing completed.",
+        "indexingError": "Indexing error: {error}",
+        "resetInProgress": "Resetting from blob in progress...",
+        "resetDone": "Reset completed. {count} file(s) in documents/.",
+        "resetError": "Reset error: {error}"
+      }
+    },
+    "chat": {
+      "modelBadge": "Model: {value}",
+      "copyDone": "Copied",
+      "errorTitle": "Error",
+      "suggested": {
+        "zeroDocuments": "0 document",
+        "summary": "{documents} document(s) • {questions} question(s)",
+        "documentCount": "{documents} document(s)",
+        "documentFallback": "Document",
+        "loadingQuestions": "Loading questions...",
+        "noGeneratedQuestions": "No generated questions available.",
+        "noUsableQuestions": "No usable questions found.",
+        "loadQuestionsError": "Unable to load questions: {error}"
+      }
+    },
+    "main": {
+      "models": {
+        "loading": "Loading models...",
+        "noneAvailable": "No model available",
+        "loadError": "Error loading models"
+      }
+    },
+    "publish": {
+      "ui": {
+        "sectionTitle": "Publish",
+        "modelLabel": "Model",
+        "datetimeLabel": "Publication date and time",
+        "logsTitle": "Question logs"
+      },
+      "status": {
+        "ready": "Ready.",
+        "modelRequired": "Please select a model.",
+        "datetimeRequired": "Please select a publication date and time.",
+        "endpointPending": "Publication confirmed. Endpoint will be added next."
+      },
+      "confirm": {
+        "title": "Confirm publication?",
+        "text": "Model: {model} - Date: {date}",
+        "action": "Publish"
+      },
+      "logs": {
+        "loading": "Loading logs...",
+        "empty": "No logs available.",
+        "error": "Log loading error: {error}",
+        "modelUnknown": "unknown",
+        "refresh": "Refresh",
+        "export": "Export",
+        "exportTitle": "Logs export",
+        "nothingToExport": "No logs to export.",
+        "popupBlocked": "Unable to open export window. Please check your pop-up blocker.",
+        "exportInProgress": "Generating PDF...",
+        "exportDone": "PDF downloaded.",
+        "exportFailed": "PDF export failed.",
+        "exportFailedWithError": "PDF export failed: {error}",
+        "pdfLibUnavailable": "PDF library unavailable."
+      }
     },
     "about": {
       "title": "About the application",

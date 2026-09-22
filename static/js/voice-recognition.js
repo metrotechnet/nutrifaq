@@ -18,13 +18,30 @@ let recordingAnimationInterval = null;
 let maxDurationTimer = null;
 let warningTimer = null;
 
+function tr(key, fallback) {
+    try {
+        const translator = window.ConfigModule && typeof window.ConfigModule.t === 'function'
+            ? window.ConfigModule.t
+            : null;
+        if (translator) {
+            const translated = translator(key);
+            if (translated && translated !== key) {
+                return translated;
+            }
+        }
+    } catch (_) {
+        // Ignore and use fallback.
+    }
+    return fallback;
+}
+
 function showVoiceAlert(message) {
     if (window.Swal && typeof window.Swal.fire === 'function') {
         window.Swal.fire({
-            title: 'Information',
+            title: tr('voice.alertTitle', 'Information'),
             text: message,
             icon: 'warning',
-            confirmButtonText: 'OK'
+            confirmButtonText: tr('voice.ok', 'OK')
         });
         return;
     }
@@ -228,9 +245,9 @@ async function initWhisperRecording() {
             
             const { getCurrentLanguage } = window.ConfigModule;
             if (inputBox) {
-                inputBox.placeholder = getCurrentLanguage() === 'en' 
-                    ? '⏳ Processing audio...' 
-                    : '⏳ Traitement audio...';
+                inputBox.placeholder = getCurrentLanguage() === 'en'
+                    ? tr('voice.processingAudio', '⏳ Processing audio...')
+                    : tr('voice.processingAudio', '⏳ Traitement audio...');
             }
             
             await transcribeWithWhisper(audioBlob);
@@ -252,9 +269,9 @@ async function initWhisperRecording() {
         warningTimer = setTimeout(() => {
             if (isRecording && inputBox) {
                 const { getCurrentLanguage } = window.ConfigModule;
-                inputBox.placeholder = getCurrentLanguage() === 'en' 
-                    ? '⏱️ Recording (5s remaining...)' 
-                    : '⏱️ Enregistrement (5s restantes...)';
+                inputBox.placeholder = getCurrentLanguage() === 'en'
+                    ? tr('voice.recordingRemaining', '⏱️ Recording (5s remaining...)')
+                    : tr('voice.recordingRemaining', '⏱️ Enregistrement (5s restantes...)');
             }
         }, WARNING_TIME);
         
@@ -267,7 +284,9 @@ async function initWhisperRecording() {
         
         let dots = 0;
         const { getCurrentLanguage } = window.ConfigModule;
-        const baseText = getCurrentLanguage() === 'en' ? '🎤 Recording' : '🎤 Enregistrement';
+        const baseText = getCurrentLanguage() === 'en'
+            ? tr('voice.recordingBase', '🎤 Recording')
+            : tr('voice.recordingBase', '🎤 Enregistrement');
         
         recordingAnimationInterval = setInterval(() => {
             if (!isRecording) {
@@ -286,9 +305,9 @@ async function initWhisperRecording() {
     } catch (error) {
         console.error('Failed to initialize Whisper recording:', error);
         const { getCurrentLanguage } = window.ConfigModule;
-        showVoiceAlert(getCurrentLanguage() === 'en' 
-            ? 'Could not access microphone. Please check permissions.' 
-            : 'Impossible d\'accéder au microphone. Vérifiez les permissions.');
+        showVoiceAlert(getCurrentLanguage() === 'en'
+            ? tr('voice.micAccessError', 'Could not access microphone. Please check permissions.')
+            : tr('voice.micAccessError', 'Impossible d\'accéder au microphone. Vérifiez les permissions.'));
         
         isRecording = false;
         const voiceButton = document.getElementById('voice-button');
@@ -350,9 +369,9 @@ function restorePlaceholder() {
     const { getCurrentAgent } = window.AgentsModule || {};
     
     if (getCurrentAgent && getCurrentAgent() === 'translator') {
-        inputBox.placeholder = t('translator.placeholder') || 'Entrez le texte à traduire...';
+        inputBox.placeholder = t('translator.placeholder') || tr('voice.translatorPlaceholderFallback', 'Enter text to translate...');
     } else {
-        inputBox.placeholder = t('input.placeholder') || 'Pose-moi une question...';
+        inputBox.placeholder = t('input.placeholder') || tr('voice.inputPlaceholderFallback', 'Ask me a question...');
     }
 }
 
@@ -445,9 +464,9 @@ async function transcribeWithWhisper(audioBlob) {
     } catch (error) {
         console.error('Failed to transcribe with Whisper:', error);
         const { getCurrentLanguage } = window.ConfigModule;
-        showVoiceAlert(getCurrentLanguage() === 'en' 
-            ? 'Failed to transcribe audio. Please try again.' 
-            : 'Échec de la transcription. Veuillez réessayer.');
+        showVoiceAlert(getCurrentLanguage() === 'en'
+            ? tr('voice.transcriptionFailed', 'Failed to transcribe audio. Please try again.')
+            : tr('voice.transcriptionFailed', 'Échec de la transcription. Veuillez réessayer.'));
         
         const inputBox = document.getElementById('input-box');
         const sendButton = document.getElementById('send-button');
@@ -476,9 +495,9 @@ function toggleRecording() {
     
     if (!recognition) {
         const { getCurrentLanguage } = window.ConfigModule;
-        showVoiceAlert(getCurrentLanguage() === 'en' 
-            ? 'Speech recognition is not supported in your browser.' 
-            : 'La reconnaissance vocale n\'est pas supportée par votre navigateur.');
+        showVoiceAlert(getCurrentLanguage() === 'en'
+            ? tr('voice.browserNotSupported', 'Speech recognition is not supported in your browser.')
+            : tr('voice.browserNotSupported', 'La reconnaissance vocale n\'est pas supportée par votre navigateur.'));
         return;
     }
     

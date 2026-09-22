@@ -15,6 +15,31 @@
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
 
+    function tr(key, fallback, params) {
+        let template = fallback;
+        try {
+            const translator = window.ConfigModule && typeof window.ConfigModule.t === "function"
+                ? window.ConfigModule.t
+                : null;
+            if (translator) {
+                const translated = translator(key);
+                if (translated && translated !== key) {
+                    template = translated;
+                }
+            }
+        } catch (_) {
+            template = fallback;
+        }
+
+        if (!params || typeof template !== "string") {
+            return template;
+        }
+
+        return Object.keys(params).reduce((acc, name) => {
+            return acc.replaceAll(`{${name}}`, String(params[name]));
+        }, template);
+    }
+
     async function ensureMsalLoaded() {
         if (window.msal && window.msal.PublicClientApplication) {
             return;
@@ -36,7 +61,7 @@
             }
         }
 
-        throw new Error("MSAL indisponible: impossible de charger la bibliothèque d'authentification.");
+        throw new Error(tr("azureAuth.msalUnavailable", "MSAL unavailable: unable to load authentication library."));
     }
 
     function loadScript(src) {
@@ -124,8 +149,9 @@
             return;
         }
         const safeEmail = typeof email === "string" ? email.trim() : "";
-        sidebarUserEmailEl.textContent = safeEmail || "Compte";
-        sidebarUserEmailEl.title = safeEmail || "Compte";
+        const fallbackAccount = tr("azureAuth.accountDefault", "Account");
+        sidebarUserEmailEl.textContent = safeEmail || fallbackAccount;
+        sidebarUserEmailEl.title = safeEmail || fallbackAccount;
     }
 
     function decodeJwt(token) {
@@ -145,7 +171,7 @@
     function getAuthority() {
         const tenant = (window.ENTRA_TENANT_ID || "").trim();
         if (!tenant) {
-            throw new Error("ENTRA_TENANT_ID manquant dans la configuration frontend.");
+            throw new Error(tr("azureAuth.missingTenantFrontend", "Missing ENTRA_TENANT_ID in frontend configuration."));
         }
         return `https://login.microsoftonline.com/${tenant}`;
     }
@@ -153,7 +179,7 @@
     function getClientId() {
         const clientId = (window.ENTRA_CLIENT_ID || "").trim();
         if (!clientId) {
-            throw new Error("ENTRA_CLIENT_ID manquant dans la configuration frontend.");
+            throw new Error(tr("azureAuth.missingClientIdFrontend", "Missing ENTRA_CLIENT_ID in frontend configuration."));
         }
         return clientId;
     }
@@ -212,7 +238,7 @@
 
     function getMsalInstance() {
         if (!window.msal || !window.msal.PublicClientApplication) {
-            throw new Error("Bibliothèque MSAL introuvable.");
+            throw new Error(tr("azureAuth.msalLibraryNotFound", "MSAL library not found."));
         }
 
         return new window.msal.PublicClientApplication({
@@ -248,7 +274,7 @@
         if (lastError) {
             throw lastError;
         }
-        throw new Error("Impossible d'acquérir un token avec les scopes configurés.");
+        throw new Error(tr("azureAuth.tokenScopesFailed", "Unable to acquire a token with configured scopes."));
     }
 
     async function fetchMe(token) {
@@ -276,7 +302,7 @@
 
         const payload = await response.json().catch(() => ({}));
         if (response.status === 403) {
-            return { status: "forbidden", detail: "Endpoint réservé aux admins." };
+            return { status: "forbidden", detail: tr("azureAuth.usersAdminOnly", "Users endpoint is restricted to admins.") };
         }
         if (!response.ok) {
             throw new Error(payload.detail || payload.message || response.statusText);
@@ -301,18 +327,18 @@
 
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(payload.detail || payload.message || response.statusText || "Unable to reset the log.");
+            throw new Error(payload.detail || payload.message || response.statusText || tr("azureAuth.unableResetLog", "Unable to reset the log."));
         }
         return payload;
     }
 
     async function loginAndExtract(msalApp) {
-        setStatus("Connexion Azure en cours...", false);
+        setStatus(tr("azureAuth.statusConnecting", "Signing in with Azure..."), false);
 
         const loginResponse = await msalApp.loginPopup({ scopes: getLoginScopes() });
         const account = loginResponse.account;
         if (!account) {
-            throw new Error("Aucun compte retourné après la connexion.");
+            throw new Error(tr("azureAuth.noAccountAfterLogin", "No account returned after sign-in."));
         }
 
         msalApp.setActiveAccount(account);
@@ -339,24 +365,24 @@
             }
             const usersData = (me && String(me.role || "").toLowerCase() === "admin")
                 ? await fetchUsers(accessToken).catch((error) => ({ error: error.message }))
-                : { status: "skipped", detail: "Liste utilisateurs reservee aux admins." };
+                : { status: "skipped", detail: tr("azureAuth.usersAdminOnly", "Users endpoint is restricted to admins.") };
             prettyPrint(meResponseEl, { me, users: usersData });
         } catch (apiError) {
             prettyPrint(meResponseEl, { error: apiError.message });
         }
 
-        setStatus("Connecté. Token extrait et injecté dans la section Télécharger.", false);
+        setStatus(tr("azureAuth.statusConnected", "Connected. Token extracted and injected into the Download section."), false);
         hideLoginGate();
     }
 
     async function refreshToken(msalApp) {
         const account = msalApp.getActiveAccount() || msalApp.getAllAccounts()[0];
         if (!account) {
-            throw new Error("Aucun compte actif. Connectez-vous d'abord.");
+            throw new Error(tr("azureAuth.noActiveAccount", "No active account. Please sign in first."));
         }
 
         msalApp.setActiveAccount(account);
-        setStatus("Rafraîchissement du token en cours...", false);
+        setStatus(tr("azureAuth.statusRefreshing", "Refreshing token..."), false);
 
         const tokenResponse = await acquireToken(msalApp, account);
         const accessToken = tokenResponse.accessToken;
@@ -370,13 +396,13 @@
             const me = await fetchMe(accessToken);
             const usersData = (me && String(me.role || "").toLowerCase() === "admin")
                 ? await fetchUsers(accessToken).catch((error) => ({ error: error.message }))
-                : { status: "skipped", detail: "Liste utilisateurs reservee aux admins." };
+                : { status: "skipped", detail: tr("azureAuth.usersAdminOnly", "Users endpoint is restricted to admins.") };
             prettyPrint(meResponseEl, { me, users: usersData });
         } catch (apiError) {
             prettyPrint(meResponseEl, { error: apiError.message });
         }
 
-        setStatus("Token rafraîchi et informations mises à jour.", false);
+        setStatus(tr("azureAuth.statusRefreshed", "Token refreshed and information updated."), false);
     }
 
     async function logout(msalApp) {
@@ -393,7 +419,7 @@
             await msalApp.logoutPopup({ account });
         }
 
-        setStatus("Déconnecté.", false);
+        setStatus(tr("azureAuth.statusDisconnected", "Signed out."), false);
         redirectToLogin();
     }
 
@@ -416,7 +442,7 @@
                     homeAccountId: existingAccount.homeAccountId
                 });
                 setSidebarUserEmail(existingAccount.username || existingAccount.name || "");
-                setStatus("Compte détecté. Cliquez sur Rafraîchir le token.", false);
+                setStatus(tr("azureAuth.statusAccountDetectedRefresh", "Account detected. Click Refresh token."), false);
                 hideLoginGate();
             } else {
                 setSidebarUserEmail("");
@@ -424,7 +450,7 @@
                 return;
             }
         } catch (error) {
-            setStatus(`Erreur initialisation Azure auth: ${error.message}`, true);
+            setStatus(tr("azureAuth.statusInitError", "Azure auth initialization error: {error}", { error: error.message }), true);
             return;
         }
 
@@ -433,7 +459,7 @@
                 try {
                     await loginAndExtract(msalApp);
                 } catch (error) {
-                    setStatus(`Connexion échouée: ${error.message}`, true);
+                    setStatus(tr("azureAuth.statusLoginFailed", "Sign-in failed: {error}", { error: error.message }), true);
                 }
             });
         }
@@ -443,7 +469,7 @@
                 try {
                     await refreshToken(msalApp);
                 } catch (error) {
-                    setStatus(`Rafraîchissement échoué: ${error.message}`, true);
+                    setStatus(tr("azureAuth.statusRefreshFailed", "Refresh failed: {error}", { error: error.message }), true);
                 }
             });
         }
@@ -453,7 +479,7 @@
                 try {
                     await logout(msalApp);
                 } catch (error) {
-                    setStatus(`Déconnexion échouée: ${error.message}`, true);
+                    setStatus(tr("azureAuth.statusLogoutFailed", "Sign-out failed: {error}", { error: error.message }), true);
                 }
             });
         }
@@ -464,7 +490,7 @@
                 try {
                     await logout(msalApp);
                 } catch (error) {
-                    setStatus(`Déconnexion échouée: ${error.message}`, true);
+                    setStatus(tr("azureAuth.statusLogoutFailed", "Sign-out failed: {error}", { error: error.message }), true);
                 }
             });
         }
@@ -474,7 +500,7 @@
                 try {
                     await loginAndExtract(msalApp);
                 } catch (error) {
-                    setStatus(`Connexion échouée: ${error.message}`, true);
+                    setStatus(tr("azureAuth.statusLoginFailed", "Sign-in failed: {error}", { error: error.message }), true);
                 }
             });
         }
@@ -489,7 +515,7 @@
             try {
                 await refreshToken(msalApp);
             } catch (error) {
-                setStatus(`Rafraîchissement automatique échoué: ${error.message}`, true);
+                setStatus(tr("azureAuth.statusAutoRefreshFailed", "Automatic refresh failed: {error}", { error: error.message }), true);
                 redirectToLogin();
             }
         }

@@ -126,5 +126,29 @@
     "model_used": "google/gemini-3.7-flash",
     "timestamp": "2026-09-22T14:39:34.169278",
     "comments": []
+  },
+  {
+    "question_id": "ce056a30-5af9-43af-9e52-18161839c201",
+    "question": "Pourquoi le fructose des fruits n'a-t-il pas le même impact sur la santé que celui des produits ultra-transformés ?",
+    "response": "### La matrice alimentaire des fruits\n\nLe fructose contenu dans les fruits entiers n'agit pas de la même manière que celui des produits ultra-transformés, principalement en raison de la **matrice alimentaire** de l'aliment (c'est-à-dire l'ensemble de ses composantes et non un nutriment isolé) :\n\n* **Richesse nutritionnelle :** Les fruits entiers apportent des **fibres**, des **vitamines** et des **polyphénols**.\n* **Effet de satiété :** Grâce à leurs fibres et à leur structure, les fruits favorisent la satiété, ce qui aide à réduire la densité énergétique globale de l'alimentation.\n\n---\n\n### Le rôle du contexte global et de l'énergie\n\nLes impacts sur la santé dépendent avant tout du contexte et des quantités consommées :\n\n* **Impact métabolique :** Lorsque l'apport calorique est contrôlé, le fructose issu des fruits n'entraîne pas d'augmentation du poids, des triglycérides ou de la stéatose hépatique. Une consommation plus élevée de fruits entiers est plutôt associée à une amélioration des marqueurs métaboliques et à une réduction de certains risques pour la santé.\n* **Le surplus énergétique :** Dans les produits ultra-transformés, les sucres ajoutés sont facilement surconsommés, favorisant un contexte de surplus énergétique chronique, ce qui n'est généralement pas le cas avec les fruits entiers.\n\nEn résumé, la peur du fructose des fruits repose sur un raccourci : c'est la **qualité globale de l'alimentation** et l'équilibre énergétique qui déterminent la santé métabolique, et non le sucre naturel présent dans un fruit entier.",
+    "model_used": "google/gemini-3.7-flash",
+    "timestamp": "2026-09-22T14:54:58.371743",
+    "comments": [],
+    "likes": {
+      "like": false,
+      "timestamp": "2026-09-22T14:55:01.170142"
+    }
+  },
+  {
+    "question_id": "52e9ff1a-7d14-453a-bf46-3eb09ac8969c",
+    "question": "Pourquoi le fructose des fruits n'a-t-il pas le même impact sur la santé que celui des produits ultra-transformés ?",
+    "response": "Voici les éléments qui expliquent pourquoi le fructose des fruits n'a pas le même effet sur la santé que celui que l'on retrouve dans les produits ultra-transformés :\n\n### Le rôle de la matrice alimentaire\n* **Une action globale et non isolée :** L'impact d'un aliment ne se résume pas à un seul nutriment isolé. La **matrice alimentaire** du fruit entier, c'est-à-dire l'ensemble de ses composants, modifie la façon dont l'organisme réagit.\n* **Un apport en nutriments bénéfiques :** Contrairement aux produits ultra-transformés, les fruits entiers apportent des **fibres**, des **vitamines** et des **polyphénols**.\n\n### Satiété et contexte énergétique\n* **Effet sur la satiété :** Grâce à leur teneur en fibres et en eau, les fruits procurent un effet de satiété qui aide à réduire la densité énergétique globale de l'alimentation.\n* **Absence d'impact négatif à calories contrôlées :** Lorsque les apports caloriques sont équilibrés, le fructose provenant des fruits n'augmente ni le poids, ni les triglycérides, ni la stéatose hépatique (foie gras). \n\nEn résumé, les effets sur la santé dépendent du **contexte alimentaire global** et de la qualité des aliments consommés plutôt que de la présence de sucre ou de fructose pris isolément.\n\n---\n*Note : Ces informations sont partagées à des fins éducatives générales. Pour toute question spécifique relative à votre santé ou votre alimentation, il est recommandé de consulter un professionnel de la santé qualifié.*",
+    "model_used": "google/gemini-3.7-flash",
+    "timestamp": "2026-09-22T14:56:39.536997",
+    "comments": [],
+    "likes": {
+      "like": true,
+      "timestamp": "2026-09-22T14:56:40.852094"
+    }
   }
 ]

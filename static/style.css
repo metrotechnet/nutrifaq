@@ -1431,6 +1431,225 @@ body.sidebar-collapsed .content {
     overflow: auto;
 }
 
+.download-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.publish-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.publish-controls-card,
+.publish-logs-card {
+    background: #ffffff;
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.publish-controls-card h2,
+.publish-logs-card h3 {
+    margin: 0 0 0.75rem;
+    color: #12453f;
+}
+
+.publish-logs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.publish-logs-header h3 {
+    margin: 0;
+}
+
+.publish-logs-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.publish-refresh-logs-btn {
+    padding: 0.42rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+.publish-export-logs-btn {
+    padding: 0.42rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+.publish-controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.9rem;
+    align-items: end;
+}
+
+.publish-model-selector,
+#publish-datetime {
+    border: 1px solid #bfd3cd;
+    border-radius: 8px;
+    padding: 0.62rem 0.75rem;
+    font-size: 0.95rem;
+    min-height: 42px;
+    background: #ffffff;
+}
+
+.publish-logs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 460px;
+    overflow: auto;
+}
+
+.publish-log-item {
+    border: 1px solid #e2ece9;
+    border-radius: 10px;
+    padding: 0.75rem;
+    background: #fbfefd;
+    box-shadow: 0 1px 0 rgba(15, 118, 110, 0.06);
+}
+
+.publish-log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.45rem;
+}
+
+.publish-log-index {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: #e7f4f0;
+    color: #17564e;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.publish-log-model {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3f4f7f;
+    font-size: 0.78rem;
+    font-weight: 600;
+    max-width: 60%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.publish-log-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-size: 0.83rem;
+    color: #335f58;
+    margin-bottom: 0.4rem;
+}
+
+.publish-log-block {
+    border: 1px solid #e6efec;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 0.55rem 0.65rem;
+    margin-top: 0.45rem;
+}
+
+.publish-log-answer-block {
+    border-style: dashed;
+}
+
+.publish-log-label {
+    margin: 0 0 0.22rem;
+    color: #22554e;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.publish-log-question,
+.publish-log-response {
+    margin: 0;
+    color: #173833;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    white-space: normal;
+}
+
+.publish-log-response.preview {
+    color: #244842;
+}
+
+.publish-log-response {
+    overflow-wrap: anywhere;
+}
+
+.publish-log-block .message-text {
+    margin-bottom: 0;
+}
+
+.publish-log-block .markdown {
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.publish-log-block .markdown p,
+.publish-log-block .markdown ul,
+.publish-log-block .markdown ol,
+.publish-log-block .markdown blockquote,
+.publish-log-block .markdown pre,
+.publish-log-block .markdown table {
+    margin: 0.3rem 0;
+}
+
+.publish-log-block .markdown li {
+    margin: 0.2rem 0;
+}
+
+.publish-log-response > :first-child {
+    margin-top: 0;
+}
+
+.publish-log-response > :last-child {
+    margin-bottom: 0;
+}
+
+.publish-log-response-details {
+    margin-top: 0.42rem;
+}
+
+.publish-log-response-details summary {
+    cursor: pointer;
+    color: #205f56;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.publish-log-response-details > p {
+    margin-top: 0.42rem;
+}
+
+.publish-log-empty {
+    margin: 0;
+    color: #4d6f69;
+    font-size: 0.92rem;
+}
+
 .files-table {
     width: 100%;
     border-collapse: collapse;
@@ -1517,6 +1736,10 @@ body.sidebar-collapsed .content {
 
     .download-control-group.actions {
         justify-content: flex-start;
+    }
+
+    .publish-controls-grid {
+        grid-template-columns: 1fr;
     }
 
     .download-status-row {

@@ -12,13 +12,30 @@
  */
 const MODEL_STORAGE_KEY = 'nutrifaq_selected_model';
 
+function tr(key, fallback) {
+    try {
+        const translator = window.ConfigModule && typeof window.ConfigModule.t === 'function'
+            ? window.ConfigModule.t
+            : null;
+        if (translator) {
+            const translated = translator(key);
+            if (translated && translated !== key) {
+                return translated;
+            }
+        }
+    } catch (_) {
+        // Ignore and use fallback.
+    }
+    return fallback;
+}
+
 async function loadModelSelectorOptions() {
     const modelSelector = document.getElementById('model-selector');
     if (!modelSelector) {
         return;
     }
 
-    modelSelector.innerHTML = '<option value="">Chargement des modèles...</option>';
+    modelSelector.innerHTML = `<option value="">${tr('main.models.loading', 'Loading models...')}</option>`;
     modelSelector.disabled = true;
 
     try {
@@ -31,7 +48,7 @@ async function loadModelSelectorOptions() {
 
         const models = Array.isArray(payload.models) ? payload.models : [];
         if (!models.length) {
-            modelSelector.innerHTML = '<option value="">Aucun modèle disponible</option>';
+            modelSelector.innerHTML = `<option value="">${tr('main.models.noneAvailable', 'No model available')}</option>`;
             return;
         }
 
@@ -61,7 +78,7 @@ async function loadModelSelectorOptions() {
 
         modelSelector.disabled = false;
     } catch (error) {
-        modelSelector.innerHTML = '<option value="">Erreur chargement modèles</option>';
+        modelSelector.innerHTML = `<option value="">${tr('main.models.loadError', 'Error loading models')}</option>`;
         modelSelector.disabled = true;
         console.error('Failed to load model catalog:', error);
     }

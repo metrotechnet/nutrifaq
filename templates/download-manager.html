@@ -29,9 +29,9 @@
             </a>
             <a href="#" class="sidebar-link" id="validate-link">
                 <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                 </svg>
-                <span>Valider</span>
+                <span>Publier</span>
             </a>
             <a href="https://imxtech.ca/" target="_blank" rel="noopener noreferrer" class="sidebar-link" id="about-imx-link">
                 <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
@@ -56,6 +56,7 @@
 
     <div class="content" id="chat-container">
     <main class="download-manager-content">
+        <section id="download-section" class="download-section" aria-label="Gestion des fichiers">
         <section class="download-dropzone-section" aria-label="Téléversement de fichier">
             <div id="dnd-upload-area" class="dnd-upload-area" role="button" tabindex="0" aria-label="Glissez un fichier ici ou cliquez pour sélectionner">
                 <input type="file" id="upload-file" hidden>
@@ -96,6 +97,36 @@
                     </tr>
                 </tbody>
             </table>
+        </section>
+        </section>
+
+        <section id="publish-section" class="publish-section" aria-label="Publication" style="display:none;">
+            <div class="publish-controls-card">
+                <h2>Publier</h2>
+                <div class="publish-controls-grid">
+                    <div class="download-control-group wide">
+                        <label for="publish-model-selector">Modèle</label>
+                        <select id="publish-model-selector" class="publish-model-selector">
+                            <option value="">Chargement des modèles...</option>
+                        </select>
+                    </div>
+                    <div class="download-control-group wide">
+                        <label for="publish-datetime">Date et heure de publication</label>
+                        <input id="publish-datetime" type="datetime-local">
+                    </div>
+                    <div class="download-control-group actions">
+                        <button id="publish-submit" class="dm-btn primary" type="button">Publier</button>
+                    </div>
+                </div>
+                <p id="publish-status" class="status-message">Prêt.</p>
+            </div>
+
+            <div class="publish-logs-card" aria-live="polite">
+                <h3>Logs de questions</h3>
+                <div id="publish-logs-list" class="publish-logs-list">
+                    <p class="publish-log-empty">Chargement des logs...</p>
+                </div>
+            </div>
         </section>
     </main>
     </div>

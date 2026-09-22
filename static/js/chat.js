@@ -21,6 +21,30 @@ const MIN_REQUEST_INTERVAL = 2000; // 2 seconds minimum between requests
 const CLIENT_QUERY_KEY = (window.CLIENT_QUERY_KEY || '').trim();
 const ADMIN_BEARER_TOKEN_KEY = 'nutrifaq_admin_bearer_token';
 
+function tr(key, fallback, params) {
+    let template = fallback;
+    try {
+        const translator = window.ConfigModule && typeof window.ConfigModule.t === 'function'
+            ? window.ConfigModule.t
+            : null;
+        if (translator) {
+            const translated = translator(key);
+            if (translated && translated !== key) {
+                template = translated;
+            }
+        }
+    } catch (_) {
+        template = fallback;
+    }
+
+    if (!params || typeof template !== 'string') {
+        return template;
+    }
+    return Object.keys(params).reduce((acc, name) => {
+        return acc.replaceAll(`{${name}}`, String(params[name]));
+    }, template);
+}
+
 function getAdminBearerToken() {
     try {
         const token = localStorage.getItem(ADMIN_BEARER_TOKEN_KEY);
@@ -138,7 +162,7 @@ function setMessageModelBadge(actionsDiv, modelId, modelLabel) {
         return;
     }
 
-    badge.textContent = `Modele: ${value}`;
+    badge.textContent = tr('chat.modelBadge', 'Model: {value}', { value });
     badge.style.display = 'inline-flex';
 }
 
@@ -196,7 +220,7 @@ function copyQuestionToInput(question, button) {
         return;
     }
     const originalText = button.textContent;
-    button.textContent = 'Copié';
+    button.textContent = tr('chat.copyDone', 'Copied');
     button.classList.add('copied');
     window.setTimeout(() => {
         button.textContent = originalText;
@@ -213,8 +237,8 @@ function renderSuggestedQuestions(documents) {
 
     if (!Array.isArray(documents) || documents.length === 0) {
         setSuggestedQuestionsState({
-            metaText: '0 document',
-            emptyText: 'Aucune question générée disponible.',
+            metaText: tr('chat.suggested.zeroDocuments', '0 document'),
+            emptyText: tr('chat.suggested.noGeneratedQuestions', 'No generated questions available.'),
         });
         return;
     }
@@ -222,7 +246,10 @@ function renderSuggestedQuestions(documents) {
     const totalQuestions = documents.reduce((count, doc) => {
         return count + (Array.isArray(doc.questions) ? doc.questions.length : 0);
     }, 0);
-    meta.textContent = `${documents.length} document(s) • ${totalQuestions} question(s)`;
+    meta.textContent = tr('chat.suggested.summary', '{documents} document(s) • {questions} question(s)', {
+        documents: documents.length,
+        questions: totalQuestions,
+    });
 
     list.innerHTML = '';
     documents.forEach((doc) => {
@@ -236,7 +263,7 @@ function renderSuggestedQuestions(documents) {
 
         const title = document.createElement('h4');
         title.className = 'suggested-question-group-title';
-        title.textContent = truncateTitle(doc.document_title || doc.document_id || 'Document');
+        title.textContent = truncateTitle(doc.document_title || doc.document_id || tr('chat.suggested.documentFallback', 'Document'));
         group.appendChild(title);
 
         questions.forEach((question) => {
@@ -250,7 +277,7 @@ function renderSuggestedQuestions(documents) {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'copy-question-btn';
-            button.textContent = 'Copier';
+            button.textContent = tr('messages.copy', 'Copy');
             button.addEventListener('click', () => copyQuestionToInput(question, button));
 
             item.appendChild(text);
@@ -263,8 +290,8 @@ function renderSuggestedQuestions(documents) {
 
     if (!list.children.length) {
         setSuggestedQuestionsState({
-            metaText: `${documents.length} document(s)`,
-            emptyText: 'Aucune question exploitable trouvée.',
+            metaText: tr('chat.suggested.documentCount', '{documents} document(s)', { documents: documents.length }),
+            emptyText: tr('chat.suggested.noUsableQuestions', 'No usable questions found.'),
         });
     }
 }
@@ -276,8 +303,8 @@ async function loadSuggestedQuestions() {
     }
 
     setSuggestedQuestionsState({
-        metaText: 'Chargement...',
-        emptyText: 'Chargement des questions...',
+        metaText: tr('messages.loading', 'Loading...'),
+        emptyText: tr('chat.suggested.loadingQuestions', 'Loading questions...'),
     });
 
     try {
@@ -296,8 +323,8 @@ async function loadSuggestedQuestions() {
         renderSuggestedQuestions(Array.isArray(payload.documents) ? payload.documents : []);
     } catch (error) {
         setSuggestedQuestionsState({
-            metaText: 'Erreur',
-            emptyText: `Impossible de charger les questions: ${error.message}`,
+            metaText: tr('chat.errorTitle', 'Error'),
+            emptyText: tr('chat.suggested.loadQuestionsError', 'Unable to load questions: {error}', { error: error.message }),
             isError: true,
         });
     }
