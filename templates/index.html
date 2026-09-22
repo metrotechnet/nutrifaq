@@ -156,9 +156,16 @@
             <section class="download-status-row">
                 <p id="status-message" class="status-message">Prêt.</p>
                 <div class="indexing-actions">
+                    <button id="reset-debug-files" class="dm-btn secondary" type="button">Réinitialiser les fichiers</button>
                     <button id="start-indexing" class="dm-btn indexing">Démarrer un indexage</button>
                     <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;">Annuler</button>
                 </div>
+            </section>
+            <section id="reset-progress-wrap" class="indexing-progress-wrap" style="display:none;" aria-live="polite">
+                <div class="indexing-progress-track">
+                    <div id="reset-progress-bar" class="reset-progress-bar" style="width:0%;"></div>
+                </div>
+                <p id="reset-progress-text" class="indexing-progress-text">0%</p>
             </section>
             <section id="indexing-progress-wrap" class="indexing-progress-wrap" style="display:none;" aria-live="polite">
                 <div class="indexing-progress-track">

@@ -21,6 +21,7 @@ from api.services.blob_storage_service import (
     get_blob_container_name,
     get_container_client,
     list_blob_files,
+    sync_blob_prefix_to_local,
     upload_file_to_blob,
 )
 
@@ -244,5 +245,36 @@ def copy_container_files(
         }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/api/blob/debug/reset-local")
+def reset_local_debug_from_blob(
+    container: str | None = Query(default=None, description="Optional blob container name override."),
+    root_folder: str | None = Query(default=None, description="Optional blob root folder override."),
+    _: object = Depends(require_admin),
+):
+    """Reset local debug KB files by syncing the debug prefix from blob to local."""
+    try:
+        resolved_root = (root_folder or get_debug_local_kb_root_folder()).strip("/")
+        resolved_container = get_blob_container_name(container)
+        local_root = _debug_local_root(root_folder)
+        synced_path = sync_blob_prefix_to_local(
+            resolved_root,
+            local_root,
+            remove_existing=True,
+            container_name=resolved_container,
+        )
+
+        local_files = _list_local_debug_files(_documents_prefix(resolved_root), root_folder=resolved_root)
+        return {
+            "status": "ok",
+            "container": resolved_container,
+            "root_folder": resolved_root,
+            "local_path": str(synced_path),
+            "documents_count": len(local_files),
+            "message": "Debug files synced from blob to local.",
+        }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

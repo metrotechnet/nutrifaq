@@ -20,8 +20,12 @@
         dropZone: document.getElementById("dnd-upload-area"),
         browseBtn: document.getElementById("dnd-browse-btn"),
         fileName: document.getElementById("dnd-file-name"),
+        resetDebugFiles: document.getElementById("reset-debug-files"),
         startIndexing: document.getElementById("start-indexing"),
         cancelIndexing: document.getElementById("cancel-indexing"),
+        resetProgressWrap: document.getElementById("reset-progress-wrap"),
+        resetProgressBar: document.getElementById("reset-progress-bar"),
+        resetProgressText: document.getElementById("reset-progress-text"),
         indexingProgressWrap: document.getElementById("indexing-progress-wrap"),
         indexingProgressBar: document.getElementById("indexing-progress-bar"),
         indexingProgressText: document.getElementById("indexing-progress-text"),
@@ -33,6 +37,7 @@
     let indexingProgressTimer = null;
     let indexingStatusTimer = null;
     let indexingAbortController = null;
+    let resetProgressTimer = null;
     let isIndexingRunning = false;
     let hasLiveStepStatus = false;
     let currentStepKey = null;
@@ -97,6 +102,54 @@
         if (els.indexingProgressText) {
             els.indexingProgressText.textContent = text || `${clamped}%`;
         }
+    }
+
+    function setResetProgress(value, text) {
+        const clamped = Math.max(0, Math.min(100, Number(value) || 0));
+        if (els.resetProgressBar) {
+            els.resetProgressBar.style.width = `${clamped}%`;
+        }
+        if (els.resetProgressText) {
+            els.resetProgressText.textContent = text || `${clamped}%`;
+        }
+    }
+
+    function beginResetProgress() {
+        if (els.resetProgressWrap) {
+            els.resetProgressWrap.style.display = "block";
+        }
+        if (els.resetDebugFiles) {
+            els.resetDebugFiles.disabled = true;
+            els.resetDebugFiles.textContent = "Reset en cours...";
+        }
+
+        let progress = 8;
+        setResetProgress(progress, "Préparation...");
+        resetProgressTimer = window.setInterval(() => {
+            progress = Math.min(progress + 6, 90);
+            setResetProgress(progress, `Synchronisation... ${progress}%`);
+        }, 350);
+    }
+
+    function finishResetProgress(success) {
+        if (resetProgressTimer) {
+            window.clearInterval(resetProgressTimer);
+            resetProgressTimer = null;
+        }
+
+        setResetProgress(100, success ? "Terminé" : "Interrompu");
+
+        if (els.resetDebugFiles) {
+            els.resetDebugFiles.disabled = false;
+            els.resetDebugFiles.textContent = "Réinitialiser les fichiers";
+        }
+
+        window.setTimeout(() => {
+            if (els.resetProgressWrap) {
+                els.resetProgressWrap.style.display = "none";
+            }
+            setResetProgress(0, "0%");
+        }, success ? 1200 : 1800);
     }
 
     function beginIndexingProgress() {
@@ -556,7 +609,7 @@
         }
     }
 
-    function downloadFile(blobName) {
+    async function downloadFile(blobName) {
         if (!blobName) {
             return;
         }
@@ -564,24 +617,24 @@
         try {
             const headers = authHeaders();
             const url = withContainerQuery(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}/download`);
-            fetch(url, { headers }).then(async (response) => {
-                if (!response.ok) {
-                    const payload = await response.json().catch(() => ({}));
-                    throw new Error(payload.detail || response.statusText);
-                }
-                const blob = await response.blob();
-                const objectUrl = URL.createObjectURL(blob);
-                const anchor = document.createElement("a");
-                anchor.href = objectUrl;
-                anchor.download = blobName.split("/").pop() || "download";
-                document.body.appendChild(anchor);
-                anchor.click();
-                anchor.remove();
-                URL.revokeObjectURL(objectUrl);
-                setStatus(`Téléchargement lancé: ${blobName}`, false);
-            }).catch((error) => {
-                setStatus(`Erreur téléchargement: ${error.message}`, true);
-            });
+            const response = await fetch(url, { headers });
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.detail || response.statusText);
+            }
+
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = blobName.split("/").pop() || "download";
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(objectUrl);
+
+            setStatus(`Téléchargement lancé: ${blobName}`, false);
+            await loadFiles();
         } catch (error) {
             setStatus(`Erreur téléchargement: ${error.message}`, true);
         }
@@ -737,6 +790,37 @@
         }
     }
 
+    async function resetDebugFilesFromBlob() {
+        const confirmed = await confirmAction({
+            title: "Réinitialiser les fichiers ?",
+            text: "Cette action va rétablir les fichiers précédents.",
+            confirmText: "Réinitialiser",
+        });
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            beginResetProgress();
+            setStatus("Réinitialisation depuis le blob en cours...", false);
+
+            const result = await fetchJson(withContainerQuery(`${BACKEND_URL}/api/blob/debug/reset-local`), {
+                method: "POST",
+                headers: {
+                    ...authHeaders()
+                }
+            });
+
+            const docsCount = Number(result.documents_count || 0);
+            setStatus(`Reset terminé. ${docsCount} fichier(s) dans documents/.`, false);
+            finishResetProgress(true);
+            await loadFiles();
+        } catch (error) {
+            setStatus(`Erreur reset: ${error.message}`, true);
+            finishResetProgress(false);
+        }
+    }
+
     function bindTableActions() {
         if (!els.filesTbody) {
             return;
@@ -771,6 +855,9 @@
         }
         if (els.startIndexing) {
             els.startIndexing.addEventListener("click", startIndexing);
+        }
+        if (els.resetDebugFiles) {
+            els.resetDebugFiles.addEventListener("click", resetDebugFilesFromBlob);
         }
         if (els.cancelIndexing) {
             els.cancelIndexing.addEventListener("click", requestCancelIndexing);
