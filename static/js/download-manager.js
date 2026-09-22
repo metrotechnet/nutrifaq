@@ -1289,10 +1289,16 @@
             const model = escapeHtml(modelRaw);
             const questionHtml = renderMarkdownHtml(questionRaw);
             const responseHtml = renderMarkdownHtml(responseRaw);
+            const comments = Array.isArray(entry.comments) ? entry.comments : [];
+            const commentsHtml = comments.length
+                ? comments.map((item) => {
+                    const commentText = renderMarkdownHtml(String(item && item.comment ? item.comment : "-"));
+                    return `<div class="publish-log-comment-item">${commentText}</div>`;
+                }).join("")
+                : `<p class="publish-log-comment-empty">${escapeHtml(tr("publish.logs.noComments", "No comments."))}</p>`;
 
             const likes = entry && typeof entry.likes === "object" ? entry.likes : null;
             const voteLabel = likes ? (likes.like ? "👍 Like" : "👎 Dislike") : "-";
-            const commentsCount = Array.isArray(entry.comments) ? entry.comments.length : 0;
 
             return `
                 <article class="publish-log-item">
@@ -1301,16 +1307,20 @@
                         <span class="publish-log-model">${model}</span>
                     </div>
                     <div class="publish-log-meta">
-                        <span><strong>Date:</strong> ${ts}</span>
-                        <span><strong>Vote:</strong> ${escapeHtml(voteLabel)}</span>
-                        <span><strong>Commentaires:</strong> ${commentsCount}</span>
+                        <span><strong>${escapeHtml(tr("publish.logs.dateLabel", "Date"))}:</strong> ${ts}</span>
+                        <span><strong>${escapeHtml(tr("publish.logs.voteLabel", "Vote"))}:</strong> ${escapeHtml(voteLabel)}</span>
                     </div>
                     <div class="publish-log-block">
-                        <p class="publish-log-label">Question</p>
+                        <p class="publish-log-label">${escapeHtml(tr("publish.logs.questionLabel", "Question"))}</p>
                         <div class="publish-log-question publish-log-markdown">${questionHtml}</div>
                     </div>
                     <div class="publish-log-block publish-log-answer-block">
+                        <p class="publish-log-label">${escapeHtml(tr("publish.logs.responseLabel", "Responses"))}</p>
                         <div class="message-text markdown publish-log-response">${responseHtml}</div>
+                    </div>
+                    <div class="publish-log-block publish-log-comments-block">
+                        <p class="publish-log-label">${escapeHtml(tr("publish.logs.commentsLabel", "Comments"))}</p>
+                        ${comments.length ? `<div class="publish-log-comments-list">${commentsHtml}</div>` : commentsHtml}
                     </div>
                 </article>
             `;

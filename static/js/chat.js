@@ -233,22 +233,22 @@ function copyQuestionToInput(question, button) {
         return;
     }
     const icon = button.querySelector('i');
-    const copyTitle = tr('messages.copy', 'Copy');
-    const copiedTitle = tr('chat.copyDone', 'Copied');
+    const sendTitle = tr('messages.send', 'Send');
+    const sentTitle = tr('chat.copyDone', 'Sent');
 
     if (icon) {
-        icon.className = 'bi bi-clipboard-check';
+        icon.className = 'bi bi-check2';
     }
-    button.title = copiedTitle;
-    button.setAttribute('aria-label', copiedTitle);
+    button.title = sentTitle;
+    button.setAttribute('aria-label', sentTitle);
     button.classList.add('copied');
 
     window.setTimeout(() => {
         if (icon) {
-            icon.className = 'bi bi-clipboard';
+            icon.className = 'bi bi-send';
         }
-        button.title = copyTitle;
-        button.setAttribute('aria-label', copyTitle);
+        button.title = sendTitle;
+        button.setAttribute('aria-label', sendTitle);
         button.classList.remove('copied');
     }, 1000);
 }
@@ -302,10 +302,10 @@ function renderSuggestedQuestions(documents) {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'copy-question-btn';
-            const copyLabel = tr('messages.copy', 'Copy');
-            button.title = copyLabel;
-            button.setAttribute('aria-label', copyLabel);
-            button.innerHTML = '<i class="bi bi-clipboard" aria-hidden="true"></i>';
+            const sendLabel = tr('messages.send', 'Send');
+            button.title = sendLabel;
+            button.setAttribute('aria-label', sendLabel);
+            button.innerHTML = '<i class="bi bi-send" aria-hidden="true"></i>';
             button.addEventListener('click', () => copyQuestionToInput(question, button));
 
             item.appendChild(text);
@@ -436,7 +436,11 @@ function setupMessageActions(messageDiv, contentDiv) {
 
     // Set translated titles
     if (ttsBtn) ttsBtn.title = t('messages.listen') || 'Listen';
-    if (copyBtn) copyBtn.title = t('messages.copy');
+    if (copyBtn) {
+        const commentTitle = t('messages.comment') || 'Comment';
+        copyBtn.title = commentTitle;
+        copyBtn.setAttribute('aria-label', commentTitle);
+    }
 
     // TTS button
     if (ttsBtn && speakText && stopTTS && getActiveTtsButton) {
@@ -509,45 +513,89 @@ function setupMessageActions(messageDiv, contentDiv) {
         });
     }
 
-    // Copy button - Copy HTML with images
+    // Copy button repurposed as a comment action popup
     if (copyBtn) {
         copyBtn.addEventListener('click', async () => {
+            const questionId = copyBtn.dataset.questionId;
+            if (!questionId) {
+                console.log('Comment button clicked but no question_id available');
+                return;
+            }
+
+            const placeholder = t('messages.comment_placeholder') || 'Your comment...';
+            let trimmedComment = '';
+
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                const result = await window.Swal.fire({
+                    title: t('messages.comment') || 'Comment',
+                    input: 'textarea',
+                    inputPlaceholder: placeholder,
+                    inputAttributes: {
+                        'aria-label': placeholder,
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: t('messages.save') || 'Save',
+                    cancelButtonText: t('messages.cancel') || 'Cancel',
+                    reverseButtons: true,
+                    focusConfirm: false,
+                    preConfirm: (value) => {
+                        const cleaned = String(value || '').trim();
+                        if (!cleaned) {
+                            window.Swal.showValidationMessage(t('messages.comment_required') || 'Please enter a comment.');
+                            return false;
+                        }
+                        return cleaned;
+                    },
+                });
+
+                if (!result.isConfirmed) {
+                    return;
+                }
+                trimmedComment = String(result.value || '').trim();
+            } else {
+                const commentText = window.prompt(placeholder, '');
+                if (commentText === null) {
+                    return;
+                }
+                trimmedComment = String(commentText).trim();
+                if (!trimmedComment) {
+                    window.alert(t('messages.comment_required') || 'Please enter a comment.');
+                    return;
+                }
+            }
+
             try {
-                // Copy both HTML and plain text to clipboard
-                await navigator.clipboard.write([
-                    new ClipboardItem({
-                        'text/html': new Blob([contentDiv.innerHTML], { type: 'text/html' }),
-                        'text/plain': new Blob([contentDiv.textContent], { type: 'text/plain' })
-                    })
-                ]);
-                
-                // Show confirmation feedback
+                const response = await fetch(`${BACKEND_URL}/api/add_comment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question_id: questionId,
+                        comment: trimmedComment,
+                    }),
+                });
+
+                const result = await response.json();
+                if (result.status !== 'success') {
+                    throw new Error(result.message || 'Comment save failed');
+                }
+
                 const originalIcon = copyBtn.innerHTML;
                 copyBtn.innerHTML = '<i class="bi bi-check2"></i>';
                 copyBtn.style.background = '#4caf50';
-                
                 setTimeout(() => {
                     copyBtn.innerHTML = originalIcon;
                     copyBtn.style.background = '';
                 }, 2000);
-                
             } catch (err) {
-                // Fallback to text-only if HTML copy fails
-                console.log('HTML copy failed, falling back to text:', err);
-                try {
-                    await navigator.clipboard.writeText(contentDiv.textContent);
-                    
-                    // Show confirmation feedback for fallback too
-                    const originalIcon = copyBtn.innerHTML;
-                    copyBtn.innerHTML = '<i class="bi bi-check2"></i>';
-                    copyBtn.style.background = '#4caf50';
-                    
-                    setTimeout(() => {
-                        copyBtn.innerHTML = originalIcon;
-                        copyBtn.style.background = '';
-                    }, 2000);
-                } catch (fallbackErr) {
-                    console.error('Copy failed:', fallbackErr);
+                console.error('Comment save failed:', err);
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    window.Swal.fire({
+                        icon: 'error',
+                        title: t('chat.errorTitle', 'Error'),
+                        text: t('messages.comment_error') || 'Error adding comment.',
+                    });
+                } else {
+                    window.alert(t('messages.comment_error') || 'Error adding comment.');
                 }
             }
 
@@ -731,8 +779,10 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
             if (questionId) {
                 const likeBtn = actionsDiv.querySelector('.like-btn');
                 const dislikeBtn = actionsDiv.querySelector('.dislike-btn');
+                const copyBtn = actionsDiv.querySelector('.copy-btn');
                 if (likeBtn) likeBtn.dataset.questionId = questionId;
                 if (dislikeBtn) dislikeBtn.dataset.questionId = questionId;
+                if (copyBtn) copyBtn.dataset.questionId = questionId;
             }
             if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
                 contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(fullText), { ADD_ATTR: ['target'] });
@@ -763,8 +813,10 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
                     if (questionId) {
                         const likeBtn = actionsDiv.querySelector('.like-btn');
                         const dislikeBtn = actionsDiv.querySelector('.dislike-btn');
+                        const copyBtn = actionsDiv.querySelector('.copy-btn');
                         if (likeBtn) likeBtn.dataset.questionId = questionId;
                         if (dislikeBtn) dislikeBtn.dataset.questionId = questionId;
+                        if (copyBtn) copyBtn.dataset.questionId = questionId;
                     }
                     if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
                         contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(fullText), { ADD_ATTR: ['target'] });
