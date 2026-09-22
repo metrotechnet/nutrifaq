@@ -159,20 +159,20 @@
         <main class="download-manager-content" id="download-manager-panel" style="display:flex;">
             <section id="instructions-section" class="instructions-section" aria-label="Instructions de mise à jour NutriFAQ-Chat">
                 <div class="instructions-header">
-                    <span class="instructions-badge">Guide</span>
-                    <h2>Instructions de mise à jour NutriFAQ-Chat</h2>
+                    <span class="instructions-badge" data-i18n="instructions.badge">Guide</span>
+                    <h2 data-i18n="instructions.title">Instructions de mise à jour NutriFAQ-Chat</h2>
                 </div>
 
                 <div class="instruction-steps">
                     <article class="instruction-step">
                         <div class="step-number">1</div>
                         <div class="step-content">
-                            <h3>Télécharger</h3>
-                            <p>Utilisez cette section pour préparer le contenu de la base de connaissances avant de l’intégrer à NutriFAQ-Chat.</p>
+                            <h3 data-i18n="instructions.downloadTitle">Télécharger</h3>
+                            <p data-i18n="instructions.downloadDescription">Utilisez cette section pour préparer le contenu de la base de connaissances avant de l’intégrer à NutriFAQ-Chat.</p>
                             <ul>
-                                <li>Glissez-déposez un fichier ou sélectionnez-le avec le bouton <strong>Choisir un fichier</strong>.</li>
-                                <li>Vérifiez le nom du fichier affiché dans la zone de sélection.</li>
-                                <li>Si nécessaire, réinitialisez les fichiers avant de relancer un indexage.</li>
+                                <li data-i18n="instructions.downloadItem1">Glissez-déposez un fichier ou sélectionnez-le avec le bouton Choisir un fichier.</li>
+                                <li data-i18n="instructions.downloadItem2">Vérifiez le nom du fichier affiché dans la zone de sélection.</li>
+                                <li data-i18n="instructions.downloadItem3">Si nécessaire, réinitialisez les fichiers avant de relancer un indexage.</li>
                             </ul>
                         </div>
                     </article>
@@ -180,12 +180,12 @@
                     <article class="instruction-step">
                         <div class="step-number">2</div>
                         <div class="step-content">
-                            <h3>Tester</h3>
-                            <p>Une fois les fichiers chargés et indexés, passez en mode <strong>Tester</strong> pour valider le comportement réel.</p>
+                            <h3 data-i18n="instructions.testTitle">Tester</h3>
+                            <p data-i18n="instructions.testDescription">Une fois les fichiers chargés et indexés, passez en mode Tester pour valider le comportement réel.</p>
                             <ul>
-                                <li>Poser une question de test en rapport avec le contenu indexé.</li>
-                                <li>Vérifier que la réponse est cohérente et qu’elle utilise bien les bons documents.</li>
-                                <li>Contrôler la qualité du formatage, du contexte et des réponses générées par le modèle.</li>
+                                <li data-i18n="instructions.testItem1">Posez une question de test en rapport avec le contenu indexé.</li>
+                                <li data-i18n="instructions.testItem2">Vérifiez que la réponse est cohérente et qu’elle utilise bien les bons documents.</li>
+                                <li data-i18n="instructions.testItem3">Contrôlez la qualité du formatage, du contexte et des réponses générées par le modèle.</li>
                             </ul>
                         </div>
                     </article>
@@ -193,13 +193,13 @@
                     <article class="instruction-step">
                         <div class="step-number">3</div>
                         <div class="step-content">
-                            <h3>Publier</h3>
-                            <p>Quand le résultat est satisfaisant, utilisez la section <strong>Publier</strong> pour finaliser la mise en production.</p>
+                            <h3 data-i18n="instructions.publishTitle">Publier</h3>
+                            <p data-i18n="instructions.publishDescription">Quand le résultat est satisfaisant, utilisez la section Publier pour finaliser la mise en production.</p>
                             <ul>
-                                <li>Choisir le bon modèle IA disponible dans la liste.</li>
-                                <li>Définir une date et une heure de publication.</li>
-                                <li>Valider le contenu et consulter les logs de questions pour vérifier les réponses envoyées.</li>
-                                <li>Exporter les logs si vous devez archiver ou analyser les interactions.</li>
+                                <li data-i18n="instructions.publishItem1">Choisissez le bon modèle IA disponible dans la liste.</li>
+                                <li data-i18n="instructions.publishItem2">Définissez une date et une heure de publication.</li>
+                                <li data-i18n="instructions.publishItem3">Validez le contenu et consultez les logs pour vérifier les réponses envoyées.</li>
+                                <li data-i18n="instructions.publishItem4">Exportez les logs si vous devez archiver ou analyser les interactions.</li>
                             </ul>
                         </div>
                     </article>
@@ -209,19 +209,19 @@
             <section class="download-dropzone-section" aria-label="Téléversement de fichier" style="display:none;">
                 <div id="dnd-upload-area" class="dnd-upload-area" role="button" tabindex="0" aria-label="Glissez un fichier ici ou cliquez pour sélectionner">
                     <input type="file" id="upload-file" hidden>
-                    <p class="dnd-upload-title">Glissez-déposez un fichier ici</p>
-                    <p class="dnd-upload-subtitle">ou</p>
-                    <button id="dnd-browse-btn" class="dm-btn secondary" type="button">Choisir un fichier</button>
-                    <p id="dnd-file-name" class="dnd-file-name">Aucun fichier sélectionné.</p>
+                    <p class="dnd-upload-title" data-i18n="instructions.dropZoneTitle">Glissez-déposez un fichier ici</p>
+                    <p class="dnd-upload-subtitle" data-i18n="instructions.or">ou</p>
+                    <button id="dnd-browse-btn" class="dm-btn secondary" type="button" data-i18n="instructions.browse">Choisir un fichier</button>
+                    <p id="dnd-file-name" class="dnd-file-name" data-i18n="instructions.noFileSelected">Aucun fichier sélectionné.</p>
                 </div>
             </section>
 
             <section class="download-status-row" style="display:none;">
-                <p id="status-message" class="status-message">Prêt.</p>
+                <p id="status-message" class="status-message" data-i18n="messages.ready">Prêt.</p>
                 <div class="indexing-actions">
-                    <button id="reset-debug-files" class="dm-btn secondary" type="button">Réinitialiser les fichiers</button>
-                    <button id="start-indexing" class="dm-btn indexing">Démarrer un indexage</button>
-                    <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;">Annuler</button>
+                    <button id="reset-debug-files" class="dm-btn secondary" type="button" data-i18n="instructions.resetFiles">Réinitialiser les fichiers</button>
+                    <button id="start-indexing" class="dm-btn indexing" data-i18n="instructions.startIndexing">Démarrer un indexage</button>
+                    <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;" data-i18n="instructions.cancel">Annuler</button>
                 </div>
             </section>
             <section id="indexing-progress-wrap" class="indexing-progress-wrap" style="display:none;" aria-live="polite">

@@ -10,7 +10,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
-from azure.storage.blob import BlobServiceClient
+try:
+    from azure.storage.blob import BlobServiceClient
+except ImportError:  # pragma: no cover - optional in local/test environments
+    BlobServiceClient = None  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -62,6 +65,9 @@ def get_blob_prefix() -> str:
 
 
 def get_blob_service_client() -> BlobServiceClient:
+    if BlobServiceClient is None:
+        raise RuntimeError("azure-storage-blob is not installed in the current environment.")
+
     connection_string = _storage_connection_string()
     if connection_string:
         return BlobServiceClient.from_connection_string(connection_string)

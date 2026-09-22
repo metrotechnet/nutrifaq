@@ -1345,8 +1345,37 @@
             return;
         }
 
-        // Endpoint intentionally deferred per requirement.
-        setPublishStatus(tr("publish.status.endpointPending", "Publication confirmee. Endpoint a creer ensuite."), false);
+        try {
+            setPublishStatus(tr("publish.status.scheduling", "Planification de la publication..."), false);
+
+            const body = {
+                model: selectedModel,
+                provider: "azure",
+                publish_at: new Date(publishAt).toISOString(),
+            };
+
+            const response = await fetch(`${BACKEND_URL}/api/publish`, {
+                method: "POST",
+                headers: {
+                    ...authHeaders(),
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(body),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.detail || payload.message || response.statusText || "Publication impossible.");
+            }
+
+            const scheduled = payload.job || {};
+            const scheduledAt = scheduled.publish_at || publishAt;
+            setPublishStatus(tr("publish.status.scheduled", "Publication planifiee pour {date}.", { date: scheduledAt }), false);
+        } catch (error) {
+            const message = error && error.message ? error.message : "Erreur de publication.";
+            setPublishStatus(message, true);
+        }
+
         await loadPublishLogs();
     }
 

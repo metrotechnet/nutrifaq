@@ -501,8 +501,10 @@ footer {
 .instructions-section {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
     width: 100%;
     min-height: 0;
+    height: 100%;
     gap: 1.25rem;
     background: linear-gradient(180deg, #f7fbfa 0%, #f2f7f6 100%);
     border: 1px solid #d5e3df;

@@ -92,6 +92,7 @@ ROUTE_MODULES = [
     ("api.routes.sessions", "sessions"),
     ("api.routes.blob", "blob"),
     ("api.routes.database", "database"),
+    ("api.routes.publish", "publish"),
 ]
 
 for module_name, tag in ROUTE_MODULES:
