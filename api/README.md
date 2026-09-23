@@ -1,87 +1,105 @@
 # API module overview
 
-This folder contains the backend logic for NutriFAQ. The app is launched from `app.py` and the API routes are organized under `api/routes`.
+This folder contains the backend logic for NutriFAQ.
+The FastAPI app is started from `app.py`, which dynamically loads route modules under `api/routes`.
 
 ## Current backend layout
 
 ```text
 api/
-├── graph_layer.py
-├── models.py
-├── orchestrator.py
-├── utils.py
 ├── README.md
-├── routes/
-│   ├── __init__.py
-│   ├── config.py
-│   ├── datasets.py
-│   ├── query.py
-│   ├── report.py
-│   ├── sessions.py
-│   ├── translation.py
-│   └── tts.py
-├── services/
-│   ├── config.py
-│   ├── logging.py
-│   ├── query_chromadb.py
-│   ├── refusal_engine.py
-│   ├── sessions.py
-│   └── translate.py
-└── config/
-    ├── agent_config.json
-    ├── common_config.json
-    ├── prompts.json
-    ├── refusal_patterns.json
-    └── refusal_responses.json
+├── config/                  # JSON config used by backend logic
+├── db_pipeline/             # indexing / regeneration helpers
+├── routes/                  # API endpoints
+├── schemas/                 # Pydantic schemas
+└── services/                # business logic and integrations
 ```
 
-## Route modules
+## Routers currently loaded by app.py
 
-### `services/query_chromadb.py`
-Handles ChromaDB access, question retrieval, and streaming answer generation.
+- `api.routes.users`
+- `api.routes.query`
+- `api.routes.translation`
+- `api.routes.tts`
+- `api.routes.report`
+- `api.routes.config`
+- `api.routes.sessions`
+- `api.routes.blob`
+- `api.routes.database`
+- `api.routes.publish`
 
-### `services/config.py`
-Handles runtime configuration loading and deep merge.
+## Endpoint groups (high level)
 
-### `services/logging.py`
-Handles question/response logging and feedback persistence.
+### Config and models
 
-### `services/refusal_engine.py`
-Handles pre-LLM refusal decisions and safety pattern matching.
+- `GET /api/get_config`
+- `GET /api/models`
 
-### `services/sessions.py`
-Handles in-memory conversation session tracking.
+### Query and logs
 
-### `services/translate.py`
-Handles text and audio translation/transcription.
+- `GET /api/generated-questions`
+- `POST /api/add_comment`
+- `POST /api/like_answer`
+- `GET /api/download_log`
+- `POST /api/reset_question_log`
 
-### `routes/translation.py`
-Handles language detection, translation endpoints, and translation helpers.
+### Publish workflow
 
-### `routes/tts.py`
-Provides text-to-speech requests.
+- `POST /api/publish`
+- `POST /api/publish/revert`
+- `GET /api/publish/status`
+- `GET /api/publish/log`
+- `POST /api/publish/log/reset`
 
-### `routes/report.py`
-Handles logging/reporting endpoints and feedback-related actions.
+### Blob and file management
 
-### `routes/config.py`
-Serves configuration data for frontend and runtime settings.
+- `GET /api/blob/files`
+- `GET /api/blob/files/{blob_name:path}/download`
+- `POST /api/blob/files/{blob_name:path}`
+- `DELETE /api/blob/files/{blob_name:path}`
+- `POST /api/blob/copy-container`
+- `POST /api/blob/debug/reset-local`
+- `POST /api/blob/debug/sync-local-to-blob`
 
-### `routes/sessions.py`
-Tracks conversation/session state.
+### Database regeneration/indexing
 
-## Main app entry
+- `GET /api/database/steps`
+- `POST /api/database/run-step`
+- `POST /api/database/extract-docx`
+- `POST /api/database/extract-references`
+- `POST /api/database/generate-transcripts-json`
+- `POST /api/database/generate-questions`
+- `POST /api/database/index-chromadb-json`
+- `POST /api/database/regenerate`
+- `POST /api/database/regenerate/cancel`
+- `GET /api/database/regenerate/status`
 
-The root app file registers the routing modules and exposes the FastAPI instance used by uvicorn:
+### Translation and TTS
 
-```python
-app.include_router(query.router, tags=["query"])
-app.include_router(translation.router, tags=["translation"])
-app.include_router(tts.router, tags=["tts"])
-app.include_router(report.router, tags=["report"])
-app.include_router(config_routes.router, tags=["config"])
-app.include_router(sessions.router, tags=["sessions"])
-```
+- `GET /api/languages`
+- `POST /api/translate`
+- `POST /api/transcribe_audio`
+- `POST /api/translate_audio`
+- `POST /api/tts`
+
+### Sessions and users
+
+- `POST /api/reset_session`
+- `GET /api/session_info`
+- `GET /api/users/me`
+- `POST /api/users`
+- `GET /api/users`
+- `PUT /api/users/{user_object_id}/role`
+- `DELETE /api/users/{user_object_id}/role`
+
+## Service responsibilities
+
+- `services/query_chromadb.py`: retrieval and answer generation over ChromaDB-backed data.
+- `services/logging.py`: question/response logs, votes, and comments.
+- `services/config.py`: runtime config load/merge.
+- `services/refusal_engine.py`: refusal checks before LLM generation.
+- `services/sessions.py`: conversation/session state.
+- `services/startup_sync.py`: syncs blob databases on app startup.
 
 ## Run locally
 
@@ -89,4 +107,8 @@ app.include_router(sessions.router, tags=["sessions"])
 python app.py
 ```
 
-Or via debug config in VS Code: `Python: API (FastAPI)`.
+or
+
+```powershell
+uvicorn app:app --reload --host 127.0.0.1 --port 8080
+```

@@ -91,13 +91,13 @@
 
 .dnd-upload-subtitle {
     margin: 0;
-    color: #4b6b65;
+    color: #355a54;
     font-size: 0.92rem;
 }
 
 .dnd-file-name {
     margin: 0;
-    color: #2b5851;
+    color: #204841;
     font-size: 0.9rem;
     word-break: break-word;
 }
@@ -546,7 +546,7 @@
 
 .publish-log-empty {
     margin: 0;
-    color: #4d6f69;
+    color: #355a54;
     font-size: 0.92rem;
 }
 
@@ -586,7 +586,7 @@
 
 .azure-auth-subtitle {
     margin: 0 0 1rem;
-    color: #45655f;
+    color: #355a54;
 }
 
 .azure-auth-actions {
@@ -666,7 +666,7 @@
     max-width: none;
     margin: 0.5rem 0 0;
     font-size: 0.75rem;
-    color: #718096;
+    color: #4b5563;
     text-align: center;
     font-style: italic;
     grid-column: 1 / 2;
@@ -689,7 +689,7 @@
 }
 
 .input-box::placeholder {
-    color: #a0aec0;
+    color: #6b7280;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

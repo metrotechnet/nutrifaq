@@ -6,7 +6,7 @@
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
     background: #f7f7f8;
-    color: #2d3748;
+    color: #1f2937;
     min-height: 100vh;
     min-height: -webkit-fill-available;
     height: 100%;
@@ -181,7 +181,7 @@ header {
 .suggested-questions-header p {
     margin: 0.25rem 0 0;
     font-size: 0.84rem;
-    color: #446963;
+    color: #2f544e;
 }
 
 .suggested-questions-list {
@@ -234,7 +234,7 @@ header {
 .suggested-question-source {
     margin: 0.2rem 0 0;
     font-size: 0.72rem;
-    color: #58756f;
+    color: #3f625c;
     font-style: italic;
     line-height: 1.3;
 }
