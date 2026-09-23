@@ -70,7 +70,7 @@ def _extract_json_array_from_text(text: str) -> list[str]:
 def _build_llm_prompt(text_excerpt: str, topic: str, question_count: int) -> str:
     return (
         "Tu es un assistant de creation de jeux de questions en nutrition. "
-        "Genere exactement {count} questions pertinentes pour un document. "
+        "Genere exactement {count} questions pertinentes sur la nutrition en general. "
         "Retourne uniquement un tableau JSON valide de chaines, sans markdown, sans texte additionnel.\n\n"
         "Sujet detecte: {topic}\n"
         "Extrait du document:\n{text}\n\n"
@@ -78,7 +78,8 @@ def _build_llm_prompt(text_excerpt: str, topic: str, question_count: int) -> str
         "- Questions en francais.\n"
         "- Une question par element du tableau.\n"
         "- Pas de numerotation ni prefixe.\n"
-        "- Questions claires, actionnables et specifiques au contenu."
+        "- Questions claires, actionnables et utiles au grand public.\n"
+        "- Les questions doivent porter sur la nutrition en general, pas sur des points trop specifiques au texte fourni."
     ).format(count=question_count, topic=topic, text=text_excerpt)
 
 
