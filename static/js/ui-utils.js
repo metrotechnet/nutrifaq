@@ -20,19 +20,21 @@ function getChatScrollContainer() {
     const chatMainLayout = document.getElementById('chat-main-layout');
     const chatStream = document.getElementById('chat-stream');
 
-    if (chatContainer) {
-        return chatContainer;
+    // Prefer the first visible element that can actually scroll.
+    const candidates = [chatContainer, chatMainLayout, chatStream].filter(Boolean);
+    for (const candidate of candidates) {
+        const style = window.getComputedStyle(candidate);
+        const visible = style.display !== 'none' && style.visibility !== 'hidden';
+        if (!visible) {
+            continue;
+        }
+        if (isElementScrollable(candidate)) {
+            return candidate;
+        }
     }
 
-    if (chatMainLayout && window.getComputedStyle(chatMainLayout).display !== 'none') {
-        return chatMainLayout;
-    }
-
-    if (isElementScrollable(chatStream) && !isElementScrollable(chatContainer)) {
-        return chatStream;
-    }
-
-    return chatContainer || chatStream || null;
+    // Fallback: keep previous priority when nothing is scrollable yet.
+    return chatContainer || chatMainLayout || chatStream || null;
 }
 
 /**
@@ -199,9 +201,12 @@ function createScrollIndicator() {
         </svg>
     `;
     
+    const chatMainLayout = document.getElementById('chat-main-layout');
+    const chatContainer = document.getElementById('chat-container');
     const mainContainer = document.querySelector('.content');
-    if (mainContainer) {
-        mainContainer.appendChild(scrollIndicator);
+    const mountTarget = chatMainLayout || chatContainer || mainContainer;
+    if (mountTarget) {
+        mountTarget.appendChild(scrollIndicator);
     }
     
     scrollIndicator.addEventListener('click', () => {

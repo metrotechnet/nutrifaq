@@ -94,7 +94,7 @@
     "testTitle": "Valider",
     "testDescription": "Une fois les fichiers chargés et indexés, passez en mode Valider pour vérifier le comportement réel.",
     "testItem1": "Posez une question de test en rapport avec le contenu indexé.",
-    "testItem2": "Vérifiez que la réponse est corect et cohérente.",
+    "testItem2": "Vérifiez que la réponse est correcte et cohérente.",
     "testItem3": "Contrôlez la qualité du formatage, du contexte et des réponses générées par le modèle.",
     "testItem4": "Essayez différents modèles IA pour comparer la qualité et la pertinence des réponses.",
     "publishTitle": "Publier",
@@ -334,7 +334,7 @@
       "sectionTitle": "Publier",
       "modelLabel": "Modèle final utilisé",
       "datetimeLabel": "",
-      "logsTitle": "Historique des publications"
+      "logsTitle": "Historique d'activité"
     },
     "status": {
       "idle": "Prêt.",
@@ -377,18 +377,35 @@
     "logs": {
       "loading": "Chargement des logs...",
       "empty": "Aucun log de publication disponible.",
+      "publishEmpty": "Aucun log de publication disponible.",
+      "questionsEmpty": "Aucun log de questions disponible.",
       "error": "Erreur de chargement des logs : {error}",
+      "publishError": "Erreur de chargement des logs de publication : {error}",
+      "questionsError": "Erreur de chargement des logs de questions : {error}",
       "modelUnknown": "Inconnu",
       "providerUnknown": "Inconnu",
       "dateLabel": "Date",
       "providerLabel": "Fournisseur",
       "modelLabel": "Modèle",
+      "questionIdLabel": "ID",
+      "voteLabel": "Vote",
+      "questionLabel": "Question",
+      "responseLabel": "Réponse",
+      "noVote": "Aucun vote",
+      "questionMissing": "Question non disponible.",
+      "responseMissing": "Réponse non disponible.",
       "filesLabel": "Fichiers",
       "refresh": "Rafraîchir",
       "reset": "Réinitialiser",
       "export": "Exporter",
+      "tabs": {
+        "questions": "Conversations",
+        "publish": "Publications"
+      },
       "footerText": "IMX Technologie Copyright © 2026",
-      "exportTitle": "Export des logs",
+      "exportTitle": "Rapport d'activité",
+      "exportTitleQuestions": "Rapport d'activité : Discussions",
+      "exportTitlePublish": "Rapport d'activité : Publications",
       "nothingToExport": "Aucun log à exporter.",
       "popupBlocked": "Impossible d'ouvrir la fenêtre d'export. Vérifiez le bloqueur de pop-up.",
       "exportInProgress": "Génération du PDF en cours...",
@@ -397,8 +414,13 @@
       "exportFailedWithError": "Échec de l'export PDF : {error}",
       "pdfLibUnavailable": "Librairie PDF indisponible.",
       "resetConfirm": "Voulez-vous vraiment réinitialiser le journal de publication ?",
+      "questionsResetTitle": "Réinitialiser le journal des questions ?",
+      "questionsResetConfirm": "Voulez-vous vraiment réinitialiser le journal des questions ?",
+      "questionsResetAction": "Réinitialiser",
       "resetSuccess": "Le journal de publication a été réinitialisé.",
-      "resetError": "Erreur lors de la réinitialisation du journal : {error}"
+      "questionsResetSuccess": "Le journal des questions a été réinitialisé.",
+      "resetError": "Erreur lors de la réinitialisation du journal : {error}",
+      "questionsResetError": "Erreur lors de la réinitialisation du journal des questions : {error}"
     }
   },
   "about": {

@@ -226,7 +226,11 @@ function copyQuestionToInput(question, button) {
     inputBox.focus();
     inputBox.dispatchEvent(new Event('input', { bubbles: true }));
 
-    if (typeof window.ChatModule?.sendMessage === 'function') {
+    // Reuse the same UI path as a manual send-button click (including blur/scroll behavior).
+    const sendButton = document.getElementById('send-button');
+    if (sendButton && typeof sendButton.click === 'function') {
+        sendButton.click();
+    } else if (typeof window.ChatModule?.sendMessage === 'function') {
         window.ChatModule.sendMessage();
     } else if (typeof sendMessage === 'function') {
         sendMessage();
@@ -1107,6 +1111,8 @@ async function sendMessage() {
     prepareUIForLoading();
 
     setTimeout(() => {
+        // Keep old behavior semantics: scroll the effective scroll container
+        // right after inserting the user and assistant messages.
         positionMessageAtBottom(chatScrollContainer || chatContainer, userMessageDiv, messageDiv);
     }, 100);
 

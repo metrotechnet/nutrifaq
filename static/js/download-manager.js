@@ -5,6 +5,9 @@
     const DOCUMENTS_PREFIX = `${DEBUG_BLOB_ROOT_FOLDER}/documents/`;
     const STORAGE_DOCUMENTS_PREFIX = `${DEBUG_BLOB_ROOT_FOLDER}/documents/`;
     const MODEL_STORAGE_KEY = "nutrifaq_selected_model";
+    const LOGS_TAB_QUESTIONS = "questions";
+    const LOGS_TAB_PUBLISH = "publish";
+    let activePublishLogsTab = LOGS_TAB_QUESTIONS;
 
     function tr(key, fallback, params) {
         let template = fallback;
@@ -155,7 +158,7 @@
                 logsHeader.appendChild(heading);
             } else {
                 const fallbackHeading = document.createElement("h3");
-                fallbackHeading.textContent = tr("publish.ui.logsTitle", "Logs de questions");
+                fallbackHeading.textContent = tr("publish.ui.logsTitle", "Historique d'activite");
                 logsHeader.appendChild(fallbackHeading);
                 logsCard.insertBefore(logsHeader, logsCard.firstChild);
             }
@@ -177,17 +180,101 @@
             headerActions.appendChild(refreshBtn);
         }
 
+        if (!headerActions.querySelector("#publish-reset-logs")) {
+            const resetBtn = document.createElement("button");
+            resetBtn.id = "publish-reset-logs";
+            resetBtn.type = "button";
+            resetBtn.className = "dm-btn secondary publish-reset-logs-btn";
+            resetBtn.textContent = tr("publish.logs.reset", "Reinit");
+            headerActions.appendChild(resetBtn);
+        }
+
         if (!headerActions.querySelector("#publish-export-logs")) {
             const exportBtn = document.createElement("button");
             exportBtn.id = "publish-export-logs";
             exportBtn.type = "button";
-            exportBtn.className = "dm-btn secondary publish-export-logs-btn";
+            exportBtn.className = "dm-btn primary publish-export-logs-btn";
             exportBtn.textContent = tr("publish.logs.export", "Export");
             headerActions.appendChild(exportBtn);
         }
 
+        if (!logsCard.querySelector("#publish-logs-tabs")) {
+            const tabs = document.createElement("div");
+            tabs.id = "publish-logs-tabs";
+            tabs.className = "publish-logs-tabs";
+            tabs.innerHTML = `
+                <button id="publish-logs-tab-questions" class="publish-logs-tab" type="button" data-tab="${LOGS_TAB_QUESTIONS}">${escapeHtml(tr("publish.logs.tabs.questions", "Conversations"))}</button>
+                <button id="publish-logs-tab-publish" class="publish-logs-tab" type="button" data-tab="${LOGS_TAB_PUBLISH}">${escapeHtml(tr("publish.logs.tabs.publish", "Publications"))}</button>
+            `;
+            logsHeader.insertAdjacentElement("afterend", tabs);
+        }
+
         hydratePublishElements();
         applyPublishTranslations();
+    }
+
+    function updateLogsActionsVisibility() {
+        if (els.publishResetLogs) {
+            const isQuestionsTab = activePublishLogsTab === LOGS_TAB_QUESTIONS;
+            els.publishResetLogs.style.display = "inline-flex";
+            els.publishResetLogs.disabled = !isQuestionsTab;
+            els.publishResetLogs.setAttribute("aria-disabled", String(!isQuestionsTab));
+        }
+    }
+
+    function syncPublishLogsTabButtons() {
+        if (!els.publishSection) {
+            return;
+        }
+        const questionTab = els.publishSection.querySelector("#publish-logs-tab-questions");
+        const publishTab = els.publishSection.querySelector("#publish-logs-tab-publish");
+
+        const isQuestions = activePublishLogsTab === LOGS_TAB_QUESTIONS;
+        if (questionTab) {
+            questionTab.classList.toggle("active", isQuestions);
+            questionTab.setAttribute("aria-selected", String(isQuestions));
+        }
+        if (publishTab) {
+            publishTab.classList.toggle("active", !isQuestions);
+            publishTab.setAttribute("aria-selected", String(!isQuestions));
+        }
+
+        updateLogsActionsVisibility();
+    }
+
+    async function setActivePublishLogsTab(tabKey) {
+        activePublishLogsTab = tabKey === LOGS_TAB_PUBLISH ? LOGS_TAB_PUBLISH : LOGS_TAB_QUESTIONS;
+        syncPublishLogsTabButtons();
+        await loadActivePublishLogs();
+    }
+
+    function bindPublishLogsTabButtons() {
+        if (!els.publishSection) {
+            return;
+        }
+
+        const questionTab = els.publishSection.querySelector("#publish-logs-tab-questions");
+        const publishTab = els.publishSection.querySelector("#publish-logs-tab-publish");
+
+        if (questionTab && questionTab.dataset.bound !== "1") {
+            questionTab.dataset.bound = "1";
+            questionTab.addEventListener("click", async () => {
+                if (activePublishLogsTab !== LOGS_TAB_QUESTIONS) {
+                    await setActivePublishLogsTab(LOGS_TAB_QUESTIONS);
+                }
+            });
+        }
+
+        if (publishTab && publishTab.dataset.bound !== "1") {
+            publishTab.dataset.bound = "1";
+            publishTab.addEventListener("click", async () => {
+                if (activePublishLogsTab !== LOGS_TAB_PUBLISH) {
+                    await setActivePublishLogsTab(LOGS_TAB_PUBLISH);
+                }
+            });
+        }
+
+        syncPublishLogsTabButtons();
     }
 
     function applyPublishTranslations() {
@@ -215,7 +302,7 @@
 
         const logsTitle = els.publishSection.querySelector(".publish-logs-header h3");
         if (logsTitle) {
-            logsTitle.textContent = tr("publish.ui.logsTitle", "Logs de questions");
+            logsTitle.textContent = tr("publish.ui.logsTitle", "Historique d'activite");
         }
 
         if (els.publishRefreshLogs) {
@@ -224,6 +311,19 @@
 
         if (els.publishExportLogs) {
             els.publishExportLogs.textContent = tr("publish.logs.export", "Export");
+        }
+
+        if (els.publishResetLogs) {
+            els.publishResetLogs.textContent = tr("publish.logs.reset", "Reinit");
+        }
+
+        const questionTab = els.publishSection.querySelector("#publish-logs-tab-questions");
+        if (questionTab) {
+            questionTab.textContent = tr("publish.logs.tabs.questions", "Conversations");
+        }
+        const publishTab = els.publishSection.querySelector("#publish-logs-tab-publish");
+        if (publishTab) {
+            publishTab.textContent = tr("publish.logs.tabs.publish", "Publications");
         }
 
         const emptyState = els.publishSection.querySelector(".publish-log-empty");
@@ -238,15 +338,15 @@
         }
         els.publishRefreshLogs.dataset.bound = "1";
         els.publishRefreshLogs.addEventListener("click", async () => {
-            await loadPublishLogs();
+            await loadActivePublishLogs();
         });
     }
 
-    async function resetPublishLogs() {
+    async function resetQuestionLogs() {
         const confirmed = await confirmAction({
-            title: tr("publish.logs.reset", "Reset"),
-            text: tr("publish.logs.resetConfirm", "Voulez-vous vraiment réinitialiser le journal de publication ?"),
-            confirmText: tr("publish.logs.reset", "Reset")
+            title: tr("publish.logs.questionsResetTitle", "Reset question logs?"),
+            text: tr("publish.logs.questionsResetConfirm", "Voulez-vous vraiment reinitialiser le journal des questions ?"),
+            confirmText: tr("publish.logs.questionsResetAction", "Reset")
         });
 
         if (!confirmed) {
@@ -255,7 +355,7 @@
 
         try {
             setPublishStatus(tr("publish.logs.reset", "Reset"), false);
-            const response = await fetch(`${BACKEND_URL}/api/publish/log/reset`, {
+            const response = await fetch(`${BACKEND_URL}/api/reset_question_log`, {
                 method: "POST",
                 headers: {
                     ...authHeaders(),
@@ -265,13 +365,13 @@
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(payload.detail || payload.message || response.statusText || tr("publish.logs.resetError", "Erreur lors de la reinitialisation du journal: {error}", { error: response.statusText }));
+                throw new Error(payload.detail || payload.message || response.statusText || tr("publish.logs.questionsResetError", "Erreur lors de la reinitialisation du journal des questions: {error}", { error: response.statusText }));
             }
 
-            await loadPublishLogs();
-            setPublishStatus(tr("publish.logs.resetSuccess", "Le journal de publication a ete reinitialise."), false);
+            await loadQuestionLogs();
+            setPublishStatus(tr("publish.logs.questionsResetSuccess", "Le journal des questions a ete reinitialise."), false);
         } catch (error) {
-            const message = error && error.message ? error.message : tr("publish.logs.resetError", "Erreur lors de la reinitialisation du journal: {error}", { error: "inconnu" });
+            const message = error && error.message ? error.message : tr("publish.logs.questionsResetError", "Erreur lors de la reinitialisation du journal des questions: {error}", { error: "inconnu" });
             setPublishStatus(message, true);
         }
     }
@@ -282,12 +382,21 @@
         }
         els.publishResetLogs.dataset.bound = "1";
         els.publishResetLogs.addEventListener("click", async () => {
-            await resetPublishLogs();
+            if (activePublishLogsTab === LOGS_TAB_QUESTIONS) {
+                await resetQuestionLogs();
+            }
         });
     }
 
+    function getCurrentExportTitle() {
+        if (activePublishLogsTab === LOGS_TAB_PUBLISH) {
+            return tr("publish.logs.exportTitlePublish", "Rapport d'activite : Publications");
+        }
+        return tr("publish.logs.exportTitleQuestions", "Rapport d'activite : Discussions");
+    }
+
     function buildPublishLogsExportElement() {
-        const title = tr("publish.logs.exportTitle", "Export des logs");
+        const title = getCurrentExportTitle();
         const now = new Date().toLocaleString(currentLanguage() === "en" ? "en-CA" : "fr-CA");
 
         const exportRoot = document.createElement("div");
@@ -359,7 +468,7 @@
         const dd = String(now.getDate()).padStart(2, "0");
         const hh = String(now.getHours()).padStart(2, "0");
         const min = String(now.getMinutes()).padStart(2, "0");
-        const titlePart = slugifyFilePart(tr("publish.logs.exportTitle", "Export des logs"));
+        const titlePart = slugifyFilePart(getCurrentExportTitle());
         return `${titlePart}-${yyyy}${mm}${dd}-${hh}${min}.pdf`;
     }
 
@@ -486,6 +595,12 @@
     function ensurePublishSectionMounted() {
         if (document.getElementById("publish-section")) {
             hydratePublishElements();
+            ensurePublishRefreshControl();
+            bindPublishLogsTabButtons();
+            bindPublishRefreshButton();
+            bindPublishResetButton();
+            bindPublishExportButton();
+            syncPublishLogsTabButtons();
             applyPublishTranslations();
             return;
         }
@@ -529,11 +644,16 @@
 
             <div class="publish-logs-card" aria-live="polite">
                 <div class="publish-logs-header">
-                    <h3>${escapeHtml(tr("publish.ui.logsTitle", "Logs de questions"))}</h3>
+                    <h3>${escapeHtml(tr("publish.ui.logsTitle", "Historique d'activite"))}</h3>
                     <div class="publish-logs-actions">
                         <button id="publish-refresh-logs" class="dm-btn secondary publish-refresh-logs-btn" type="button">${escapeHtml(tr("publish.logs.refresh", "Refresh"))}</button>
-                        <button id="publish-export-logs" class="dm-btn secondary publish-export-logs-btn" type="button">${escapeHtml(tr("publish.logs.export", "Export"))}</button>
+                        <button id="publish-reset-logs" class="dm-btn secondary publish-reset-logs-btn" type="button">${escapeHtml(tr("publish.logs.reset", "Reinit"))}</button>
+                        <button id="publish-export-logs" class="dm-btn primary publish-export-logs-btn" type="button">${escapeHtml(tr("publish.logs.export", "Export"))}</button>
                     </div>
+                </div>
+                <div id="publish-logs-tabs" class="publish-logs-tabs">
+                    <button id="publish-logs-tab-questions" class="publish-logs-tab" type="button" data-tab="${LOGS_TAB_QUESTIONS}">${escapeHtml(tr("publish.logs.tabs.questions", "Conversations"))}</button>
+                    <button id="publish-logs-tab-publish" class="publish-logs-tab" type="button" data-tab="${LOGS_TAB_PUBLISH}">${escapeHtml(tr("publish.logs.tabs.publish", "Publications"))}</button>
                 </div>
                 <div id="publish-logs-list" class="publish-logs-list">
                     <p class="publish-log-empty">${escapeHtml(tr("publish.logs.loading", "Chargement des logs..."))}</p>
@@ -551,9 +671,11 @@
             els.publishRevert.addEventListener("click", onRevertSubmit);
         }
         ensurePublishRefreshControl();
+        bindPublishLogsTabButtons();
         bindPublishRefreshButton();
         bindPublishResetButton();
         bindPublishExportButton();
+        syncPublishLogsTabButtons();
     }
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
@@ -1223,7 +1345,7 @@
             validateLink.addEventListener("click", async (event) => {
                 event.preventDefault();
                 activatePublishView();
-                await Promise.allSettled([loadPublishModels(), loadPublishLogs()]);
+                await Promise.allSettled([loadPublishModels(), loadActivePublishLogs()]);
             });
         }
     }
@@ -1322,13 +1444,108 @@
         }
     }
 
+    function renderQuestionLogs(entries) {
+        if (!els.publishLogsList) {
+            return;
+        }
+
+        const renderLogMarkdown = (value) => {
+            const text = String(value || "").trim();
+            if (!text) {
+                return `<p>${escapeHtml(tr("publish.logs.responseMissing", "Reponse non disponible."))}</p>`;
+            }
+            if (typeof marked !== "undefined" && typeof DOMPurify !== "undefined") {
+                return DOMPurify.sanitize(marked.parse(text), { ADD_ATTR: ["target"] });
+            }
+            const escaped = escapeHtml(text).replace(/\n/g, "<br>");
+            return `<p>${escaped}</p>`;
+        };
+
+        if (!Array.isArray(entries) || !entries.length) {
+            els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.questionsEmpty", "Aucun log de questions disponible."))}</p>`;
+            return;
+        }
+
+        const rows = entries.slice().reverse().map((entry) => {
+            const timestampRaw = String(entry.timestamp || "-");
+            const modelRaw = String(entry.model_used || entry.model || tr("publish.logs.modelUnknown", "inconnu"));
+            const questionText = String(entry.question || "").trim();
+            const responseText = String(entry.response || "").trim();
+            const comments = Array.isArray(entry.comments)
+                ? entry.comments
+                    .map((item) => (item && typeof item.comment === "string" ? item.comment.trim() : ""))
+                    .filter(Boolean)
+                : [];
+            const likeValue = entry.likes && typeof entry.likes.like === "boolean" ? entry.likes.like : null;
+
+            const likeLabel = likeValue === true
+                ? tr("messages.like", "Like")
+                : likeValue === false
+                    ? tr("messages.dislike", "Dislike")
+                    : tr("publish.logs.noVote", "Aucun vote");
+
+            const questionHtml = questionText ? escapeHtml(questionText) : escapeHtml(tr("publish.logs.questionMissing", "Question non disponible."));
+            const responseFullText = responseText || tr("publish.logs.responseMissing", "Reponse non disponible.");
+            const responseFullHtml = renderLogMarkdown(responseFullText);
+            const commentsHtml = comments.map((commentText) => {
+                return `
+                    <div class="publish-log-block">
+                        <p class="publish-log-label">${escapeHtml(tr("messages.comment", "Commentaire"))}</p>
+                        <div class="publish-log-response markdown">${renderLogMarkdown(commentText)}</div>
+                    </div>
+                `;
+            }).join("");
+
+            return `
+                <article class="publish-log-item">
+                    <div class="publish-log-meta">
+                        <span><strong>${escapeHtml(tr("publish.logs.dateLabel", "Date"))}:</strong> ${escapeHtml(formatDate(timestampRaw))}</span>
+                        <span><strong>${escapeHtml(tr("publish.logs.modelLabel", "Modèle"))}:</strong> ${escapeHtml(modelRaw)}</span>
+                        <span><strong>${escapeHtml(tr("publish.logs.voteLabel", "Vote"))}:</strong> ${escapeHtml(likeLabel)}</span>
+                    </div>
+                    <div class="publish-log-block">
+                        <p class="publish-log-label">${escapeHtml(tr("publish.logs.questionLabel", "Question"))}</p>
+                        <p class="publish-log-question">${questionHtml}</p>
+                    </div>
+                    <div class="publish-log-block publish-log-answer-block">
+                        <p class="publish-log-label">${escapeHtml(tr("publish.logs.responseLabel", "Réponse"))}</p>
+                        <div class="publish-log-response markdown">${responseFullHtml}</div>
+                    </div>
+                    ${commentsHtml}
+                </article>
+            `;
+        });
+
+        els.publishLogsList.innerHTML = rows.join("");
+    }
+
+    async function loadQuestionLogs() {
+        if (!els.publishLogsList) {
+            return;
+        }
+
+        els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.loading", "Chargement des logs..."))}</p>`;
+
+        try {
+            const data = await fetchJson(`${BACKEND_URL}/api/download_log`, {
+                headers: {
+                    ...authHeaders()
+                }
+            });
+            const entries = Array.isArray(data) ? data : [];
+            renderQuestionLogs(entries);
+        } catch (error) {
+            els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.questionsError", "Erreur de chargement des logs de questions : {error}", { error: error.message }))}</p>`;
+        }
+    }
+
     function renderPublishLogs(logs) {
         if (!els.publishLogsList) {
             return;
         }
 
         if (!Array.isArray(logs) || !logs.length) {
-            els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.empty", "Aucun log de publication disponible."))}</p>`;
+            els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.publishEmpty", "Aucun log de publication disponible."))}</p>`;
             return;
         }
 
@@ -1373,8 +1590,16 @@
             const entries = data && Array.isArray(data.entries) ? data.entries : [];
             renderPublishLogs(entries);
         } catch (error) {
-            els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.error", "Erreur chargement logs: {error}", { error: error.message }))}</p>`;
+            els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.publishError", "Erreur de chargement des logs de publication : {error}", { error: error.message }))}</p>`;
         }
+    }
+
+    async function loadActivePublishLogs() {
+        if (activePublishLogsTab === LOGS_TAB_PUBLISH) {
+            await loadPublishLogs();
+            return;
+        }
+        await loadQuestionLogs();
     }
 
     let publishStatusTimer = null;
@@ -1429,7 +1654,7 @@
                     setPublishFinishMessage("");
                     window.clearInterval(publishStatusTimer);
                     publishStatusTimer = null;
-                    await loadPublishLogs();
+                    await loadActivePublishLogs();
                     return;
                 }
 
@@ -1443,7 +1668,7 @@
                     setPublishProgress(100, "100%");
                     window.clearInterval(publishStatusTimer);
                     publishStatusTimer = null;
-                    await loadPublishLogs();
+                    await loadActivePublishLogs();
                     return;
                 }
             } catch (_) {

@@ -4,9 +4,9 @@
 ----------------------------------------------------
 */
 .scroll-indicator {
-    position: fixed;
-    bottom: 140px;
-    right: 2rem;
+    position: absolute;
+    bottom: 0.75rem;
+    right: calc(1.9rem + 18px);
     width: 48px;
     height: 48px;
     background: #6366f1;
@@ -42,8 +42,8 @@
 
 @media (max-width: 768px) {
     .scroll-indicator {
-        bottom: 180px;
-        right: 1rem;
+        bottom: 0.65rem;
+        right: calc(1.35rem + 16px);
         width: 44px;
         height: 44px;
     }

@@ -334,7 +334,7 @@
       "sectionTitle": "Publish",
       "modelLabel": "Final model used",
       "datetimeLabel": "",
-      "logsTitle": "Publish history"
+      "logsTitle": "Activity history"
     },
     "status": {
       "idle": "Ready.",
@@ -377,17 +377,34 @@
     "logs": {
       "loading": "Loading logs...",
       "empty": "No publish logs available.",
+      "publishEmpty": "No publish logs available.",
+      "questionsEmpty": "No question logs available.",
       "error": "Log loading error: {error}",
+      "publishError": "Publish log loading error: {error}",
+      "questionsError": "Question log loading error: {error}",
       "modelUnknown": "unknown",
       "providerUnknown": "unknown",
       "dateLabel": "Date",
       "providerLabel": "Provider",
       "modelLabel": "Model",
+      "questionIdLabel": "ID",
+      "voteLabel": "Vote",
+      "questionLabel": "Question",
+      "responseLabel": "Response",
+      "noVote": "No vote",
+      "questionMissing": "Question not available.",
+      "responseMissing": "Response not available.",
       "filesLabel": "Files",
       "refresh": "Refresh",
       "reset": "Reset",
       "export": "Export",
-      "exportTitle": "Logs export",
+      "tabs": {
+        "questions": "Conversations",
+        "publish": "Publications"
+      },
+      "exportTitle": "Activity report",
+      "exportTitleQuestions": "Activity report: Discussions",
+      "exportTitlePublish": "Activity report: Publications",
       "nothingToExport": "No logs to export.",
       "popupBlocked": "Unable to open export window. Please check your pop-up blocker.",
       "exportInProgress": "Generating PDF...",
@@ -396,8 +413,13 @@
       "exportFailedWithError": "PDF export failed: {error}",
       "pdfLibUnavailable": "PDF library unavailable.",
       "resetConfirm": "Do you really want to reset the publish log?",
+      "questionsResetTitle": "Reset question logs?",
+      "questionsResetConfirm": "Do you really want to reset the question log?",
+      "questionsResetAction": "Reset",
       "resetSuccess": "Publish log has been reset.",
-      "resetError": "Error while resetting publish log: {error}"
+      "questionsResetSuccess": "Question log has been reset.",
+      "resetError": "Error while resetting publish log: {error}",
+      "questionsResetError": "Error while resetting question log: {error}"
     }
   },
   "about": {

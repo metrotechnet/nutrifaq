@@ -45,10 +45,15 @@ def _resolve_runtime_provider_and_model(
 
     config_values = config_service._GLOBAL_PROD_CONFIG
     provider = str(config_values.get(f"{prefix}_PROVIDER", "") or "").strip().lower() or None
-    model = str(config_values.get(f"{prefix}_LLM", "") or "").strip() or None
+    saved_model = str(config_values.get(f"{prefix}_LLM", "") or "").strip() or None
+    requested_model = _resolve_requested_model(request, query_request)
 
-    if model is None:
-        model = _resolve_requested_model(request, query_request)
+    # Debug mode: always prefer the model selected by the user.
+    # Prod mode: always prefer the model saved in global config.
+    if debug_mode:
+        model = requested_model or saved_model
+    else:
+        model = saved_model or requested_model
 
     return provider, model
 

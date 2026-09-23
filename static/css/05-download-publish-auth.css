@@ -317,14 +317,50 @@
     gap: 0.45rem;
 }
 
+.publish-logs-tabs {
+    display: inline-flex;
+    gap: 0.4rem;
+    margin-bottom: 0.7rem;
+}
+
+.publish-logs-tab {
+    border: 1px solid #cfe1db;
+    border-radius: 999px;
+    background: #f4fbf8;
+    color: #1f5b52;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.publish-logs-tab.active {
+    background: #0f766e;
+    border-color: #0f766e;
+    color: #ffffff;
+}
+
 .publish-refresh-logs-btn {
     padding: 0.42rem 0.7rem;
     font-size: 0.82rem;
 }
 
-.publish-export-logs-btn {
+.publish-reset-logs-btn {
     padding: 0.42rem 0.7rem;
     font-size: 0.82rem;
+}
+
+.publish-export-logs-btn {
+    background: #0f766e;
+    color: #ffffff;
+    border: none;
+    padding: 0.42rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+.publish-reset-logs-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .publish-controls-grid {

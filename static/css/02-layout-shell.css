@@ -87,6 +87,7 @@ header {
 }
 
 #chat-container {
+    position: relative;
     flex: 1;
     min-height: 0;
     height: 100%;
@@ -140,6 +141,7 @@ header {
 }
 
 .chat-main-layout {
+    position: relative;
     flex: 1;
     width: 100%;
     display: grid;
