@@ -27,7 +27,59 @@
         window.ENTRA_CLIENT_ID = "402e00f8-a00c-4c47-86b0-c88a6587b64c";
         window.ENTRA_AUDIENCE = "api://402e00f8-a00c-4c47-86b0-c88a6587b64c";
         window.ENTRA_UPN_DOMAIN = "imxtech.ca";
-        window.ENTRA_REDIRECT_URI = `${window.location.origin}/`;
+        window.ENTRA_REDIRECT_URI = `${window.location.origin}/login.html`;
+    </script>
+
+    <script>
+        // Redirect unauthenticated users (or expired local token) to login before rendering app shell.
+        (function () {
+            var tokenKey = "nutrifaq_admin_bearer_token";
+
+            function tokenLooksValid(token) {
+                if (!token) {
+                    return false;
+                }
+                try {
+                    var parts = token.split('.');
+                    if (parts.length < 2) {
+                        return false;
+                    }
+                    var base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+                    var padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+                    var claims = JSON.parse(atob(padded));
+                    var exp = Number(claims && claims.exp);
+                    if (!Number.isFinite(exp)) {
+                        return false;
+                    }
+                    var now = Math.floor(Date.now() / 1000);
+                    return exp > (now + 30);
+                } catch (_) {
+                    return false;
+                }
+            }
+
+            var token = "";
+            try {
+                token = window.localStorage.getItem(tokenKey) || "";
+            } catch (_) {
+                token = "";
+            }
+
+            if (!tokenLooksValid(token)) {
+                try {
+                    window.localStorage.removeItem(tokenKey);
+                } catch (_) {
+                    // Ignore storage write failures.
+                }
+                var params = new URLSearchParams(window.location.search || "");
+                var lang = params.get("lang");
+                var target = "/login.html";
+                if (lang === "fr" || lang === "en") {
+                    target += "?lang=" + encodeURIComponent(lang);
+                }
+                window.location.replace(target);
+            }
+        })();
     </script>
     
 </head>

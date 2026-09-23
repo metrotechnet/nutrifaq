@@ -1,12 +1,14 @@
 param(
     [string]$ResourceGroup = "nutrifaq-rg",
     [string]$Location = "eastus",
-    [string]$StorageAccountName = "nutrifaqfeprod",
+    [string]$StorageAccountName = "nutrifaqblobstorage",
     [string]$FrontendDir = "public",
     [string]$BackendUrl = "https://nutrifaq-webapp.azurewebsites.net",
     [string]$BackendAppName = "nutrifaq-webapp",
     [string]$QueryAccessKey = "",
-    [switch]$UpdateBackendCors
+    [switch]$CleanWeb,
+    [switch]$UpdateBackendCors,
+    [switch]$SkipCacheControl
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,6 +34,41 @@ function Get-DotEnvValue {
     }
 
     return $value.Trim()
+}
+
+function Set-BlobCacheControlByPattern {
+    param(
+        [Parameter(Mandatory = $true)][string]$AccountName,
+        [Parameter(Mandatory = $true)][string]$Pattern,
+        [Parameter(Mandatory = $true)][string]$CacheControl
+    )
+
+    # Use per-blob updates for broad Azure CLI compatibility.
+    $allBlobNames = az storage blob list --account-name $AccountName --container-name '$web' --auth-mode key --query "[].name" -o tsv --only-show-errors 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $allBlobNames) {
+        Write-Warning "Could not list blobs for cache-control update."
+        return
+    }
+
+    $matchingNames = @($allBlobNames -split "`r?`n" | Where-Object { $_ -and ($_ -like $Pattern) })
+    if ($matchingNames.Count -eq 0) {
+        Write-Host "No blobs matched '$Pattern' for cache-control update."
+        return
+    }
+
+    $failedNames = @()
+    foreach ($blobName in $matchingNames) {
+        az storage blob update --account-name $AccountName --container-name '$web' --name $blobName --auth-mode key --content-cache-control $CacheControl --only-show-errors | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            $failedNames += $blobName
+        }
+    }
+
+    if ($failedNames.Count -gt 0) {
+        Write-Warning "Cache-control update partially failed for pattern '$Pattern'. Failed blobs: $($failedNames -join ', ')"
+    } else {
+        Write-Host "Cache-control applied for pattern '$Pattern'."
+    }
 }
 
 Write-Host "== NutriFAQ Frontend Azure Deployment =="
@@ -62,6 +99,20 @@ if (-not (Test-Path -LiteralPath $FrontendDir)) {
     throw "Frontend directory '$FrontendDir' does not exist."
 }
 
+$frontendRootDir = (Resolve-Path -LiteralPath $FrontendDir).Path
+$rootStaticDir = Join-Path $PSScriptRoot "static"
+$frontendStaticDir = Join-Path $frontendRootDir "static"
+if (Test-Path -LiteralPath $rootStaticDir) {
+    Write-Host "Syncing local static/ to local '$FrontendDir/static'..."
+    if (Test-Path -LiteralPath $frontendStaticDir) {
+        Remove-Item -LiteralPath $frontendStaticDir -Recurse -Force
+    }
+    New-Item -Path $frontendStaticDir -ItemType Directory -Force | Out-Null
+    Copy-Item -Path (Join-Path $rootStaticDir "*") -Destination $frontendStaticDir -Recurse -Force
+} else {
+    Write-Warning "Local static folder not found at '$rootStaticDir'. Skipping local public/static sync."
+}
+
 if ([string]::IsNullOrWhiteSpace($QueryAccessKey)) {
     $QueryAccessKey = $env:QUERY_ACCESS_KEY
 }
@@ -86,8 +137,21 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Ensuring storage account '$StorageAccountName' exists..."
-$saCount = az storage account list --resource-group $ResourceGroup --query "[?name=='$StorageAccountName'] | length(@)" -o tsv
-if ($saCount -eq "0") {
+$storageAccountResourceGroup = $ResourceGroup
+$existingStorageAccountRg = az storage account show --name $StorageAccountName --query "resourceGroup" -o tsv --only-show-errors 2>$null
+if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($existingStorageAccountRg)) {
+    $storageAccountResourceGroup = $existingStorageAccountRg.Trim()
+    Write-Host "Using existing storage account '$StorageAccountName' in resource group '$storageAccountResourceGroup'."
+} else {
+    $nameAvailable = az storage account check-name --name $StorageAccountName --query "nameAvailable" -o tsv --only-show-errors
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to validate availability for storage account name '$StorageAccountName'."
+    }
+
+    if ($nameAvailable -ne "true") {
+        throw "Storage account name '$StorageAccountName' is already taken and not accessible in the current subscription. Use a different -StorageAccountName or switch to the subscription that owns it."
+    }
+
     az storage account create --name $StorageAccountName --resource-group $ResourceGroup --location $Location --sku Standard_LRS --kind StorageV2 --min-tls-version TLS1_2 --allow-blob-public-access true | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to create storage account '$StorageAccountName'."
@@ -95,7 +159,7 @@ if ($saCount -eq "0") {
 }
 
 # Static website endpoint needs public blob access to serve content.
-az storage account update --name $StorageAccountName --resource-group $ResourceGroup --allow-blob-public-access true -o none
+az storage account update --name $StorageAccountName --resource-group $storageAccountResourceGroup --allow-blob-public-access true -o none
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to enable blob public access on '$StorageAccountName'."
 }
@@ -114,10 +178,15 @@ try {
     Write-Host "Preparing frontend artifact from '$FrontendDir'..."
     Copy-Item -Path (Join-Path $FrontendDir "*") -Destination $tempRoot -Recurse -Force
 
-    $rootStaticDir = Join-Path $PSScriptRoot "static"
     if (Test-Path -LiteralPath $rootStaticDir) {
-        Write-Host "Syncing root static assets into frontend artifact..."
+        Write-Host "Syncing root static assets into frontend artifact (clean mirror)..."
         $artifactStaticDir = Join-Path $tempRoot "static"
+
+        # Ensure public/static in the artifact is a clean mirror of root static.
+        if (Test-Path -LiteralPath $artifactStaticDir) {
+            Remove-Item -LiteralPath $artifactStaticDir -Recurse -Force
+        }
+
         New-Item -Path $artifactStaticDir -ItemType Directory -Force | Out-Null
         Copy-Item -Path (Join-Path $rootStaticDir "*") -Destination $artifactStaticDir -Recurse -Force
     }
@@ -137,13 +206,53 @@ try {
         }
     }
 
+    # Guardrail: ensure critical static folders are present in the artifact before upload.
+    $requiredArtifactFolders = @(
+        (Join-Path $tempRoot "static\assets"),
+        (Join-Path $tempRoot "static\locales")
+    )
+    foreach ($requiredFolder in $requiredArtifactFolders) {
+        if (-not (Test-Path -LiteralPath $requiredFolder)) {
+            throw "Missing required folder in frontend artifact: '$requiredFolder'"
+        }
+    }
+
+    $assetFiles = @(Get-ChildItem -LiteralPath (Join-Path $tempRoot "static\assets") -Recurse -File -ErrorAction SilentlyContinue)
+    $localeFiles = @(Get-ChildItem -LiteralPath (Join-Path $tempRoot "static\locales") -Recurse -File -ErrorAction SilentlyContinue)
+    if ($assetFiles.Count -eq 0) {
+        throw "No files found in artifact static/assets. Deployment aborted to avoid incomplete frontend publish."
+    }
+    if ($localeFiles.Count -eq 0) {
+        throw "No files found in artifact static/locales. Deployment aborted to avoid incomplete frontend publish."
+    }
+
+    Write-Host "Artifact check: static/assets files=$($assetFiles.Count), static/locales files=$($localeFiles.Count)"
+
+    if ($CleanWeb) {
+        Write-Host "Cleaning `$web container before upload..."
+        az storage blob delete-batch --account-name $StorageAccountName --auth-mode key --source '$web' --pattern '*' --only-show-errors | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to clean `$web container on storage account '$StorageAccountName'."
+        }
+    }
+
     Write-Host "Uploading frontend files to `$web container..."
     az storage blob upload-batch --account-name $StorageAccountName --auth-mode key --destination '$web' --source $tempRoot --overwrite true | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to upload frontend files to storage account '$StorageAccountName'."
     }
 
-    $frontendUrl = az storage account show --name $StorageAccountName --resource-group $ResourceGroup --query "primaryEndpoints.web" -o tsv
+    if ($SkipCacheControl) {
+        Write-Host "Skipping cache-control metadata updates (-SkipCacheControl)."
+    } else {
+        Write-Host "Applying cache-control metadata to reduce stale content..."
+        Set-BlobCacheControlByPattern -AccountName $StorageAccountName -Pattern "*.html" -CacheControl "no-cache, no-store, must-revalidate"
+        Set-BlobCacheControlByPattern -AccountName $StorageAccountName -Pattern "*.json" -CacheControl "no-cache, must-revalidate"
+        Set-BlobCacheControlByPattern -AccountName $StorageAccountName -Pattern "*.js" -CacheControl "public, max-age=300"
+        Set-BlobCacheControlByPattern -AccountName $StorageAccountName -Pattern "*.css" -CacheControl "public, max-age=300"
+    }
+
+    $frontendUrl = az storage account show --name $StorageAccountName --resource-group $storageAccountResourceGroup --query "primaryEndpoints.web" -o tsv
     if (-not $frontendUrl) {
         throw "Unable to resolve frontend URL from storage account."
     }

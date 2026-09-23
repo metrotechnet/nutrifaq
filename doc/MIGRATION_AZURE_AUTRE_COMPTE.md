@@ -138,7 +138,7 @@ az webapp config appsettings list -g nutrifaq-rg -n nutrifaq-webapp --query "[?n
 powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy-frontend-azure.ps1 `
   -ResourceGroup "nutrifaq-rg" `
   -Location "canadacentral" `
-  -StorageAccountName "nutrifaqfeprod" `
+  -StorageAccountName "nutrifaqblobstorage" `
   -FrontendDir "public" `
   -BackendUrl "https://<ton-backend>.azurewebsites.net" `
   -BackendAppName "nutrifaq-webapp" `
@@ -234,7 +234,7 @@ az webapp show -g nutrifaq-rg -n nutrifaq-webapp --query defaultHostName -o tsv
 
 Afficher URL frontend static website:
 ```powershell
-az storage account show -g nutrifaq-rg -n nutrifaqfeprod --query primaryEndpoints.web -o tsv
+az storage account show -g nutrifaq-rg -n nutrifaqblobstorage --query primaryEndpoints.web -o tsv
 ```
 
 Lister deployments backend:

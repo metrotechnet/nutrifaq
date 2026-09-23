@@ -8,6 +8,7 @@
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
     const USER_PROFILE_KEY = "nutrifaq_user_profile";
     const USER_ASSIGNMENTS_KEY = "nutrifaq_user_assignments";
+    const AUTO_RELOGIN_ONCE_KEY = "nutrifaq_auto_relogin_once";
     let i18nConfig = null;
     let currentLang = "fr";
 
@@ -305,6 +306,12 @@
         window.location.href = "/index.html";
     }
 
+    function clearStaleSessionState() {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_PROFILE_KEY);
+        localStorage.removeItem(USER_ASSIGNMENTS_KEY);
+    }
+
     async function fetchCurrentUserProfile(token) {
         const response = await fetch(`${BACKEND_URL}/api/users/me`, {
             headers: {
@@ -412,6 +419,7 @@
             try {
                 const tokenResponse = await acquireApiToken(msalApp, existingAccount);
                 const accessToken = tokenResponse.accessToken;
+                sessionStorage.removeItem(AUTO_RELOGIN_ONCE_KEY);
                 localStorage.setItem(TOKEN_KEY, accessToken);
 
                 const { profile } = await resolveUserContext(accessToken);
@@ -420,6 +428,18 @@
                 return;
             } catch (error) {
                 setStatus(tr("statusSessionExpired"), true);
+                clearStaleSessionState();
+
+                // Retry once with interactive sign-in to recover from stale cached sessions.
+                if (!sessionStorage.getItem(AUTO_RELOGIN_ONCE_KEY)) {
+                    sessionStorage.setItem(AUTO_RELOGIN_ONCE_KEY, "1");
+                    try {
+                        await signIn(msalApp);
+                        return;
+                    } catch (retryError) {
+                        setStatus(tr("statusLoginFailed", { error: formatErrorMessage(retryError) }), true);
+                    }
+                }
             }
         }
 
