@@ -1,0 +1,175 @@
+﻿/*
+====================================================
+ Nutrifaq Agent â€“ Main Stylesheet
+----------------------------------------------------
+ This file contains all global and component styles for
+ the Nutrifaq Agent web application. Sections are clearly
+ marked for maintainability and onboarding.
+====================================================
+*/
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/*
+----------------------------------------------------
+ Initial Loading Overlay
+----------------------------------------------------
+*/
+.initial-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
+}
+
+.initial-loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.initial-loading-content {
+    text-align: center;
+    color: white;
+}
+
+.initial-spinner {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 20px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+/* App Name in Initial Loading Overlay */
+.app-name {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    letter-spacing: 1px;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.initial-loading-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin: 0;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.auth-gate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: linear-gradient(150deg, rgba(15, 118, 110, 0.92), rgba(51, 65, 85, 0.92));
+}
+
+.auth-gate-card {
+    width: min(460px, 96%);
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #d7e5e2;
+    padding: 1.2rem;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.auth-gate-card h2 {
+    margin: 0;
+    color: #12453f;
+}
+
+.auth-gate-card p {
+    margin: 0;
+    color: #36544f;
+}
+
+.login-page {
+    min-height: 100vh;
+    background: radial-gradient(circle at 12% 20%, #1e9cc8 0%, #0f3b88 45%, #35a830 100%);
+}
+
+.login-page-overlay {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.login-page-card {
+    width: min(480px, 96%);
+    background: linear-gradient(160deg, #ffffff 0%, #f0f8ff 100%);
+    border-radius: 16px;
+    border: 1px solid #c5daf2;
+    box-shadow: 0 20px 42px rgba(12, 39, 91, 0.35);
+    padding: 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.login-page-logo {
+    width: min(250px, 78%);
+    height: auto;
+    margin: 0 auto 0.25rem;
+    display: block;
+}
+
+.login-page-card h1 {
+    margin: 0;
+    color: #0d356f;
+    text-align: center;
+}
+
+.login-page-card p {
+    margin: 0;
+    color: #244a72;
+    text-align: center;
+}
+
+.login-page-card .dm-btn {
+    width: 100%;
+}
+
+.login-page-card .dm-btn.primary {
+    background: linear-gradient(135deg, #1d75c2 0%, #124784 100%);
+    color: #ffffff;
+}
+
+.login-page-card .dm-btn.secondary {
+    background: #eaf4ff;
+    color: #13588f;
+    border: 1px solid #bfd8f3;
+}
+
+.login-page-card .status-message {
+    text-align: center;
+    color: #1c5f94;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}

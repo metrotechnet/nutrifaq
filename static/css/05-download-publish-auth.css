@@ -1,0 +1,675 @@
+﻿/*
+----------------------------------------------------
+ Download Manager Page
+----------------------------------------------------
+*/
+.download-manager-page {
+    background: linear-gradient(160deg, #f7fafc 0%, #e6f4f1 100%);
+    min-height: 100vh;
+}
+
+.download-manager-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #dbe7e3;
+    background: #ffffff;
+}
+
+.download-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: #0f766e;
+    font-weight: 600;
+}
+
+.download-manager-title {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #12453f;
+}
+
+.download-manager-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 1rem;
+}
+
+.download-control-bar,
+.download-upload-bar {
+    display: grid;
+    grid-template-columns: 2fr 1fr auto;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.download-dropzone-section {
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 1rem;
+}
+
+.dnd-upload-area {
+    border: 2px dashed #9ac8bf;
+    border-radius: 12px;
+    padding: 1.1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+    outline: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dnd-upload-area:hover,
+.dnd-upload-area:focus-visible,
+.dnd-upload-area.is-dragover {
+    border-color: #0f766e;
+    background: #f3fbf8;
+    transform: translateY(-1px);
+}
+
+.dnd-upload-title {
+    margin: 0;
+    color: #18423c;
+    font-weight: 700;
+}
+
+.dnd-upload-subtitle {
+    margin: 0;
+    color: #4b6b65;
+    font-size: 0.92rem;
+}
+
+.dnd-file-name {
+    margin: 0;
+    color: #2b5851;
+    font-size: 0.9rem;
+    word-break: break-word;
+}
+
+.download-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.download-control-group.wide {
+    min-width: 0;
+}
+
+.download-control-group label {
+    font-weight: 600;
+    color: #23423d;
+    font-size: 0.92rem;
+}
+
+.download-control-group input {
+    border: 1px solid #bfd3cd;
+    border-radius: 8px;
+    padding: 0.62rem 0.75rem;
+    font-size: 0.95rem;
+}
+
+.download-control-group.actions {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+
+.dm-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 0.62rem 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.dm-btn:hover {
+    transform: translateY(-1px);
+    opacity: 0.94;
+}
+
+.dm-btn.primary {
+    background: #0f766e;
+    color: #ffffff;
+}
+
+.dm-btn.secondary {
+    background: #d9efea;
+    color: #12453f;
+}
+
+.dm-btn.indexing {
+    background: #0b5c55;
+    color: #ffffff;
+}
+
+.dm-btn.cancel {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.dm-btn.cancel:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.indexing-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dm-btn.table-action {
+    padding: 0.42rem 0.65rem;
+    margin-right: 0.35rem;
+    font-size: 0.82rem;
+    background: #eef7f4;
+    color: #12453f;
+}
+
+.dm-btn.table-action.danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.download-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    background: #ffffff;
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+}
+
+.indexing-progress-wrap {
+    background: #ffffff;
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+}
+
+.indexing-progress-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: #e8f3f0;
+    overflow: hidden;
+}
+
+.indexing-progress-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0f766e 0%, #14b8a6 100%);
+    transition: width 0.8s ease;
+}
+
+.reset-progress-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #1d4ed8 0%, #38bdf8 100%);
+    transition: width 0.8s ease;
+}
+
+.indexing-progress-text {
+    margin: 0.55rem 0 0;
+    color: #1f514a;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.status-message {
+    margin: 0;
+    color: #21564e;
+    font-weight: 500;
+}
+
+.status-message.error {
+    color: #b91c1c;
+}
+
+.download-files-list {
+    background: #ffffff;
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+    overflow: auto;
+}
+
+.download-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.publish-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 1rem;
+}
+
+.publish-controls-card,
+.publish-logs-card {
+    background: #ffffff;
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.publish-controls-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.publish-controls-card .status-message {
+    margin-top: 0;
+}
+
+.publish-logs-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.publish-controls-card h2,
+.publish-logs-card h3 {
+    margin: 0 0 0.75rem;
+    color: #12453f;
+}
+
+.publish-logs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.publish-logs-header h3 {
+    margin: 0;
+}
+
+.publish-logs-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.publish-refresh-logs-btn {
+    padding: 0.42rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+.publish-export-logs-btn {
+    padding: 0.42rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+.publish-controls-grid {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+}
+
+.publish-controls-grid.is-disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.download-control-group.wide {
+    flex: 1 1 240px;
+    min-width: 180px;
+}
+
+.download-control-group.actions {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    min-width: 120px;
+}
+
+.publish-model-selector {
+    width: 100%;
+    border: 1px solid #bfd3cd;
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.86rem;
+    min-height: 38px;
+    background: #ffffff;
+    max-height: 120px;
+}
+
+.publish-progress-wrap {
+    margin-top: 0.85rem;
+    display: none;
+}
+
+.publish-progress-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: #e8f3f0;
+    overflow: hidden;
+}
+
+.publish-progress-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0f766e 0%, #2dd4bf 100%);
+    transition: width 0.35s ease;
+}
+
+.publish-progress-text {
+    margin-top: 0.45rem;
+    color: #1f514a;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.publish-finish-message {
+    margin-top: 0.7rem;
+    color: #1f5b52;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.publish-logs-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 0.75rem;
+    max-height: none;
+    overflow: auto;
+}
+
+.publish-log-item {
+    border: 1px solid #e2ece9;
+    border-radius: 10px;
+    padding: 0.75rem;
+    background: #fbfefd;
+    box-shadow: 0 1px 0 rgba(15, 118, 110, 0.06);
+}
+
+.publish-log-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-size: 0.83rem;
+    color: #335f58;
+    margin-bottom: 0.4rem;
+}
+
+.publish-log-block {
+    border: 1px solid #e6efec;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 0.55rem 0.65rem;
+    margin-top: 0.45rem;
+}
+
+.publish-log-answer-block {
+    border-style: dashed;
+}
+
+.publish-log-label {
+    margin: 0 0 0.22rem;
+    color: #22554e;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.publish-log-question,
+.publish-log-response {
+    margin: 0;
+    color: #173833;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    white-space: normal;
+}
+
+.publish-log-response.preview {
+    color: #244842;
+}
+
+.publish-log-response {
+    overflow-wrap: anywhere;
+}
+
+.publish-log-block .message-text {
+    margin-bottom: 0;
+}
+
+.publish-log-block .markdown {
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.publish-log-block .markdown p,
+.publish-log-block .markdown ul,
+.publish-log-block .markdown ol,
+.publish-log-block .markdown blockquote,
+.publish-log-block .markdown pre,
+.publish-log-block .markdown table {
+    margin: 0.3rem 0;
+}
+
+.publish-log-block .markdown li {
+    margin: 0.2rem 0;
+}
+
+.publish-log-response > :first-child {
+    margin-top: 0;
+}
+
+.publish-log-response > :last-child {
+    margin-bottom: 0;
+}
+
+.publish-log-response-details {
+    margin-top: 0.42rem;
+}
+
+.publish-log-response-details summary {
+    cursor: pointer;
+    color: #205f56;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.publish-log-response-details > p {
+    margin-top: 0.42rem;
+}
+
+.publish-log-empty {
+    margin: 0;
+    color: #4d6f69;
+    font-size: 0.92rem;
+}
+
+.files-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+}
+
+.files-table th,
+.files-table td {
+    border-bottom: 1px solid #edf3f1;
+    text-align: left;
+    padding: 0.72rem 0.8rem;
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+.files-table thead th {
+    background: #f5fbf9;
+    color: #18423c;
+    position: sticky;
+    top: 0;
+}
+
+.azure-auth-panel {
+    background: #ffffff;
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.azure-auth-panel h2 {
+    margin: 0 0 0.35rem;
+    color: #12453f;
+}
+
+.azure-auth-subtitle {
+    margin: 0 0 1rem;
+    color: #45655f;
+}
+
+.azure-auth-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+}
+
+.azure-auth-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.azure-auth-card {
+    border: 1px solid #dce9e5;
+    border-radius: 10px;
+    background: #f9fcfb;
+    padding: 0.8rem;
+}
+
+.azure-auth-card h3 {
+    margin: 0 0 0.5rem;
+    color: #1e4f48;
+    font-size: 1rem;
+}
+
+.azure-auth-card pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.84rem;
+    color: #183934;
+}
+
+.azure-auth-card.full-width {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 1000px) {
+    .download-control-bar,
+    .download-upload-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .download-control-group.actions {
+        justify-content: flex-start;
+    }
+
+    .publish-controls-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .download-status-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .azure-auth-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.input-buttons {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.input-disclaimer {
+    max-width: none;
+    margin: 0.5rem 0 0;
+    font-size: 0.75rem;
+    color: #718096;
+    text-align: center;
+    font-style: italic;
+    grid-column: 1 / 2;
+}
+
+.input-box {
+    width: 100%;
+    padding: 1rem 7rem 1rem 1rem;
+    background: #ffffff;
+    border: 1px solid #cbd5e0;
+    border-radius: 12px;
+    color: #2d3748;
+    font-size: 1rem;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.input-box::placeholder {
+    color: #a0aec0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.input-box:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+@media (max-width: 768px) {
+    .input-box {
+        font-size: 16px;
+    }
+    
+    .input-box::placeholder {
+        font-size: 14px;
+    }
+}
