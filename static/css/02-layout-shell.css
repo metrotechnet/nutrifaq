@@ -105,10 +105,11 @@ header {
 #chat-container > .azure-auth-panel {
     grid-row: 1;
     min-height: 0;
-    width: min(100%, 1200px);
-    max-width: none;
-    margin: 0 auto;
-    justify-self: center;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    justify-self: stretch;
+    box-sizing: border-box;
     background: #ffffff;
     border: 1px solid #d5e3df;
     border-radius: 12px;
