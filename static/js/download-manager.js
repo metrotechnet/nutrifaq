@@ -511,8 +511,8 @@
                         </select>
                     </div>
                     <div class="download-control-group actions">
-                        <button id="publish-submit" class="dm-btn primary" type="button">${escapeHtml(tr("publish.confirm.action", "Publier"))}</button>
                         <button id="publish-revert" class="dm-btn secondary" type="button">${escapeHtml(tr("publish.revert.action", "Rétablir"))}</button>
+                        <button id="publish-submit" class="dm-btn primary" type="button">${escapeHtml(tr("publish.confirm.action", "Publier"))}</button>
                     </div>
                 </div>
 
@@ -523,7 +523,7 @@
                     <div id="publish-progress-text" class="publish-progress-text">0%</div>
                 </div>
 
-                <p id="publish-status" class="status-message">${escapeHtml(tr("publish.status.ready", "Pret."))}</p>
+                <p id="publish-status" class="status-message">${escapeHtml(tr("publish.status.ready", "Prêt."))}</p>
                 <p id="publish-finish-message" class="publish-finish-message" hidden></p>
             </div>
 
@@ -1246,8 +1246,25 @@
         els.statusMessage.classList.toggle("error", Boolean(isError));
     }
 
+    function syncPublishReadyLabelWithTranslations() {
+        if (!els.publishStatus) {
+            return;
+        }
+        const current = String(els.publishStatus.textContent || "").trim();
+        if (current === "" || current === "Pret." || current === "Prêt." || current === "Ready.") {
+            setPublishStatus(tr("publish.status.ready", "Prêt."), false);
+        }
+    }
+
+    function bindConfigLanguageSync() {
+        window.addEventListener("nutrifaq:language-updated", () => {
+            applyPublishTranslations();
+            syncPublishReadyLabelWithTranslations();
+        });
+    }
+
     function ensurePublishDefaults() {
-        setPublishStatus(tr("publish.status.ready", "Pret."), false);
+        setPublishStatus(tr("publish.status.ready", "Prêt."), false);
         setPublishControlsDisabled(false);
     }
 
@@ -1626,7 +1643,7 @@
                 }
             });
             renderRows(Array.isArray(data.files) ? data.files : []);
-            setStatus(tr("downloadManager.status.filesFound", "{count} fichier(s) trouvé(s) dans {container}.", {
+            setStatus(tr("downloadManager.status.filesFound", "{count} fichier(s) trouvé(s).", {
                 count: data.count || 0,
                 container: data.container || tr("downloadManager.status.defaultContainer", "le conteneur")
             }), false);
@@ -1903,6 +1920,7 @@
         ensurePublishRefreshControl();
         bindNavigationToggles();
         bindTokenSync();
+        bindConfigLanguageSync();
         initializeLandingView();
 
         if (els.refreshFiles) {

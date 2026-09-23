@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import re
 import json
+import os
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from enum import Enum
 from typing import List, Optional, Dict, Any
+from api.services.blob_storage_service import get_container_client, has_blob_storage_config
 
 
 class Decision(str, Enum):
@@ -29,30 +31,47 @@ PROJECT_ROOT = Path(__file__).parent.parent
 REPO_ROOT = PROJECT_ROOT.parent
 FRONTEND_CONFIG_ROOT = REPO_ROOT / "static" / "config"
 
+
+def _config_blob_container_name() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
+
+
+def _config_blob_prefix() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
+
+
+def _config_blob_name(file_name: str) -> str:
+    prefix = _config_blob_prefix()
+    return f"{prefix}/{file_name}" if prefix else file_name
+
+
+def _load_json_from_config_blob(file_name: str) -> Dict[str, Any]:
+    if not has_blob_storage_config():
+        raise RuntimeError("Azure Blob Storage is required to load refusal config.")
+
+    blob_name = _config_blob_name(file_name)
+    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
+    raw_content = blob_client.download_blob().readall()
+    data = json.loads(raw_content.decode("utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"Invalid JSON root in blob '{blob_name}': expected an object.")
+    return data
+
 # Cache for loaded responses
 _refusal_responses_cache = None
 
 def load_refusal_responses():
-    """Load refusal responses from JSON file"""
+    """Load refusal responses from nutrifaq-config blob JSON."""
     global _refusal_responses_cache
     if _refusal_responses_cache is not None:
         return _refusal_responses_cache
-    
-    try:
-        candidate_paths = [
-            FRONTEND_CONFIG_ROOT / 'refusal_responses.json',
-            PROJECT_ROOT / 'config' / 'refusal_responses.json',
-            PROJECT_ROOT / 'nutrifaq-dbase' / 'common' / 'refusal_responses.json',
-        ]
-        for path in candidate_paths:
-            if path.exists():
-                with open(path, 'r', encoding='utf-8') as f:
-                    _refusal_responses_cache = json.load(f)
-                return _refusal_responses_cache
 
-        raise FileNotFoundError(
-            "refusal_responses.json not found in any expected location"
-        )
+    try:
+        try:
+            _refusal_responses_cache = _load_json_from_config_blob("refusal_response.json")
+        except Exception:
+            _refusal_responses_cache = _load_json_from_config_blob("refusal_responses.json")
+        return _refusal_responses_cache
     except Exception as e:
         raise Exception(f"Error loading refusal responses: {e}")
 
@@ -66,22 +85,17 @@ def get_refusal_response(response_type: str, language: str = "fr") -> str:
 _refusal_patterns_cache = None
 
 def load_refusal_patterns():
-    """Load refusal patterns from JSON file"""
+    """Load refusal patterns from nutrifaq-config blob JSON."""
     global _refusal_patterns_cache
     if _refusal_patterns_cache is not None:
         return _refusal_patterns_cache
-    
+
     try:
-        candidate_paths = [
-            FRONTEND_CONFIG_ROOT / 'refusal_patterns.json',
-            PROJECT_ROOT / 'config' / 'refusal_patterns.json',
-        ]
-        for path in candidate_paths:
-            if path.exists():
-                with open(path, 'r', encoding='utf-8') as f:
-                    _refusal_patterns_cache = json.load(f)
-                return _refusal_patterns_cache
-        raise FileNotFoundError("refusal_patterns.json not found in any expected location")
+        try:
+            _refusal_patterns_cache = _load_json_from_config_blob("refusal_pattern.json")
+        except Exception:
+            _refusal_patterns_cache = _load_json_from_config_blob("refusal_patterns.json")
+        return _refusal_patterns_cache
     except Exception as e:
         raise Exception(f"Error loading refusal patterns: {e}")
 

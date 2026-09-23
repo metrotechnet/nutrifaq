@@ -14,7 +14,7 @@ console.log('Using BACKEND_URL:', BACKEND_URL);
 // Global state
 let mainConfig = {};
 let currentLanguage = 'fr';
-const FRONTEND_CONFIG_BASE_URL = `${window.location.origin}/static/config`;
+const LOCALES_BASE_URL = `${window.location.origin}/static/locales`;
 
 function deepMerge(baseConfig, overrideConfig) {
     const result = { ...(baseConfig || {}) };
@@ -36,8 +36,16 @@ function deepMerge(baseConfig, overrideConfig) {
     return result;
 }
 
-function frontendConfigUrl(fileName) {
-    return `${FRONTEND_CONFIG_BASE_URL}/${fileName}`;
+function localeConfigUrl(languageCode) {
+    return `${LOCALES_BASE_URL}/${languageCode}.json`;
+}
+
+function emitLanguageUpdated() {
+    window.dispatchEvent(new CustomEvent('nutrifaq:language-updated', {
+        detail: {
+            language: currentLanguage,
+        },
+    }));
 }
 
 /**
@@ -85,12 +93,25 @@ function getUrlParameter(name) {
  */
 async function loadConfig(agent) {
     try {
-        const [commonConfig, agentConfig] = await Promise.all([
-            fetchConfigWithRetry(frontendConfigUrl('common_config.json')),
-            fetchConfigWithRetry(frontendConfigUrl('agent_config.json')),
-        ]);
+        const defaultLanguage = 'fr';
+        const supportedLanguages = ['fr', 'en'];
 
-        mainConfig = deepMerge(commonConfig || {}, agentConfig || {});
+        const localeEntries = await Promise.all(
+            supportedLanguages.map(async (lang) => {
+                const normalizedLang = String(lang).trim();
+                try {
+                    const localeConfig = await fetchConfigWithRetry(localeConfigUrl(normalizedLang));
+                    return [normalizedLang, localeConfig || {}];
+                } catch (error) {
+                    if (normalizedLang === 'fr') {
+                        throw error;
+                    }
+                    return [normalizedLang, {}];
+                }
+            })
+        );
+
+        mainConfig = Object.fromEntries(localeEntries);
         
         // Language detection priority: explicit URL parameter > default French
         const urlLang = getUrlParameter('lang');
@@ -100,8 +121,8 @@ async function loadConfig(agent) {
             currentLanguage = urlLang;
             localStorage.setItem('preferredLanguage', urlLang);
         } else {
-            currentLanguage = 'fr';
-            localStorage.setItem('preferredLanguage', 'fr');
+            currentLanguage = defaultLanguage;
+            localStorage.setItem('preferredLanguage', defaultLanguage);
             const url = new URL(window.location);
             url.searchParams.set('lang', currentLanguage);
             window.history.replaceState({}, '', url);
@@ -109,6 +130,7 @@ async function loadConfig(agent) {
         
         // Apply translations
         applyConfig(currentLanguage);
+        emitLanguageUpdated();
 
     } catch (error) {
         console.error('Failed to load config:', error);
@@ -281,6 +303,7 @@ function switchLanguage(lang) {
     
     applyConfig(lang);
     populateSuggestionCards(lang);
+    emitLanguageUpdated();
     
     // Update language selector value
     const langSelector = document.getElementById('language-selector');

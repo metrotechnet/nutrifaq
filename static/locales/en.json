@@ -1,0 +1,395 @@
+{
+  "app": {
+    "title": "IMX Multi Agent | AI Assistant",
+    "description": "AI Assistant of IMX Technologie inc."
+  },
+    "intro": {
+      "title": "Questions about nutrition?",
+      "description": "Ask our AI agent and get clear answers instantly. Fighting misinformation, one question at a time.",
+      "disclaimer": "Note: This AI agent provides information only. For personalized advice, consult a qualified health professional.",
+      "profileAlt": "Nutrifaq Agent",
+      "profileImage": "/static/logos/logo-nutrifaq.png"
+    },
+    "suggestions": [
+      {
+        "id": "health",
+        "title": "💡 Health",
+        "description": "General wellness and lifestyle habits",
+        "event": "display: General wellness and lifestyle habits",
+        "color": "#fff9c4"
+      },
+      {
+        "id": "training",
+        "title": "🏋️ Training",
+        "description": "Athletic performance and recovery",
+        "event": "display: Athletic performance and recovery",
+        "color": "#ffe0b2"
+      },
+      {
+        "id": "supplements",
+        "title": "💊 Supplements",
+        "description": "Questions about supplements and their use",
+        "event": "display: Questions about supplements and their use",
+        "color": "#b2dfdb"
+      }
+    ],
+    "components": {
+      "inputArea": {
+        "showInputOnLoad": true,
+        "placeholder": "Ask me a question about nutrition...",
+        "sendButton": "Send",
+        "voiceButton": "Record voice message",
+        "disclaimer": "⚠️ May contain errors. Does not replace professional advice."
+      }
+    },
+  "header": {
+    "title": "IMX - NutriFAQ",
+    "menuButton": "Menu",
+    "agentLabel": "Agent"
+  },
+  "loginPage": {
+    "title": "Sign in - NutriFAQ-Chat",
+    "description": "Sign in with your Azure Entra ID account to continue.",
+    "signIn": "Sign in with Azure",
+    "ready": "Ready.",
+    "statusRedirectIdentity": "Redirecting to Microsoft Entra ID...",
+    "statusRedirectLogin": "Redirecting to the sign-in page...",
+    "statusConfigError": "Auth config error: {error}",
+    "statusSessionDetected": "Session detected ({role}). Redirecting...",
+    "statusSessionExpired": "Session detected, but token expired. Sign-in required.",
+    "statusLoginFailed": "Sign-in failed: {error}",
+    "unknownRole": "unknown role",
+    "unknownError": "Unknown error",
+    "msalUnavailable": "MSAL unavailable: unable to load authentication library.",
+    "missingTenant": "Missing ENTRA_TENANT_ID.",
+    "missingClientId": "Missing ENTRA_CLIENT_ID.",
+    "msalNotFound": "MSAL unavailable.",
+    "tokenAcquireFailed": "Unable to retrieve API token."
+  },
+  "sidebar": {
+    "title": "IMX - NutriFAQ",
+    "closeButton": "Close",
+    "download": "Download",
+    "test": "Validate",
+    "validate": "Publish",
+    "logout": "Logout",
+    "accountMenu": "Account menu",
+    "aboutImx": "About IMX",
+    "legal": "Warnings",
+    "about": "About the application",
+    "privacy": "Privacy Policy",
+    "language": "Language",
+    "agent": "Agent"
+  },
+  "instructions": {
+    "badge": "Guide",
+    "title": "NutriFAQ-Chat update instructions",
+    "downloadTitle": "Download",
+    "downloadDescription": "Use this section to prepare the knowledge base content before integrating it into NutriFAQ-Chat.",
+    "downloadItem1": "Drag and drop a file or select it with the Choose file button.",
+    "downloadItem2": "Index the database to turn files into data the system can search and retrieve.",
+    "downloadItem3": "This step lets the chatbot find the right content during responses and improves result accuracy.",
+    "supportNote": "Need help? Write to us at info@imxtech.ca",
+    "testTitle": "Validate",
+    "testDescription": "Once the files are uploaded and indexed, switch to Validate mode to verify the real behavior.",
+    "testItem1": "Ask a test question related to the indexed content.",
+    "testItem2": "Verify that the answer is consistent and uses the right documents.",
+    "testItem3": "Check the formatting quality, context, and model-generated responses.",
+    "publishTitle": "Publish",
+    "publishDescription": "When the result is satisfactory, use the Publish section to finalize production.",
+    "publishItem1": "Choose the appropriate AI model available in the list.",
+    "publishItem2": "Confirm the selected model before publishing.",
+    "publishItem3": "",
+    "publishItem4": "Export the logs if you need to archive or analyze the interactions.",
+    "dropZoneTitle": "Drag and drop a file here",
+    "or": "or",
+    "browse": "Choose a file",
+    "noFileSelected": "No file selected.",
+    "resetFiles": "Reset files",
+    "startIndexing": "Start indexing",
+    "cancel": "Cancel"
+  },
+  "cookies": {
+    "title": "🍪 Cookies and privacy",
+    "message": "This site uses essential cookies to ensure proper functioning. No personal data is collected for advertising purposes.",
+    "accept": "Accept",
+    "decline": "Decline"
+  },
+  "legal": {
+    "title": "⚠️ Important warnings",
+    "content": [
+      "These virtual assistants are artificial intelligences offering general information for educational purposes, based on non-personalized content.",
+      "",
+      " ❌ DOES NOT REPLACE a medical or nutritional consultation",
+      " ❌ DOES NOT DIAGNOSE",
+      " ❌ DOES NOT PRESCRIBE treatment or nutrition plan",
+      "",
+      "For any health problem:",
+      "✅ Consult a qualified healthcare or nutrition professional",
+      "✅ Never modify a treatment or care plan without professional advice",
+      "✅ In case of emergency, contact emergency services",
+      "",
+      "The information provided is for educational purposes only and does not constitute a professional act."
+    ]
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdate": "December 31, 2025",
+    "content": [
+      "Your privacy is important to us. This privacy policy explains what data is collected, how it is used and protected when you use the IMX Agent assistant.",
+      "",
+      "1. Data collected",
+      " - Provided information: The questions you ask the assistant and the information you enter.",
+      " - Technical data: Information about the device, browser, IP address and connection data.",
+      "",
+      "2. Use of data",
+      " - Provide and improve the AI assistant service.",
+      " - Ensure security and prevent abuse.",
+      " - Analyze application usage to improve user experience.",
+      "",
+      "3. Data sharing",
+      " Your data is never sold to third parties. It may be shared only in the following cases:",
+      " - Compliance with legal obligations.",
+      " - Protection against fraud or security threats.",
+      "",
+      "4. Security",
+      "We implement security measures to protect your data against unauthorized access, modification or disclosure.",
+      "",
+      "5. Your rights",
+      " - Access your personal data.",
+      " - Request correction or deletion of your data.",
+      " - Withdraw your consent at any time.",
+      "",
+      "6. Contact",
+      "For any questions regarding this privacy policy, contact us at <a href=\"mailto:info@imxtech.ca\">info@imxtech.ca</a>."
+    ]
+  },
+  "messages": {
+    "loading": "Loading...",
+    "warmup": "Starting application...",
+    "ready": "Ready.",
+    "error": "Sorry, an error occurred. Please try again in a few moments.",
+    "copy": "Copy",
+    "share": "Share",
+    "copied": "Copied!",
+    "shareNotSupported": "Sharing is not supported on this browser.",
+    "comment": "Comment",
+    "comment_placeholder": "Your comment...",
+    "listen": "Listen",
+    "like": "Like",
+    "dislike": "Dislike",
+    "send": "Send",
+    "save": "Save",
+    "cancel": "Cancel",
+    "sending": "Sending...",
+    "comment_success": "Comment added!",
+    "comment_error": "Error adding comment.",
+    "comment_required": "Please enter a comment.",
+    "network_error": "Network error."
+  },
+  "azureAuth": {
+    "accountDefault": "Account",
+    "msalUnavailable": "MSAL unavailable: unable to load authentication library.",
+    "missingTenantFrontend": "Missing ENTRA_TENANT_ID in frontend configuration.",
+    "missingClientIdFrontend": "Missing ENTRA_CLIENT_ID in frontend configuration.",
+    "msalLibraryNotFound": "MSAL library not found.",
+    "tokenScopesFailed": "Unable to acquire a token with configured scopes.",
+    "usersAdminOnly": "Users endpoint is restricted to admins.",
+    "unableResetLog": "Unable to reset the log.",
+    "statusConnecting": "Signing in with Azure...",
+    "statusConnected": "Connected. Token extracted and injected into the Download section.",
+    "statusRefreshing": "Refreshing token...",
+    "statusRefreshed": "Token refreshed and information updated.",
+    "statusDisconnected": "Signed out.",
+    "statusAccountDetectedRefresh": "Account detected. Click Refresh token.",
+    "statusInitError": "Azure auth initialization error: {error}",
+    "statusLoginFailed": "Sign-in failed: {error}",
+    "statusRefreshFailed": "Refresh failed: {error}",
+    "statusLogoutFailed": "Sign-out failed: {error}",
+    "statusAutoRefreshFailed": "Automatic refresh failed: {error}",
+    "noAccountAfterLogin": "No account returned after sign-in.",
+    "noActiveAccount": "No active account. Please sign in first."
+  },
+  "voice": {
+    "alertTitle": "Information",
+    "ok": "OK",
+    "whisperMethod": "🎤 Whisper",
+    "webSpeechMethod": "🎤 Web Speech",
+    "processingAudio": "⏳ Processing audio...",
+    "recordingRemaining": "⏱️ Recording (5s remaining...)",
+    "recordingBase": "🎤 Recording",
+    "micAccessError": "Could not access microphone. Please check permissions.",
+    "transcriptionFailed": "Failed to transcribe audio. Please try again.",
+    "browserNotSupported": "Speech recognition is not supported in your browser.",
+    "translatorPlaceholderFallback": "Enter text to translate...",
+    "inputPlaceholderFallback": "Ask me a question..."
+  },
+  "downloadManager": {
+    "confirm": {
+      "default": "Confirm",
+      "cancel": "Cancel",
+      "deleteTitle": "Delete this file?",
+      "delete": "Delete",
+      "startIndexingTitle": "Start indexing?",
+      "startIndexingText": "Regeneration and indexing can take several minutes.",
+      "start": "Start",
+      "resetTitle": "Reset files?",
+      "resetText": "This action will restore previous files.",
+      "reset": "Reset"
+    },
+    "alert": {
+      "errorTitle": "Error",
+      "infoTitle": "Information",
+      "ok": "OK"
+    },
+    "buttons": {
+      "resetInProgress": "Reset in progress...",
+      "resetFiles": "Reset files",
+      "indexingInProgress": "Indexing in progress...",
+      "startIndexing": "Start indexing"
+    },
+    "progress": {
+      "preparing": "Preparing...",
+      "syncing": "Synchronizing... {progress}%",
+      "completed": "Completed",
+      "interrupted": "Interrupted",
+      "step": "Step{countText}: {label} ({percent}%)"
+    },
+    "steps": {
+      "extract_docx": "Document extraction",
+      "extract_references": "References extraction",
+      "generate_transcripts_json": "Transcript generation",
+      "generate_questions": "Question generation",
+      "index_chromadb_json": "ChromaDB indexing"
+    },
+    "errors": {
+      "tokenRequired": "Admin token required."
+    },
+    "table": {
+      "noFiles": "No files found for this filter.",
+      "loading": "Loading...",
+      "errorPrefix": "Error: ",
+      "download": "Download",
+      "delete": "Delete"
+    },
+    "status": {
+      "defaultContainer": "the container",
+      "cancelRequested": "Indexing cancellation requested...",
+      "cancelError": "Cancel error: {error}",
+      "loadingFiles": "Loading Azure files...",
+      "filesFound": "{count} file(s) found.",
+      "loadError": "Loading error: {error}",
+      "deleting": "Deleting {name}...",
+      "deleted": "File deleted: {name}",
+      "deleteError": "Delete error: {error}",
+      "downloadStarted": "Download started: {name}",
+      "downloadError": "Download error: {error}",
+      "selectLocalFile": "Select a local file.",
+      "uploading": "Uploading...",
+      "uploaded": "File uploaded: {name}",
+      "uploadError": "Upload error: {error}",
+      "fileSelected": "Selected file: {name}",
+      "indexingInProgress": "Indexing in progress... this may take several minutes.",
+      "indexingCancelled": "Indexing cancelled.",
+      "indexingCompleted": "Indexing completed. Status: {status}",
+      "indexingDone": "Indexing completed.",
+      "indexingError": "Indexing error: {error}",
+      "resetInProgress": "Resetting from blob in progress...",
+      "resetDone": "Reset completed. {count} file(s) in documents/.",
+      "resetError": "Reset error: {error}"
+    }
+  },
+  "chat": {
+    "modelBadge": "Model: {value}",
+    "copyDone": "Copied",
+    "errorTitle": "Error",
+    "suggested": {
+      "zeroDocuments": "0 document",
+      "summary": "{documents} document(s) • {questions} question(s)",
+      "documentCount": "{documents} document(s)",
+      "documentFallback": "Document",
+      "loadingQuestions": "Loading questions...",
+      "noGeneratedQuestions": "No generated questions available.",
+      "noUsableQuestions": "No usable questions found.",
+      "loadQuestionsError": "Unable to load questions: {error}"
+    }
+  },
+  "main": {
+    "models": {
+      "loading": "Loading models...",
+      "noneAvailable": "No model available",
+      "loadError": "Error loading models",
+      "defaultModel": "Model"
+    }
+  },
+  "publish": {
+    "ui": {
+      "sectionTitle": "Publish",
+      "modelLabel": "Final model used",
+      "datetimeLabel": "",
+      "logsTitle": "Publish history"
+    },
+    "status": {
+      "ready": "Ready.",
+      "modelRequired": "Please select a model.",
+      "datetimeRequired": "",
+      "inProgress": "Publishing in progress...",
+      "done": "Publishing completed ({count} files)."
+    },
+    "confirm": {
+      "title": "Confirm publication?",
+      "text": "Model: {model}",
+      "warning": "Warning: once started, publishing cannot be cancelled while in progress.",
+      "action": "Publish"
+    },
+    "revert": {
+      "title": "Confirm restore?",
+      "warning": "Warning: restoring will replace the main database with the previous version and cannot be cancelled while in progress.",
+      "action": "Restore",
+      "inProgress": "Restore in progress...",
+      "done": "Restore completed ({count} files): {timestamp}"
+    },
+    "logs": {
+      "loading": "Loading logs...",
+      "empty": "No publish logs available.",
+      "error": "Log loading error: {error}",
+      "modelUnknown": "unknown",
+      "providerUnknown": "unknown",
+      "dateLabel": "Date",
+      "providerLabel": "Provider",
+      "modelLabel": "Model",
+      "filesLabel": "Files",
+      "refresh": "Refresh",
+      "reset": "Reset",
+      "export": "Export",
+      "exportTitle": "Logs export",
+      "nothingToExport": "No logs to export.",
+      "popupBlocked": "Unable to open export window. Please check your pop-up blocker.",
+      "exportInProgress": "Generating PDF...",
+      "exportDone": "PDF downloaded.",
+      "exportFailed": "PDF export failed.",
+      "exportFailedWithError": "PDF export failed: {error}",
+      "pdfLibUnavailable": "PDF library unavailable.",
+      "resetConfirm": "Do you really want to reset the publish log?",
+      "resetSuccess": "Publish log has been reset.",
+      "resetError": "Error while resetting publish log: {error}"
+    }
+  },
+  "about": {
+    "title": "About the application",
+    "content": [
+      "This application is developed by IMX Technologie inc., a company specializing in the development of innovative artificial intelligence solutions.",
+      "Our tools aim to democratize access to AI technologies while maintaining high standards of quality, security, and privacy.",
+      "Each application is designed to provide an intuitive user experience and reliable results, tailored to the specific needs of our users.",
+      "To learn more about our projects and services, contact us at <a href=\"mailto:info@imxtech.ca\">info@imxtech.ca</a>."
+    ],
+    "closeButton": "Close"
+  },
+  "agents": {
+    "nutrifaq": "Nutrition Agent",
+    "translator": "Translator Agent"
+  },
+  "footer": {
+    "content": "© IMX Technologie inc. – 2026"
+  }
+}

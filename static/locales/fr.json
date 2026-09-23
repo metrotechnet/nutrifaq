@@ -1,0 +1,396 @@
+{
+  "app": {
+    "title": "IMX Multi Agent | Assistant IA",
+    "description": "Assistant IA par IMX Technologie inc."
+  },
+    "intro": {
+      "title": "Des questions sur la nutrition ?",
+      "description": "Posez vos questions à notre agent IA et obtenez des réponses claires instantanément. Luttons contre la désinformation, une question à la fois.",
+      "disclaimer": "Note : Cet agent IA fournit uniquement des informations. Pour des conseils personnalisés, consultez un professionnel de santé qualifié.",
+      "profileAlt": "Nutrifaq Agent",
+      "profileImage": "/static/logos/logo-nutrifaq.png"
+    },
+    "suggestions": [
+      {
+        "id": "health",
+        "title": "💡 Santé",
+        "description": "Bien-être général et habitudes de vie",
+        "event": "display: Bien-être général et habitudes de vie",
+        "color": "#fff9c4"
+      },
+      {
+        "id": "training",
+        "title": "🏋️ Entraînement",
+        "description": "Performance et récupération sportive",
+        "event": "display: Performance et récupération sportive",
+        "color": "#ffe0b2"
+      },
+      {
+        "id": "supplements",
+        "title": "💊 Suppléments",
+        "description": "Questions sur les suppléments et leur utilisation",
+        "event": "display: Questions sur les suppléments et leur utilisation",
+        "color": "#b2dfdb"
+      }
+    ],
+    "components": {
+      "inputArea": {
+        "showInputOnLoad": true,
+        "placeholder": "Pose-moi une question sur la nutrition...",
+        "sendButton": "Envoyer",
+        "voiceButton": "Enregistrer un message vocal",
+        "disclaimer": "⚠️ Peut contenir des erreurs. Ne remplace pas un avis professionnel."
+      }
+    },
+  "header": {
+    "title": "IMX - NutriFAQ",
+    "menuButton": "Menu",
+    "agentLabel": "Agent"
+  },
+  "loginPage": {
+    "title": "Connexion - NutriFAQ-Chat",
+    "description": "Connectez-vous avec votre compte Azure Entra ID pour continuer.",
+    "signIn": "Se connecter avec Azure",
+    "ready": "Prêt.",
+    "statusRedirectIdentity": "Redirection vers Microsoft Entra ID...",
+    "statusRedirectLogin": "Redirection vers la page de connexion...",
+    "statusConfigError": "Erreur config auth: {error}",
+    "statusSessionDetected": "Session détectée ({role}). Redirection...",
+    "statusSessionExpired": "Session détectée, mais token expiré. Reconnexion requise.",
+    "statusLoginFailed": "Connexion échouée: {error}",
+    "unknownRole": "rôle inconnu",
+    "unknownError": "Erreur inconnue",
+    "msalUnavailable": "MSAL indisponible: impossible de charger la bibliothèque d'authentification.",
+    "missingTenant": "ENTRA_TENANT_ID manquant.",
+    "missingClientId": "ENTRA_CLIENT_ID manquant.",
+    "msalNotFound": "MSAL indisponible.",
+    "tokenAcquireFailed": "Impossible de récupérer le token API."
+  },
+  "sidebar": {
+    "title": "IMX - NutriFAQ",
+    "closeButton": "Fermer",
+    "download": "Indexer",
+    "test": "Valider",
+    "validate": "Publier",
+    "logout": "Déconnecter",
+    "accountMenu": "Menu du compte",
+    "aboutImx": "À propos d'IMX",
+    "legal": "Avertissements",
+    "about": "À propos de l'application",
+    "privacy": "Politique de confidentialité",
+    "language": "Langue",
+    "agent": "Agent"
+  },
+  "instructions": {
+    "badge": "Guide",
+    "title": "Instructions de mise à jour NutriFAQ-Chat",
+    "downloadTitle": "Indexer",
+    "downloadDescription": "Utilisez cette section pour préparer le contenu de la base de connaissances avant de l’intégrer à NutriFAQ-Chat.",
+    "downloadItem1": "Glissez-déposez un fichier ou sélectionnez-le avec le bouton Choisir un fichier.",
+    "downloadItem2": "Indexez la base de données pour transformer les fichiers en données consultables par le système.",
+    "downloadItem3": "Cette étape permet au chatbot de retrouver les bons contenus lors des réponses et d’améliorer la précision des résultats.",
+    "supportNote": "Besoin d’aide ? Écrivez-nous à info@imxtech.ca",
+    "testTitle": "Valider",
+    "testDescription": "Une fois les fichiers chargés et indexés, passez en mode Valider pour vérifier le comportement réel.",
+    "testItem1": "Posez une question de test en rapport avec le contenu indexé.",
+    "testItem2": "Vérifiez que la réponse est cohérente et qu’elle utilise bien les bons documents.",
+    "testItem3": "Contrôlez la qualité du formatage, du contexte et des réponses générées par le modèle.",
+    "publishTitle": "Publier",
+    "publishDescription": "Quand le résultat est satisfaisant, utilisez la section Publier pour finaliser la mise en production.",
+    "publishItem1": "Choisissez le bon modèle IA disponible dans la liste.",
+    "publishItem2": "Vérifiez le modèle avant publication.",
+    "publishItem3": "",
+    "publishItem4": "Exportez les logs si vous devez archiver ou analyser les interactions.",
+    "dropZoneTitle": "Glissez-déposez un fichier ici",
+    "or": "ou",
+    "browse": "Choisir un fichier",
+    "noFileSelected": "Aucun fichier sélectionné.",
+    "resetFiles": "Réinitialiser les fichiers",
+    "startIndexing": "Démarrer l'indexation",
+    "cancel": "Annuler"
+  },
+  "cookies": {
+    "title": "🍪 Cookies et confidentialité",
+    "message": "Ce site utilise des cookies essentiels pour assurer son bon fonctionnement. Aucune donnée personnelle n'est collectée à des fins publicitaires.",
+    "accept": "Accepter",
+    "decline": "Refuser"
+  },
+  "legal": {
+    "title": "⚠️ Avertissements importants",
+    "content": [
+      "Ces assistants virtuels sont des intelligences artificielles offrant des informations générales à caractère éducatif, basées sur du contenu non personnalisé.",
+      "",
+      " ❌ NE REMPLACE PAS une consultation médicale ou nutritionnelle",
+      " ❌ NE POSE PAS de diagnostic",
+      " ❌ NE PRESCRIT PAS de traitement ou de plan nutritionnel",
+      "",
+      "Pour tout problème de santé:",
+      "✅ Consultez un professionnel de la santé ou de la nutrition qualifié",
+      "✅ Ne modifiez jamais un traitement ou une prise en charge sans avis professionnel",
+      "✅ En cas d'urgence, contactez les services d'urgence",
+      "",
+      "Les informations fournies sont à des fins éducatives uniquement et ne constituent pas un acte professionnel."
+    ]
+  },
+  "privacy": {
+    "title": "Politique de confidentialité",
+    "lastUpdate": "31 décembre 2025",
+    "content": [
+      "Votre vie privée est importante pour nous. Cette politique de confidentialité explique quelles données sont collectées, comment elles sont utilisées et protégées lorsque vous utilisez l'assistant IMX Agent.",
+      "",
+      "1. Données collectées",
+      " - Informations fournies : Les questions que vous posez à l'assistant et les informations que vous saisissez.",
+      " - Données techniques : Informations sur l'appareil, le navigateur, l'adresse IP et les données de connexion.",
+      "",
+      "2. Utilisation des données",
+      " - Fournir et améliorer le service de l'assistant IA.",
+      " - Assurer la sécurité et prévenir les abus.",
+      " - Analyser l'utilisation de l'application pour améliorer l'expérience utilisateur.",
+      "",
+      "3. Partage des données",
+      " Vos données ne sont jamais vendues à des tiers. Elles peuvent être partagées uniquement dans les cas suivants :",
+      " - Respect des obligations légales.",
+      " - Protection contre la fraude ou les menaces à la sécurité.",
+      "",
+      "4. Sécurité",
+      "Nous mettons en œuvre des mesures de sécurité pour protéger vos données contre l'accès non autorisé, la modification ou la divulgation.",
+      "",
+      "5. Vos droits",
+      " - Accéder à vos données personnelles.",
+      " - Demander la correction ou la suppression de vos données.",
+      " - Retirer votre consentement à tout moment.",
+      "",
+      "6. Contact",
+      "Pour toute question concernant cette politique de confidentialité, contactez-nous à <a href=\"mailto:info@imxtech.ca\">info@imxtech.ca</a>."
+    ]
+  },
+  "messages": {
+    "loading": "Chargement...",
+    "warmup": "Démarrage de l'application...",
+    "ready": "Prêt.",
+    "error": "Désolé, une erreur est survenue. Réessayez dans quelques instants.",
+    "copy": "Copier",
+    "share": "Partager",
+    "copied": "Copié !",
+    "shareNotSupported": "Le partage n'est pas supporté sur ce navigateur.",
+    "comment": "Commentaire",
+    "comment_placeholder": "Votre commentaire...",
+    "listen": "Écouter",
+    "like": "J'aime",
+    "dislike": "Je n'aime pas",
+    "send": "Envoyer",
+    "save": "Sauvegarder",
+    "cancel": "Annuler",
+    "sending": "Envoi...",
+    "comment_success": "Commentaire ajouté !",
+    "comment_error": "Erreur lors de l'ajout du commentaire.",
+    "comment_required": "Veuillez entrer un commentaire.",
+    "network_error": "Erreur réseau."
+  },
+  "azureAuth": {
+    "accountDefault": "Compte",
+    "msalUnavailable": "MSAL indisponible: impossible de charger la bibliothèque d'authentification.",
+    "missingTenantFrontend": "ENTRA_TENANT_ID manquant dans la configuration frontend.",
+    "missingClientIdFrontend": "ENTRA_CLIENT_ID manquant dans la configuration frontend.",
+    "msalLibraryNotFound": "Bibliothèque MSAL introuvable.",
+    "tokenScopesFailed": "Impossible d'acquérir un token avec les scopes configurés.",
+    "usersAdminOnly": "Endpoint réservé aux admins.",
+    "unableResetLog": "Impossible de réinitialiser le journal.",
+    "statusConnecting": "Connexion Azure en cours...",
+    "statusConnected": "Connecté. Token extrait et injecté dans la section Indexer.",
+    "statusRefreshing": "Rafraîchissement du token en cours...",
+    "statusRefreshed": "Token rafraîchi et informations mises à jour.",
+    "statusDisconnected": "Déconnecté.",
+    "statusAccountDetectedRefresh": "Compte détecté. Cliquez sur Rafraîchir le token.",
+    "statusInitError": "Erreur d'initialisation Azure auth : {error}",
+    "statusLoginFailed": "Connexion échouée: {error}",
+    "statusRefreshFailed": "Rafraîchissement échoué: {error}",
+    "statusLogoutFailed": "Déconnexion échouée: {error}",
+    "statusAutoRefreshFailed": "Rafraîchissement automatique échoué: {error}",
+    "noAccountAfterLogin": "Aucun compte retourné après la connexion.",
+    "noActiveAccount": "Aucun compte actif. Connectez-vous d'abord."
+  },
+  "voice": {
+    "alertTitle": "Information",
+    "ok": "OK",
+    "whisperMethod": "🎤 Whisper",
+    "webSpeechMethod": "🎤 Reconnaissance vocale",
+    "processingAudio": "⏳ Traitement audio...",
+    "recordingRemaining": "⏱️ Enregistrement (5s restantes...)",
+    "recordingBase": "🎤 Enregistrement",
+    "micAccessError": "Impossible d'accéder au microphone. Vérifiez les permissions.",
+    "transcriptionFailed": "Échec de la transcription. Veuillez réessayer.",
+    "browserNotSupported": "La reconnaissance vocale n'est pas supportée par votre navigateur.",
+    "translatorPlaceholderFallback": "Entrez le texte à traduire...",
+    "inputPlaceholderFallback": "Pose-moi une question..."
+  },
+  "downloadManager": {
+    "confirm": {
+      "default": "Confirmer",
+      "cancel": "Annuler",
+      "deleteTitle": "Supprimer ce fichier ?",
+      "delete": "Supprimer",
+      "startIndexingTitle": "Démarrer l'indexation ?",
+      "startIndexingText": "La régénération et l'indexation peuvent prendre plusieurs minutes.",
+      "start": "Démarrer",
+      "resetTitle": "Réinitialiser les fichiers ?",
+      "resetText": "Cette action va rétablir les fichiers précédents.",
+      "reset": "Réinitialiser"
+    },
+    "alert": {
+      "errorTitle": "Erreur",
+      "infoTitle": "Information",
+      "ok": "OK"
+    },
+    "buttons": {
+      "resetInProgress": "Réinitialisation en cours...",
+      "resetFiles": "Réinitialiser les fichiers",
+      "indexingInProgress": "Indexation en cours...",
+      "startIndexing": "Démarrer l'indexation"
+    },
+    "progress": {
+      "preparing": "Préparation...",
+      "syncing": "Synchronisation... {progress}%",
+      "completed": "Terminé",
+      "interrupted": "Interrompu",
+      "step": "Étape{countText} : {label} ({percent}%)"
+    },
+    "steps": {
+      "extract_docx": "Extraction des documents",
+      "extract_references": "Extraction des références",
+      "generate_transcripts_json": "Génération des transcriptions",
+      "generate_questions": "Génération des questions",
+      "index_chromadb_json": "Indexation ChromaDB"
+    },
+    "errors": {
+      "tokenRequired": "Token admin requis."
+    },
+    "table": {
+      "noFiles": "Aucun fichier trouvé pour ce filtre.",
+      "loading": "Chargement...",
+      "errorPrefix": "Erreur: ",
+      "download": "Indexer",
+      "delete": "Supprimer"
+    },
+    "status": {
+      "defaultContainer": "le conteneur",
+      "cancelRequested": "Annulation de l'indexation demandée...",
+      "cancelError": "Erreur d'annulation : {error}",
+      "loadingFiles": "Chargement des fichiers Azure...",
+      "filesFound": "{count} fichier(s) trouvé(s).",
+      "loadError": "Erreur de chargement: {error}",
+      "deleting": "Suppression de {name}...",
+      "deleted": "Fichier supprimé : {name}",
+      "deleteError": "Erreur de suppression : {error}",
+      "downloadStarted": "Téléchargement lancé : {name}",
+      "downloadError": "Erreur de téléchargement : {error}",
+      "selectLocalFile": "Sélectionnez un fichier local.",
+      "uploading": "Téléversement en cours...",
+      "uploaded": "Fichier téléversé : {name}",
+      "uploadError": "Erreur de téléversement : {error}",
+      "fileSelected": "Fichier sélectionné : {name}",
+      "indexingInProgress": "Indexation en cours... cela peut prendre plusieurs minutes.",
+      "indexingCancelled": "Indexation annulée.",
+      "indexingCompleted": "Indexation terminée. Statut : {status}",
+      "indexingDone": "Indexation terminée.",
+      "indexingError": "Erreur d'indexation : {error}",
+      "resetInProgress": "Réinitialisation depuis le blob en cours...",
+      "resetDone": "Réinitialisation terminée. {count} fichier(s) dans documents/.",
+      "resetError": "Erreur de réinitialisation : {error}"
+    }
+  },
+  "chat": {
+    "modelBadge": "Modèle: {value}",
+    "copyDone": "Copié",
+    "errorTitle": "Erreur",
+    "suggested": {
+      "zeroDocuments": "0 document",
+      "summary": "{documents} document(s) • {questions} question(s)",
+      "documentCount": "{documents} document(s)",
+      "documentFallback": "Document",
+      "loadingQuestions": "Chargement des questions...",
+      "noGeneratedQuestions": "Aucune question générée disponible.",
+      "noUsableQuestions": "Aucune question exploitable trouvée.",
+      "loadQuestionsError": "Impossible de charger les questions: {error}"
+    }
+  },
+  "main": {
+    "models": {
+      "loading": "Chargement des modèles...",
+      "noneAvailable": "Aucun modèle disponible",
+      "loadError": "Erreur chargement modèles",
+      "defaultModel": "Modèle"
+    }
+  },
+  "publish": {
+    "ui": {
+      "sectionTitle": "Publier",
+      "modelLabel": "Modèle final utilisé",
+      "datetimeLabel": "",
+      "logsTitle": "Historique des publications"
+    },
+    "status": {
+      "ready": "Prêt.",
+      "modelRequired": "Veuillez sélectionner un modèle.",
+      "datetimeRequired": "",
+      "inProgress": "Publication en cours...",
+      "done": "Publication terminée ({count} fichiers)."
+    },
+    "confirm": {
+      "title": "Confirmer la publication ?",
+      "text": "Modèle : {model}",
+      "warning": "Attention : une fois lancée, la publication ne peut pas être annulée en cours.",
+      "action": "Publier"
+    },
+    "revert": {
+      "title": "Confirmer la restauration ?",
+      "warning": "Attention : la restauration remplacera la base principale par la version précédente et ne peut pas être annulée en cours.",
+      "action": "Rétablir",
+      "inProgress": "Restauration en cours...",
+      "done": "Restauration terminée ({count} fichiers): {timestamp}"
+    },
+    "logs": {
+      "loading": "Chargement des logs...",
+      "empty": "Aucun log de publication disponible.",
+      "error": "Erreur de chargement des logs : {error}",
+      "modelUnknown": "Inconnu",
+      "providerUnknown": "Inconnu",
+      "dateLabel": "Date",
+      "providerLabel": "Fournisseur",
+      "modelLabel": "Modèle",
+      "filesLabel": "Fichiers",
+      "refresh": "Rafraîchir",
+      "reset": "Réinitialiser",
+      "export": "Exporter",
+      "footerText": "IMX Technologie Copyright © 2026",
+      "exportTitle": "Export des logs",
+      "nothingToExport": "Aucun log à exporter.",
+      "popupBlocked": "Impossible d'ouvrir la fenêtre d'export. Vérifiez le bloqueur de pop-up.",
+      "exportInProgress": "Génération du PDF en cours...",
+      "exportDone": "PDF téléchargé.",
+      "exportFailed": "Échec de l'export PDF.",
+      "exportFailedWithError": "Échec de l'export PDF : {error}",
+      "pdfLibUnavailable": "Librairie PDF indisponible.",
+      "resetConfirm": "Voulez-vous vraiment réinitialiser le journal de publication ?",
+      "resetSuccess": "Le journal de publication a été réinitialisé.",
+      "resetError": "Erreur lors de la réinitialisation du journal : {error}"
+    }
+  },
+  "about": {
+    "title": "À propos de l'application",
+    "content": [
+      "Cette application est développée par IMX Technologie inc., une entreprise spécialisée dans le développement de solutions d'intelligence artificielle innovantes.",
+      "Nos outils visent à démocratiser l'accès aux technologies IA tout en maintenant des standards élevés de qualité, de sécurité et de respect de la vie privée.",
+      "Chaque application est conçue pour offrir une expérience utilisateur intuitive et des résultats fiables, adaptés aux besoins spécifiques de nos utilisateurs.",
+      "Pour en savoir plus sur nos projets et services, contactez-nous à <a href=\"mailto:info@imxtech.ca\">info@imxtech.ca</a>."
+    ],
+    "closeButton": "Fermer"
+  },
+  "agents": {
+    "nutrifaq": "Agent Nutritionniste",
+    "translator": "Agent Traducteur"
+  },
+  "footer": {
+    "content": "© IMX Technologie inc. – 2026"
+  }
+}
