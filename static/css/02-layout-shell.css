@@ -217,12 +217,24 @@ header {
     padding-top: 0;
 }
 
+.suggested-question-copy {
+    flex: 1;
+    min-width: 0;
+}
+
 .suggested-question-text {
     margin: 0;
-    flex: 1;
     font-size: 0.86rem;
     color: #1b4d47;
     line-height: 1.35;
+}
+
+.suggested-question-source {
+    margin: 0.2rem 0 0;
+    font-size: 0.72rem;
+    color: #58756f;
+    font-style: italic;
+    line-height: 1.3;
 }
 
 .copy-question-btn {

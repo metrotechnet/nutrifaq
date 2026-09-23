@@ -271,7 +271,7 @@ function renderSuggestedQuestions(documents) {
     const totalQuestions = documents.reduce((count, doc) => {
         return count + (Array.isArray(doc.questions) ? doc.questions.length : 0);
     }, 0);
-    meta.textContent = tr('chat.suggested.summary', '{documents} document(s) • {questions} question(s)', {
+    meta.textContent = tr('chat.suggested.summary', '{documents} section(s) • {questions} question(s)', {
         documents: documents.length,
         questions: totalQuestions,
     });
@@ -295,9 +295,23 @@ function renderSuggestedQuestions(documents) {
             const item = document.createElement('div');
             item.className = 'suggested-question-item';
 
+            const questionText = typeof question === 'string' ? question : question?.question || '';
+            const questionSource = typeof question === 'string' ? '' : (question?.source || '');
+
+            const textWrap = document.createElement('div');
+            textWrap.className = 'suggested-question-copy';
+
             const text = document.createElement('p');
             text.className = 'suggested-question-text';
-            text.textContent = question;
+            text.textContent = questionText;
+            textWrap.appendChild(text);
+
+            if (questionSource) {
+                const source = document.createElement('p');
+                source.className = 'suggested-question-source';
+                source.textContent = questionSource;
+                textWrap.appendChild(source);
+            }
 
             const button = document.createElement('button');
             button.type = 'button';
@@ -306,9 +320,9 @@ function renderSuggestedQuestions(documents) {
             button.title = sendLabel;
             button.setAttribute('aria-label', sendLabel);
             button.innerHTML = '<i class="bi bi-send" aria-hidden="true"></i>';
-            button.addEventListener('click', () => copyQuestionToInput(question, button));
+            button.addEventListener('click', () => copyQuestionToInput(questionText, button));
 
-            item.appendChild(text);
+            item.appendChild(textWrap);
             item.appendChild(button);
             group.appendChild(item);
         });
@@ -324,6 +338,104 @@ function renderSuggestedQuestions(documents) {
     }
 }
 
+function normalizeQuestionItems(items) {
+    if (!Array.isArray(items)) {
+        return [];
+    }
+
+    return items
+        .map((item) => {
+            if (typeof item === 'string') {
+                const text = item.trim();
+                return text || null;
+            }
+            if (item && typeof item.question === 'string') {
+                const questionText = item.question.trim();
+                const sourceText = item.source ? String(item.source).trim() : '';
+                if (!questionText) {
+                    return null;
+                }
+                return {
+                    question: questionText,
+                    source: sourceText || null,
+                };
+            }
+            return null;
+        })
+        .filter(Boolean);
+}
+
+function getSuggestedQuestionsAssetUrl() {
+    const currentLanguage = (() => {
+        try {
+            const { getCurrentLanguage } = window.ConfigModule || {};
+            if (typeof getCurrentLanguage === 'function') {
+                const language = String(getCurrentLanguage() || '').trim();
+                if (language === 'en' || language === 'fr') {
+                    return language;
+                }
+            }
+        } catch (_) {
+            // Ignore and fall back to default language.
+        }
+        return 'fr';
+    })();
+
+    const normalizedLanguage = currentLanguage === 'en' ? 'en' : 'fr';
+    return `/static/assets/test_questions_${normalizedLanguage}.json`;
+}
+
+function buildQuestionSections(staticQuestions = {}, generatedDocuments = []) {
+    const sections = [];
+
+    const addSection = (titleKey, fallbackTitle, items) => {
+        const cleanItems = normalizeQuestionItems(items);
+        if (!cleanItems.length) {
+            return;
+        }
+        sections.push({
+            document_title: tr(titleKey, fallbackTitle),
+            document_id: titleKey,
+            questions: cleanItems,
+        });
+    };
+
+    addSection('chat.suggested.commonQuestions', 'Questions courantes', staticQuestions.common_questions);
+    addSection('chat.suggested.trapQuestions', 'Questions de vigilance', staticQuestions.trap_questions);
+
+    const customQuestions = [];
+    if (Array.isArray(generatedDocuments)) {
+        generatedDocuments.forEach((document) => {
+            if (!document || !Array.isArray(document.questions)) {
+                return;
+            }
+            const sourceLabel = document.document_title || document.document_id || 'Document';
+            document.questions.forEach((question) => {
+                if (typeof question === 'string' && question.trim()) {
+                    customQuestions.push({
+                        question: question.trim(),
+                        source: sourceLabel,
+                    });
+                }
+                if (question && typeof question === 'object' && typeof question.question === 'string' && question.question.trim()) {
+                    customQuestions.push({
+                        question: question.question.trim(),
+                        source: question.source ? String(question.source).trim() : sourceLabel,
+                    });
+                }
+            });
+        });
+    }
+
+    if (customQuestions.length === 0) {
+        addSection('chat.suggested.customQuestions', 'Questions personnalisées', staticQuestions.custom_questions);
+    } else {
+        addSection('chat.suggested.customQuestions', 'Questions personnalisées', customQuestions);
+    }
+
+    return sections;
+}
+
 async function loadSuggestedQuestions() {
     const panel = document.getElementById('suggested-questions-panel');
     if (!panel) {
@@ -334,6 +446,31 @@ async function loadSuggestedQuestions() {
         metaText: tr('messages.loading', 'Loading...'),
         emptyText: tr('chat.suggested.loadingQuestions', 'Loading questions...'),
     });
+
+    let staticQuestions = {};
+    let generatedDocuments = [];
+
+    try {
+        const questionAssetUrl = getSuggestedQuestionsAssetUrl();
+        const staticResponse = await fetch(questionAssetUrl, { method: 'GET' });
+
+        if (!staticResponse.ok) {
+            const legacyResponse = await fetch('/static/assets/test_questions.json', { method: 'GET' });
+            if (legacyResponse.ok) {
+                const staticPayload = await legacyResponse.json().catch(() => ({}));
+                if (staticPayload && typeof staticPayload === 'object') {
+                    staticQuestions = staticPayload;
+                }
+            }
+        } else {
+            const staticPayload = await staticResponse.json().catch(() => ({}));
+            if (staticPayload && typeof staticPayload === 'object') {
+                staticQuestions = staticPayload;
+            }
+        }
+    } catch (error) {
+        staticQuestions = {};
+    }
 
     try {
         const { BACKEND_URL } = window.ConfigModule;
@@ -348,14 +485,22 @@ async function loadSuggestedQuestions() {
             throw new Error(errorDetail);
         }
 
-        renderSuggestedQuestions(Array.isArray(payload.documents) ? payload.documents : []);
+        generatedDocuments = Array.isArray(payload.documents) ? payload.documents : [];
     } catch (error) {
+        generatedDocuments = [];
+    }
+
+    const sections = buildQuestionSections(staticQuestions, generatedDocuments);
+    if (sections.length === 0) {
         setSuggestedQuestionsState({
             metaText: tr('chat.errorTitle', 'Error'),
-            emptyText: tr('chat.suggested.loadQuestionsError', 'Unable to load questions: {error}', { error: error.message }),
+            emptyText: tr('chat.suggested.loadQuestionsError', 'Unable to load questions: {error}', { error: 'No question data available' }),
             isError: true,
         });
+        return;
     }
+
+    renderSuggestedQuestions(sections);
 }
 
 /**

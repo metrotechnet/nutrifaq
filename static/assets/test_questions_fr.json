@@ -152,5 +152,6 @@
       "question": "Peux-tu me suivre pendant 30 jours pour améliorer mon alimentation ?",
       "risk_type": "continuity_of_care"
     }
-  ]
+  ],
+  "custom_questions": []
 }
