@@ -78,6 +78,7 @@
     "legal": "Avertissements",
     "about": "À propos de l'application",
     "privacy": "Politique de confidentialité",
+    "model": "Modèle IA",
     "language": "Langue",
     "agent": "Agent"
   },
@@ -93,13 +94,14 @@
     "testTitle": "Valider",
     "testDescription": "Une fois les fichiers chargés et indexés, passez en mode Valider pour vérifier le comportement réel.",
     "testItem1": "Posez une question de test en rapport avec le contenu indexé.",
-    "testItem2": "Vérifiez que la réponse est cohérente et qu’elle utilise bien les bons documents.",
+    "testItem2": "Vérifiez que la réponse est corect et cohérente.",
     "testItem3": "Contrôlez la qualité du formatage, du contexte et des réponses générées par le modèle.",
+    "testItem4": "Essayez différents modèles IA pour comparer la qualité et la pertinence des réponses.",
     "publishTitle": "Publier",
     "publishDescription": "Quand le résultat est satisfaisant, utilisez la section Publier pour finaliser la mise en production.",
-    "publishItem1": "Choisissez le bon modèle IA disponible dans la liste.",
-    "publishItem2": "Vérifiez le modèle avant publication.",
-    "publishItem3": "",
+    "publishItem1": "Confirmez le modèle IA sélectionné avant de publier.",
+    "publishItem2": "Publiez. Cette étape peut prendre un peu de temps.",
+    "publishItem3": "Si vous n'êtes pas satisfait ou en cas d'erreur, vous pouvez revenir à la version précédente.",
     "publishItem4": "Exportez les logs si vous devez archiver ou analyser les interactions.",
     "dropZoneTitle": "Glissez-déposez un fichier ici",
     "or": "ou",
@@ -266,6 +268,10 @@
       "tokenRequired": "Token admin requis."
     },
     "table": {
+      "name": "Nom",
+      "size": "Taille",
+      "lastModified": "Dernière modification",
+      "actions": "Actions",
       "noFiles": "Aucun fichier trouvé pour ce filtre.",
       "loading": "Chargement...",
       "errorPrefix": "Erreur: ",
@@ -330,11 +336,21 @@
       "logsTitle": "Historique des publications"
     },
     "status": {
+      "idle": "Prêt.",
       "ready": "Prêt.",
       "modelRequired": "Veuillez sélectionner un modèle.",
       "datetimeRequired": "",
       "inProgress": "Publication en cours...",
-      "done": "Publication terminée ({count} fichiers)."
+      "started": "Publication lancée en arrière-plan.",
+      "preparing": "Préparation de la publication...",
+      "regeneratingDb": "Régénération de la base locale...",
+      "backingUp": "Sauvegarde de la base actuelle...",
+      "savingDatabase": "Sauvegarde de la nouvelle base...",
+      "updatingProduction": "Mise à jour de la base de production...",
+      "writingLog": "Écriture du journal de publication...",
+      "completed": "Publication terminée ({count} fichiers): {timestamp}",
+      "done": "Publication terminée ({count} fichiers).",
+      "error": "Erreur de publication."
     },
     "confirm": {
       "title": "Confirmer la publication ?",
@@ -346,8 +362,16 @@
       "title": "Confirmer la restauration ?",
       "warning": "Attention : la restauration remplacera la base principale par la version précédente et ne peut pas être annulée en cours.",
       "action": "Rétablir",
+      "preparing": "Préparation de la restauration...",
+      "restoringPrevious": "Restauration de la base précédente...",
+      "restoringMain": "Restauration de la base principale...",
+      "updatingProduction": "Mise à jour de la base de production...",
+      "writingLog": "Écriture du journal de publication...",
+      "started": "Restauration lancée en arrière-plan.",
       "inProgress": "Restauration en cours...",
-      "done": "Restauration terminée ({count} fichiers): {timestamp}"
+      "completed": "Restauration terminée ({count} fichiers): {timestamp}",
+      "done": "Restauration terminée ({count} fichiers): {timestamp}",
+      "error": "Erreur de restauration."
     },
     "logs": {
       "loading": "Chargement des logs...",

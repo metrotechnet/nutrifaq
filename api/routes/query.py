@@ -187,9 +187,10 @@ def _query_agent_response(
             yield f"data: [DONE]\n\n"
 
         except Exception as e:
-            # Handle any errors during streaming
-            error_message = f"Error during streaming: {str(e)}"
-            yield f"data: {json.dumps({'error': error_message})}\n\n"
+            # Handle any errors during streaming without exposing raw backend strings.
+            # The frontend translates the error key locally based on the active language.
+            error_message = str(e) or "Error during streaming"
+            yield f"data: {json.dumps({'error_key': 'messages.error', 'error': error_message})}\n\n"
             yield f"data: [DONE]\n\n"
 
     return StreamingResponse(

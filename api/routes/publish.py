@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.services.config import load_publish_log_entries, reset_publish_log_entries
@@ -23,7 +24,14 @@ def publish_now_api(
     """Start the publication workflow in the background."""
     model = str(payload.model or "").strip()
     if not model:
-        raise HTTPException(status_code=400, detail="A model is required for publication.")
+        return JSONResponse(
+            status_code=400,
+            content={
+                "status": "error",
+                "message": "A model is required for publication.",
+                "message_key": "publish.status.modelRequired",
+            },
+        )
 
     provider = str(payload.provider or "vercel").strip() or "vercel"
     return start_publish(model=model, provider=provider)
@@ -47,7 +55,14 @@ def list_publish_log(_: EntraUser = Depends(require_admin)):
     try:
         return {"status": "ok", "entries": load_publish_log_entries()}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Unable to read publish log: {exc}") from exc
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": f"Unable to read publish log: {exc}",
+                "message_key": "publish.logs.error",
+            },
+        )
 
 
 @router.post("/api/publish/log/reset")
@@ -57,4 +72,11 @@ def reset_publish_log(_: EntraUser = Depends(require_admin)):
         entries = reset_publish_log_entries()
         return {"status": "ok", "entries": entries}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Unable to reset publish log: {exc}") from exc
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": f"Unable to reset publish log: {exc}",
+                "message_key": "publish.logs.resetError",
+            },
+        )

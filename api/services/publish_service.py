@@ -18,12 +18,14 @@ _publish_state: dict[str, Any] = {
     "running": False,
     "progress": 0,
     "message": "Idle",
+    "message_key": "publish.status.idle",
     "operation": "publish",
     "model": None,
     "provider": None,
     "uploaded_files_count": 0,
     "updated_at": None,
     "error": None,
+    "error_key": "publish.status.error",
     "result": None,
 }
 
@@ -42,12 +44,14 @@ def get_publish_status() -> dict[str, Any]:
         "running": bool(state.get("running", False)),
         "progress": int(state.get("progress", 0) or 0),
         "message": state.get("message", "Idle"),
+        "message_key": state.get("message_key", "publish.status.idle"),
         "operation": state.get("operation", "publish"),
         "model": state.get("model"),
         "provider": state.get("provider"),
         "uploaded_files_count": int(state.get("uploaded_files_count", 0) or 0),
         "updated_at": state.get("updated_at"),
         "error": state.get("error"),
+        "error_key": state.get("error_key", "publish.status.error"),
         "result": state.get("result"),
     }
 
@@ -58,11 +62,13 @@ def _run_publish_job(model: str, provider: str) -> None:
             status="running",
             running=True,
             progress=5,
-            message="Preparation de la publication...",
+            message="Preparing publication...",
+            message_key="publish.status.preparing",
             operation="publish",
             model=model,
             provider=provider,
             error=None,
+            error_key="publish.status.error",
             result=None,
         )
 
@@ -75,7 +81,11 @@ def _run_publish_job(model: str, provider: str) -> None:
 
         documents_root = local_main_root / "documents"
         documents_file_count = sum(1 for path in documents_root.rglob("*") if path.is_file()) if documents_root.exists() else 0
-        _set_publish_state(progress=20, message="Regéneration de la base de données locale...")
+        _set_publish_state(
+            progress=20,
+            message="Regenerating local database...",
+            message_key="publish.status.regeneratingDb",
+        )
 
         regeneration_result = run_full_regeneration(
             include_extract_docx=False,
@@ -89,7 +99,11 @@ def _run_publish_job(model: str, provider: str) -> None:
             )
 
         backup_result = {"copied_count": 0, "failed_count": 0}
-        _set_publish_state(progress=35, message="Sauvegarde d'une copie de la base de données actuelle...")
+        _set_publish_state(
+            progress=35,
+            message="Backing up current database...",
+            message_key="publish.status.backingUp",
+        )
         backup_result = copy_blobs_between_containers(
             source_container=main_container,
             destination_container=prev_container,
@@ -97,7 +111,11 @@ def _run_publish_job(model: str, provider: str) -> None:
             wait_for_completion=True,
         )
 
-        _set_publish_state(progress=60, message="Sauvegarde de la nouvelle base de données...")
+        _set_publish_state(
+            progress=60,
+            message="Saving new database...",
+            message_key="publish.status.savingDatabase",
+        )
         sync_local_directory_to_blob(
             source_root=local_main_root,
             destination_prefix="",
@@ -105,10 +123,18 @@ def _run_publish_job(model: str, provider: str) -> None:
             container_name=main_container,
         )
 
-        _set_publish_state(progress=80, message="Mise à jour de la base de données de production...")
+        _set_publish_state(
+            progress=80,
+            message="Updating production database...",
+            message_key="publish.status.updatingProduction",
+        )
         source_chroma, target_chroma, old_prod_sqlite, new_prod_sqlite = sync_next_prod_chroma_from_main()
 
-        _set_publish_state(progress=95, message="Écriture du journal de publication...")
+        _set_publish_state(
+            progress=95,
+            message="Writing publish log...",
+            message_key="publish.status.writingLog",
+        )
         publish_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "operation": "publish",
@@ -141,11 +167,13 @@ def _run_publish_job(model: str, provider: str) -> None:
             status="completed",
             running=False,
             progress=100,
-            message="Publication terminée.",
+            message="Publication completed.",
+            message_key="publish.status.completed",
             operation="publish",
             uploaded_files_count=documents_file_count,
             result=result,
             error=None,
+            error_key="publish.status.error",
         )
     except Exception as exc:
         _set_publish_state(
@@ -153,8 +181,10 @@ def _run_publish_job(model: str, provider: str) -> None:
             running=False,
             progress=100,
             message=f"Unable to publish: {exc}",
+            message_key="publish.status.error",
             operation="publish",
             error=str(exc),
+            error_key="publish.status.error",
             result=None,
         )
 
@@ -165,11 +195,13 @@ def _run_revert_job() -> None:
             status="running",
             running=True,
             progress=5,
-            message="Préparation de la restauration...",
+            message="Preparing restore...",
+            message_key="publish.revert.preparing",
             operation="revert",
             model=None,
             provider=None,
             error=None,
+            error_key="publish.status.error",
             result=None,
         )
 
@@ -180,7 +212,11 @@ def _run_revert_job() -> None:
         if not local_main_root.exists():
             raise ValueError(f"Local main KB folder not found: {local_main_root}")
 
-        _set_publish_state(progress=20, message="Extraction de la base de données précédente...")
+        _set_publish_state(
+            progress=20,
+            message="Restoring previous database...",
+            message_key="publish.revert.restoringPrevious",
+        )
         copy_blobs_between_containers(
             source_container=prev_container,
             destination_container=main_container,
@@ -188,7 +224,11 @@ def _run_revert_job() -> None:
             wait_for_completion=True,
         )
 
-        _set_publish_state(progress=55, message="Restauration de la base de données principale...")
+        _set_publish_state(
+            progress=55,
+            message="Restoring main database...",
+            message_key="publish.revert.restoringMain",
+        )
         sync_blob_prefix_to_local(
             prefix="",
             local_root=local_main_root,
@@ -196,10 +236,18 @@ def _run_revert_job() -> None:
             container_name=main_container,
         )
 
-        _set_publish_state(progress=75, message="Mise à jour de la base de données production...")
+        _set_publish_state(
+            progress=75,
+            message="Updating production database...",
+            message_key="publish.revert.updatingProduction",
+        )
         source_chroma, target_chroma, old_prod_sqlite, new_prod_sqlite = sync_next_prod_chroma_from_main()
 
-        _set_publish_state(progress=90, message="Écriture du journal de publication...")
+        _set_publish_state(
+            progress=90,
+            message="Writing publish log...",
+            message_key="publish.revert.writingLog",
+        )
         revert_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "operation": "revert",
@@ -226,20 +274,24 @@ def _run_revert_job() -> None:
             status="completed",
             running=False,
             progress=100,
-            message="Restauration terminée.",
+            message="Restore completed.",
+            message_key="publish.revert.completed",
             operation="revert",
             uploaded_files_count=revert_entry["files_count"],
             result=result,
             error=None,
+            error_key="publish.status.error",
         )
     except Exception as exc:
         _set_publish_state(
             status="error",
             running=False,
             progress=100,
-            message=f"Impossible de restaurer : {exc}",
+            message=f"Restore failed: {exc}",
+            message_key="publish.revert.error",
             operation="revert",
             error=str(exc),
+            error_key="publish.revert.error",
             result=None,
         )
 
@@ -260,16 +312,19 @@ def start_publish(model: str, provider: str) -> dict[str, Any]:
         status="queued",
         running=True,
         progress=0,
-        message="Publication demarree...",
+        message="Publication started in background.",
+        message_key="publish.status.started",
         operation="publish",
         model=model,
         provider=provider,
         error=None,
+        error_key="publish.status.error",
         result=None,
     )
     return {
         "status": "accepted",
         "message": "Publication started in background.",
+        "message_key": "publish.status.started",
         "model": model,
         "provider": provider,
     }
@@ -290,14 +345,17 @@ def start_revert() -> dict[str, Any]:
         status="queued",
         running=True,
         progress=0,
-        message="Restauration demarree...",
+        message="Restore started in background.",
+        message_key="publish.revert.started",
         operation="revert",
         model=None,
         provider=None,
         error=None,
+        error_key="publish.status.error",
         result=None,
     )
     return {
         "status": "accepted",
-        "message": "Revert started in background.",
+        "message": "Restore started in background.",
+        "message_key": "publish.revert.started",
     }

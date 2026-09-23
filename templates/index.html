@@ -93,7 +93,7 @@
                 <span data-i18n="sidebar.validate">Publier</span>
             </a>
             <div class="language-selector-container">
-                <label for="model-selector">Modèle IA</label>
+                <label for="model-selector" data-i18n="sidebar.model">Modèle IA</label>
                 <select id="model-selector" class="language-selector">
                     <option value="">Chargement des modèles...</option>
                 </select>
@@ -191,8 +191,9 @@
                             <p data-i18n="instructions.testDescription">Une fois les fichiers chargés et indexés, passez en mode Valider pour vérifier le comportement réel.</p>
                             <ul>
                                 <li data-i18n="instructions.testItem1">Posez une question de test en rapport avec le contenu indexé.</li>
-                                <li data-i18n="instructions.testItem2">Vérifiez que la réponse est cohérente et qu’elle utilise bien les bons documents.</li>
+                                <li data-i18n="instructions.testItem2">Vérifiez que la réponse est corect et cohérente.</li>
                                 <li data-i18n="instructions.testItem3">Contrôlez la qualité du formatage, du contexte et des réponses générées par le modèle.</li>
+                                <li data-i18n="instructions.testItem4">Essayez différents modèles IA pour comparer la qualité et la pertinence des réponses.</li>
                             </ul>
                         </div>
                     </article>
@@ -204,8 +205,8 @@
                             <p data-i18n="instructions.publishDescription">Quand le résultat est satisfaisant, utilisez la section Publier pour finaliser la mise en production.</p>
                             <ul>
                                 <li data-i18n="instructions.publishItem1">Choisissez le bon modèle IA disponible dans la liste.</li>
-                                <li data-i18n="instructions.publishItem2">Définissez une date et une heure de publication.</li>
-                                <li data-i18n="instructions.publishItem4">Exportez les logs si vous devez archiver ou analyser les interactions.</li>
+                                <li data-i18n="instructions.publishItem2">Publiez. Cette étape peut prendre un peu de temps.</li>
+                                <li data-i18n="instructions.publishItem3">Si vous n'êtes pas satisfait ou en cas d'erreur, vous pouvez revenir à la version précédente.</li>
                             </ul>
                         </div>
                     </article>
@@ -245,10 +246,10 @@
                 <table class="files-table" id="files-table">
                     <thead>
                         <tr>
-                            <th>Nom</th>
-                            <th>Taille</th>
-                            <th>Dernière modification</th>
-                            <th>Actions</th>
+                            <th data-i18n="downloadManager.table.name">Nom</th>
+                            <th data-i18n="downloadManager.table.size">Taille</th>
+                            <th data-i18n="downloadManager.table.lastModified">Dernière modification</th>
+                            <th data-i18n="downloadManager.table.actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="files-tbody">

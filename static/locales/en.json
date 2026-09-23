@@ -78,6 +78,7 @@
     "legal": "Warnings",
     "about": "About the application",
     "privacy": "Privacy Policy",
+    "model": "AI model",
     "language": "Language",
     "agent": "Agent"
   },
@@ -93,13 +94,14 @@
     "testTitle": "Validate",
     "testDescription": "Once the files are uploaded and indexed, switch to Validate mode to verify the real behavior.",
     "testItem1": "Ask a test question related to the indexed content.",
-    "testItem2": "Verify that the answer is consistent and uses the right documents.",
+    "testItem2": "Verify that the response is correct and consistent.",
     "testItem3": "Check the formatting quality, context, and model-generated responses.",
+    "testItem4": "Try different AI models to compare response quality and relevance.",
     "publishTitle": "Publish",
     "publishDescription": "When the result is satisfactory, use the Publish section to finalize production.",
-    "publishItem1": "Choose the appropriate AI model available in the list.",
-    "publishItem2": "Confirm the selected model before publishing.",
-    "publishItem3": "",
+    "publishItem1": "Confirm the selected AI model before publishing.",
+    "publishItem2": "Publish it. It may take some time.",
+    "publishItem3": "If you are not satisfied or made a mistake, you can revert to the previous version.",
     "publishItem4": "Export the logs if you need to archive or analyze the interactions.",
     "dropZoneTitle": "Drag and drop a file here",
     "or": "or",
@@ -266,6 +268,10 @@
       "tokenRequired": "Admin token required."
     },
     "table": {
+      "name": "Name",
+      "size": "Size",
+      "lastModified": "Last modified",
+      "actions": "Actions",
       "noFiles": "No files found for this filter.",
       "loading": "Loading...",
       "errorPrefix": "Error: ",
@@ -330,11 +336,21 @@
       "logsTitle": "Publish history"
     },
     "status": {
+      "idle": "Ready.",
       "ready": "Ready.",
       "modelRequired": "Please select a model.",
       "datetimeRequired": "",
       "inProgress": "Publishing in progress...",
-      "done": "Publishing completed ({count} files)."
+      "started": "Publication started in background.",
+      "preparing": "Preparing publication...",
+      "regeneratingDb": "Regenerating local database...",
+      "backingUp": "Backing up current database...",
+      "savingDatabase": "Saving new database...",
+      "updatingProduction": "Updating production database...",
+      "writingLog": "Writing publish log...",
+      "completed": "Publication completed ({count} files): {timestamp}",
+      "done": "Publishing completed ({count} files).",
+      "error": "Publication failed."
     },
     "confirm": {
       "title": "Confirm publication?",
@@ -346,8 +362,16 @@
       "title": "Confirm restore?",
       "warning": "Warning: restoring will replace the main database with the previous version and cannot be cancelled while in progress.",
       "action": "Restore",
+      "preparing": "Preparing restore...",
+      "restoringPrevious": "Restoring previous database...",
+      "restoringMain": "Restoring main database...",
+      "updatingProduction": "Updating production database...",
+      "writingLog": "Writing publish log...",
+      "started": "Restore started in background.",
       "inProgress": "Restore in progress...",
-      "done": "Restore completed ({count} files): {timestamp}"
+      "completed": "Restore completed ({count} files): {timestamp}",
+      "done": "Restore completed ({count} files): {timestamp}",
+      "error": "Restore failed."
     },
     "logs": {
       "loading": "Loading logs...",

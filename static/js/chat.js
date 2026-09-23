@@ -987,10 +987,15 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
                 try {
                     const data = JSON.parse(rawData);
 
-                    // Handle errors
+                    // Handle errors. Prefer a translation key when the backend sends one
+                    // so the frontend can localize the final message based on the active UI language.
                     if (data.error) {
+                        const errorKey = typeof data.error_key === 'string' && data.error_key.trim()
+                            ? data.error_key.trim()
+                            : 'messages.error';
+                        const localizedError = tr(errorKey, data.error || tr('messages.error', 'Sorry, an error occurred. Please try again in a few moments.'));
                         console.error('Stream error:', data.error);
-                        throw new Error(data.error);
+                        throw new Error(localizedError);
                     }
 
                     if (data.session_id && !sessionId) {
@@ -1108,14 +1113,15 @@ async function sendMessage() {
         
         console.error('Message sending error:', error);
         const { t, getCurrentLanguage } = window.ConfigModule;
-        
+        const translatedError = error && typeof error.message === 'string' ? error.message : t('messages.error');
+
         // Check if it's a rate limit error
-        if (error.message && (error.message.includes('Limite de requêtes') || error.message.includes('Rate limit'))) {
+        if (error && error.message && (error.message.includes('Limite de requêtes') || error.message.includes('Rate limit'))) {
             contentDiv.innerHTML = `<div style="color: #d32f2f; padding: 10px; background: #ffebee; border-radius: 4px; border-left: 4px solid #d32f2f;">
-                <strong>⚠️ ${error.message}</strong>
+                <strong>⚠️ ${translatedError}</strong>
             </div>`;
         } else {
-            contentDiv.textContent = t('messages.error');
+            contentDiv.textContent = translatedError || t('messages.error');
         }
     } finally {
         cleanupAfterMessage(messageDiv);

@@ -924,6 +924,13 @@
         }
     }
 
+    function localizeMessageWithKey(messageKey, fallbackText, params) {
+        if (!messageKey || typeof messageKey !== "string") {
+            return tr("publish.status.error", fallbackText, params);
+        }
+        return tr(messageKey, fallbackText, params);
+    }
+
     function setPublishStatus(message, isError) {
         if (!els.publishStatus) {
             return;
@@ -1387,13 +1394,14 @@
                 const progress = Number(data.progress || 0);
                 const running = Boolean(data.running);
                 const message = data.message || "";
+                const messageKey = typeof data.message_key === "string" && data.message_key.trim() ? data.message_key : null;
 
                 setPublishControlsDisabled(running);
 
                 if (running || progress > 0) {
                     setPublishProgress(progress, `${Math.round(progress)}%`);
-                    if (message) {
-                        setPublishStatus(message, false);
+                    if (message || messageKey) {
+                        setPublishStatus(localizeMessageWithKey(messageKey, message || tr("publish.status.inProgress", "Publication en cours...")), false);
                     }
                 }
 
@@ -1403,13 +1411,18 @@
                     const timestamp = new Date().toLocaleString();
                     const operation = String(data.operation || "publish");
                     if (operation === "revert") {
-                        const finishedText = tr("publish.revert.done", "Restauration terminee ({count} fichiers): {timestamp}", {
-                            count: filesCount,
-                            timestamp,
-                        });
+                        const finishedText = localizeMessageWithKey(
+                            "publish.revert.done",
+                            "Restore completed ({count} files): {timestamp}",
+                            { count: filesCount, timestamp }
+                        );
                         setPublishStatus(finishedText, false);
                     } else {
-                        const finishedText = `Publication terminee (${filesCount} fichiers): ${timestamp}`;
+                        const finishedText = localizeMessageWithKey(
+                            "publish.status.completed",
+                            "Publication completed ({count} files): {timestamp}",
+                            { count: filesCount, timestamp }
+                        );
                         setPublishStatus(finishedText, false);
                     }
                     setPublishProgress(100, "100%");
@@ -1423,8 +1436,9 @@
                 if (!running && data.status === "error") {
                     setPublishControlsDisabled(false);
                     const operation = String(data.operation || "publish");
-                    const defaultError = operation === "revert" ? "Erreur de restauration." : "Erreur de publication.";
-                    setPublishStatus(data.error || defaultError, true);
+                    const defaultError = operation === "revert" ? tr("publish.revert.error", "Restore failed.") : tr("publish.status.error", "Publication failed.");
+                    const errorKey = typeof data.error_key === "string" && data.error_key.trim() ? data.error_key : (operation === "revert" ? "publish.revert.error" : "publish.status.error");
+                    setPublishStatus(localizeMessageWithKey(errorKey, data.error || defaultError), true);
                     setPublishFinishMessage("");
                     setPublishProgress(100, "100%");
                     window.clearInterval(publishStatusTimer);
@@ -1485,12 +1499,14 @@
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(payload.detail || payload.message || response.statusText || "Publication impossible.");
+                const defaultError = tr("publish.status.error", "Publication failed.");
+                const messageKey = typeof payload.message_key === "string" && payload.message_key.trim() ? payload.message_key : "publish.status.error";
+                throw new Error(localizeMessageWithKey(messageKey, payload.detail || payload.message || response.statusText || defaultError));
             }
 
             startPublishStatusPolling();
         } catch (error) {
-            const message = error && error.message ? error.message : "Erreur de publication.";
+            const message = error && error.message ? error.message : tr("publish.status.error", "Publication failed.");
             setPublishStatus(message, true);
             setPublishFinishMessage("");
             hidePublishProgress();
@@ -1525,12 +1541,14 @@
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(payload.detail || payload.message || response.statusText || "Restauration impossible.");
+                const defaultError = tr("publish.revert.error", "Restore failed.");
+                const messageKey = typeof payload.message_key === "string" && payload.message_key.trim() ? payload.message_key : "publish.revert.error";
+                throw new Error(localizeMessageWithKey(messageKey, payload.detail || payload.message || response.statusText || defaultError));
             }
 
             startPublishStatusPolling();
         } catch (error) {
-            const message = error && error.message ? error.message : "Erreur de restauration.";
+            const message = error && error.message ? error.message : tr("publish.revert.error", "Restore failed.");
             setPublishStatus(message, true);
             setPublishFinishMessage("");
             hidePublishProgress();
