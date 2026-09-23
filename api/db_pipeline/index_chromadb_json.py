@@ -162,8 +162,9 @@ def index_chromadb_json(kb_path):
 
     total_chunks = 0
     total_tokens = sum(len(str(doc.get("text", "")).split()) for doc in documents)
+    progress_total = max(total_tokens, 1)
     processed_tokens = 0
-    _write_progress_snapshot("index_chromadb_json", 0, max(total_tokens, 1), "tokens")
+    _write_progress_snapshot("index_chromadb_json", 0, progress_total, "tokens")
 
     for doc in documents:
         doc_id = doc["id"]
@@ -192,7 +193,8 @@ def index_chromadb_json(kb_path):
             all_metadatas.append(chunk_metadata)
 
             processed_tokens += len(str(chunk).split())
-            _write_progress_snapshot("index_chromadb_json", processed_tokens, max(total_tokens, 1), "tokens")
+            progress_value = min(processed_tokens, progress_total)
+            _write_progress_snapshot("index_chromadb_json", progress_value, progress_total, "tokens")
 
         print(f"  Successfully prepared {doc_id}")
         time.sleep(0.05)
@@ -233,6 +235,9 @@ def index_chromadb_json(kb_path):
                 )
             else:
                 raise
+
+    # Ensure the step status ends exactly at 100% for UI polling.
+    _write_progress_snapshot("index_chromadb_json", progress_total, progress_total, "tokens")
 
     print(f"\nSuccessfully indexed {total_chunks} chunks from {len(documents)} documents")
     print(f"Collection: {collection.name}")

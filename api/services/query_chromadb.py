@@ -12,6 +12,7 @@ from api.services.blob_storage_service import (
     get_blob_container_name,
     get_blob_prefix,
     get_blob_properties,
+    get_container_client,
 )
 
 # API and repository roots
@@ -40,7 +41,29 @@ _CHROMA_CLIENT_CACHE: dict[str, Any] = {}
 _CHROMA_COLLECTION_CACHE: dict[tuple[str, str], Any] = {}
 _CHROMA_SIGNATURE_CACHE: str | None = None
 _PROMPTS_CACHE: dict[str, Any] | None = None
-_PROMPTS_CACHE_MTIME: float | None = None
+
+
+def _config_blob_container_name() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
+
+
+def _config_blob_prefix() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
+
+
+def _prompts_blob_name() -> str:
+    prefix = _config_blob_prefix()
+    return f"{prefix}/prompts.json" if prefix else "prompts.json"
+
+
+def _load_prompts_from_blob() -> dict[str, Any]:
+    blob_name = _prompts_blob_name()
+    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
+    raw_content = blob_client.download_blob().readall()
+    loaded = json.loads(raw_content.decode("utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError(f"Invalid prompts JSON root in blob '{blob_name}': expected an object.")
+    return loaded
 
 def load_style_guides():
     """Load style guides from JSON file"""
@@ -90,24 +113,14 @@ def load_prompts(kb_name=None):
     Args:
         kb_name: Ignored for single-agent setup
     """
-    global _PROMPTS_CACHE, _PROMPTS_CACHE_MTIME
+    global _PROMPTS_CACHE
 
     try:
-        prompts_path = REPO_ROOT / "static" / "config" / "prompts.json"
-        if not prompts_path.exists():
-            prompts_path = SHARED_CONFIG_ROOT / "prompts.json"
-        if not prompts_path.exists():
-            prompts_path = LEGACY_CONFIG_ROOT / "prompts.json"
-        current_mtime = prompts_path.stat().st_mtime
-
-        if _PROMPTS_CACHE is not None and _PROMPTS_CACHE_MTIME == current_mtime:
+        if _PROMPTS_CACHE is not None:
             return _PROMPTS_CACHE
 
-        with open(prompts_path, 'r', encoding='utf-8') as f:
-            loaded = json.load(f)
-
+        loaded = _load_prompts_from_blob()
         _PROMPTS_CACHE = loaded
-        _PROMPTS_CACHE_MTIME = current_mtime
         return loaded
     except Exception:
         return {}

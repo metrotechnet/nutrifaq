@@ -40,9 +40,12 @@ function tr(key, fallback, params) {
     if (!params || typeof template !== 'string') {
         return template;
     }
-    return Object.keys(params).reduce((acc, name) => {
-        return acc.replaceAll(`{${name}}`, String(params[name]));
-    }, template);
+    return template.replace(/\{([^}]+)\}/g, (match, name) => {
+        if (!Object.prototype.hasOwnProperty.call(params, name)) {
+            return match;
+        }
+        return String(params[name]);
+    });
 }
 
 function getAdminBearerToken() {
@@ -262,7 +265,7 @@ function renderSuggestedQuestions(documents) {
 
     if (!Array.isArray(documents) || documents.length === 0) {
         setSuggestedQuestionsState({
-            metaText: tr('chat.suggested.zeroDocuments', '0 document'),
+            metaText: tr('chat.suggested.questionCount', '{questions} question(s)', { questions: 0 }),
             emptyText: tr('chat.suggested.noGeneratedQuestions', 'No generated questions available.'),
         });
         return;
@@ -271,10 +274,13 @@ function renderSuggestedQuestions(documents) {
     const totalQuestions = documents.reduce((count, doc) => {
         return count + (Array.isArray(doc.questions) ? doc.questions.length : 0);
     }, 0);
-    meta.textContent = tr('chat.suggested.summary', '{documents} section(s) • {questions} question(s)', {
-        documents: documents.length,
-        questions: totalQuestions,
-    });
+    const summaryTemplate = String(
+        tr('chat.suggested.questionCount', '{questions} question(s)', {
+            questions: totalQuestions,
+        }) || ''
+    );
+    meta.textContent = summaryTemplate
+        .replace(/\{\s*questions\s*\}/gi, String(totalQuestions));
 
     list.innerHTML = '';
     documents.forEach((doc) => {
@@ -331,8 +337,11 @@ function renderSuggestedQuestions(documents) {
     });
 
     if (!list.children.length) {
+        const questionCountTemplate = String(
+            tr('chat.suggested.questionCount', '{questions} question(s)', { questions: totalQuestions }) || ''
+        );
         setSuggestedQuestionsState({
-            metaText: tr('chat.suggested.documentCount', '{documents} document(s)', { documents: documents.length }),
+            metaText: questionCountTemplate.replace(/\{\s*questions\s*\}/gi, String(totalQuestions)),
             emptyText: tr('chat.suggested.noUsableQuestions', 'No usable questions found.'),
         });
     }

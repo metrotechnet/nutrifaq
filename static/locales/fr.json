@@ -312,6 +312,7 @@
     "suggested": {
       "zeroDocuments": "0 document",
       "summary": "{documents} document(s) • {questions} question(s)",
+      "questionCount": "{questions} question(s)",
       "documentCount": "{documents} document(s)",
       "documentFallback": "Document",
       "loadingQuestions": "Chargement des questions...",

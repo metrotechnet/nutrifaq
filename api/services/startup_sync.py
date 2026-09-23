@@ -11,6 +11,7 @@ from api.services.blob_storage_service import (
     upload_file_to_blob,
 )
 from api.services.config import load_prod_config, sync_next_prod_chroma_from_main
+from api.services.refusal_engine import load_refusal_patterns, load_refusal_responses
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -18,35 +19,36 @@ if TYPE_CHECKING:
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _sync_refusal_config_to_blob() -> None:
-    """Upload refusal config JSON files to nutrifaq-config container."""
+def _sync_prompts_config_to_blob() -> None:
+    """Upload static/config/prompts.json to nutrifaq-config container."""
     config_container = os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
     config_prefix = os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
-    source_dir = PROJECT_ROOT / "static" / "config"
+    source_path = PROJECT_ROOT / "static" / "config" / "prompts.json"
 
-    file_mappings = [
-        ("refusal_patterns.json", "refusal_pattern.json"),
-        ("refusal_responses.json", "refusal_response.json"),
-        ("refusal_patterns.json", "refusal_patterns.json"),
-        ("refusal_responses.json", "refusal_responses.json"),
-    ]
-    for source_name, target_name in file_mappings:
-        source_path = source_dir / source_name
-        if not source_path.exists():
-            print(f"[Startup] Refusal config source not found: {source_path}", flush=True)
-            continue
+    if not source_path.exists():
+        raise FileNotFoundError(f"Missing local prompts source: {source_path}")
 
-        blob_name = f"{config_prefix}/{target_name}" if config_prefix else target_name
-        upload_file_to_blob(
-            blob_name=blob_name,
-            source_path=source_path,
-            overwrite=True,
-            container_name=config_container,
-        )
-        print(
-            f"[Startup] Uploaded refusal config blob '{blob_name}' to container '{config_container}'.",
-            flush=True,
-        )
+    blob_name = f"{config_prefix}/prompts.json" if config_prefix else "prompts.json"
+    upload_file_to_blob(
+        blob_name=blob_name,
+        source_path=source_path,
+        overwrite=True,
+        container_name=config_container,
+    )
+    print(
+        f"[Startup] Uploaded prompts config blob '{blob_name}' to container '{config_container}'.",
+        flush=True,
+    )
+
+
+def _load_refusal_config_from_blob() -> None:
+    """Load refusal config directly from nutrifaq-config container (no local fallback)."""
+    patterns = load_refusal_patterns()
+    responses = load_refusal_responses()
+    print(
+        f"[Startup] Loaded refusal config from blob (patterns languages={len(patterns)}, responses languages={len(responses)}).",
+        flush=True,
+    )
 
 
 def _copy_directory_contents(source: Path, destination: Path) -> None:
@@ -91,9 +93,14 @@ def sync_blob_databases_on_startup(app: "FastAPI | None" = None) -> None:
         print(f"[Startup] Prod config load skipped: {exc}", flush=True)
 
     try:
-        _sync_refusal_config_to_blob()
+        _sync_prompts_config_to_blob()
     except Exception as exc:
-        print(f"[Startup] Refusal config blob sync skipped: {exc}", flush=True)
+        print(f"[Startup] Prompts config blob sync skipped: {exc}", flush=True)
+
+    try:
+        _load_refusal_config_from_blob()
+    except Exception as exc:
+        print(f"[Startup] Refusal config blob load skipped: {exc}", flush=True)
 
 
     # try:
