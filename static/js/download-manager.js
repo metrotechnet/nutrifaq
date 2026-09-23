@@ -932,6 +932,26 @@
         els.publishStatus.classList.toggle("error", Boolean(isError));
     }
 
+    function setPublishControlsDisabled(isDisabled) {
+        const disabled = Boolean(isDisabled);
+        if (!els.publishSection) {
+            return;
+        }
+
+        const grid = els.publishSection.querySelector(".publish-controls-grid");
+        if (!grid) {
+            return;
+        }
+
+        grid.classList.toggle("is-disabled", disabled);
+        grid.setAttribute("aria-disabled", String(disabled));
+
+        const controls = grid.querySelectorAll("button, select, input, textarea");
+        controls.forEach((control) => {
+            control.disabled = disabled;
+        });
+    }
+
     function setSuggestedPanelEmpty(isEmpty) {
         const panel = document.getElementById("suggested-questions-panel");
         if (!panel) {
@@ -1228,6 +1248,7 @@
 
     function ensurePublishDefaults() {
         setPublishStatus(tr("publish.status.ready", "Pret."), false);
+        setPublishControlsDisabled(false);
     }
 
     async function loadPublishModels() {
@@ -1350,6 +1371,8 @@
                 const running = Boolean(data.running);
                 const message = data.message || "";
 
+                setPublishControlsDisabled(running);
+
                 if (running || progress > 0) {
                     setPublishProgress(progress, `${Math.round(progress)}%`);
                     if (message) {
@@ -1358,6 +1381,7 @@
                 }
 
                 if (!running && data.status === "completed") {
+                    setPublishControlsDisabled(false);
                     const filesCount = Number(data.uploaded_files_count || 0);
                     const timestamp = new Date().toLocaleString();
                     const operation = String(data.operation || "publish");
@@ -1380,6 +1404,7 @@
                 }
 
                 if (!running && data.status === "error") {
+                    setPublishControlsDisabled(false);
                     const operation = String(data.operation || "publish");
                     const defaultError = operation === "revert" ? "Erreur de restauration." : "Erreur de publication.";
                     setPublishStatus(data.error || defaultError, true);
@@ -1424,6 +1449,7 @@
         setPublishProgress(5, "5%")
         setPublishStatus(tr("publish.status.inProgress", "Publication en cours..."), false);
         setPublishFinishMessage("");
+        setPublishControlsDisabled(true);
 
         try {
             const body = {
@@ -1451,6 +1477,7 @@
             setPublishStatus(message, true);
             setPublishFinishMessage("");
             hidePublishProgress();
+            setPublishControlsDisabled(false);
         }
     }
 
@@ -1468,6 +1495,7 @@
         setPublishProgress(5, "5%");
         setPublishStatus(tr("publish.revert.inProgress", "Restauration en cours..."), false);
         setPublishFinishMessage("");
+        setPublishControlsDisabled(true);
 
         try {
             const response = await fetch(`${BACKEND_URL}/api/publish/revert`, {
@@ -1489,6 +1517,7 @@
             setPublishStatus(message, true);
             setPublishFinishMessage("");
             hidePublishProgress();
+            setPublishControlsDisabled(false);
         }
     }
 

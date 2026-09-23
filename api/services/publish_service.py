@@ -75,7 +75,8 @@ def _run_publish_job(model: str, provider: str) -> None:
 
         documents_root = local_main_root / "documents"
         documents_file_count = sum(1 for path in documents_root.rglob("*") if path.is_file()) if documents_root.exists() else 0
-        _set_publish_state(progress=20, message="Regeneration de la base locale...")
+        _set_publish_state(progress=20, message="Regéneration de la base de données locale...")
+
         regeneration_result = run_full_regeneration(
             include_extract_docx=False,
             include_extract_references=False,
@@ -88,7 +89,7 @@ def _run_publish_job(model: str, provider: str) -> None:
             )
 
         backup_result = {"copied_count": 0, "failed_count": 0}
-        _set_publish_state(progress=35, message="Backup du conteneur principal...")
+        _set_publish_state(progress=35, message="Sauvegarde d'une copie de la base de données actuelle...")
         backup_result = copy_blobs_between_containers(
             source_container=main_container,
             destination_container=prev_container,
@@ -96,7 +97,7 @@ def _run_publish_job(model: str, provider: str) -> None:
             wait_for_completion=True,
         )
 
-        _set_publish_state(progress=60, message="Upload des fichiers locaux vers le conteneur principal...")
+        _set_publish_state(progress=60, message="Sauvegarde de la nouvelle base de données...")
         sync_local_directory_to_blob(
             source_root=local_main_root,
             destination_prefix="",
@@ -104,10 +105,10 @@ def _run_publish_job(model: str, provider: str) -> None:
             container_name=main_container,
         )
 
-        _set_publish_state(progress=80, message="Mise a jour de la base de production...")
+        _set_publish_state(progress=80, message="Mise à jour de la base de données de production...")
         source_chroma, target_chroma, old_prod_sqlite, new_prod_sqlite = sync_next_prod_chroma_from_main()
 
-        _set_publish_state(progress=95, message="Ecriture du journal de publication...")
+        _set_publish_state(progress=95, message="Écriture du journal de publication...")
         publish_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "operation": "publish",
@@ -140,7 +141,7 @@ def _run_publish_job(model: str, provider: str) -> None:
             status="completed",
             running=False,
             progress=100,
-            message="Publication terminee.",
+            message="Publication terminée.",
             operation="publish",
             uploaded_files_count=documents_file_count,
             result=result,
@@ -164,7 +165,7 @@ def _run_revert_job() -> None:
             status="running",
             running=True,
             progress=5,
-            message="Preparation de la restauration...",
+            message="Préparation de la restauration...",
             operation="revert",
             model=None,
             provider=None,
@@ -179,7 +180,7 @@ def _run_revert_job() -> None:
         if not local_main_root.exists():
             raise ValueError(f"Local main KB folder not found: {local_main_root}")
 
-        _set_publish_state(progress=20, message="Copie du conteneur precedent vers le conteneur principal...")
+        _set_publish_state(progress=20, message="Extraction de la base de données précédente...")
         copy_blobs_between_containers(
             source_container=prev_container,
             destination_container=main_container,
@@ -187,7 +188,7 @@ def _run_revert_job() -> None:
             wait_for_completion=True,
         )
 
-        _set_publish_state(progress=55, message="Copie du conteneur principal vers le dossier local principal...")
+        _set_publish_state(progress=55, message="Restauration de la base de données principale...")
         sync_blob_prefix_to_local(
             prefix="",
             local_root=local_main_root,
@@ -195,10 +196,10 @@ def _run_revert_job() -> None:
             container_name=main_container,
         )
 
-        _set_publish_state(progress=75, message="Mise a jour de la base de production...")
+        _set_publish_state(progress=75, message="Mise à jour de la base de données production...")
         source_chroma, target_chroma, old_prod_sqlite, new_prod_sqlite = sync_next_prod_chroma_from_main()
 
-        _set_publish_state(progress=90, message="Ecriture du journal de publication...")
+        _set_publish_state(progress=90, message="Écriture du journal de publication...")
         revert_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "operation": "revert",
@@ -216,7 +217,7 @@ def _run_revert_job() -> None:
 
         result = {
             "status": "ok",
-            "message": "Revert completed.",
+            "message": "Restauration terminée.",
             "revert": revert_entry,
             "uploaded_files_count": revert_entry["files_count"],
         }
@@ -225,7 +226,7 @@ def _run_revert_job() -> None:
             status="completed",
             running=False,
             progress=100,
-            message="Restauration terminee.",
+            message="Restauration terminée.",
             operation="revert",
             uploaded_files_count=revert_entry["files_count"],
             result=result,
@@ -236,7 +237,7 @@ def _run_revert_job() -> None:
             status="error",
             running=False,
             progress=100,
-            message=f"Unable to revert: {exc}",
+            message=f"Impossible de restaurer : {exc}",
             operation="revert",
             error=str(exc),
             result=None,

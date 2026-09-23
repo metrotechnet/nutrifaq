@@ -195,12 +195,15 @@ def save_prod_config(data: dict[str, Any]) -> dict[str, Any]:
 
 def update_prod_config(values: dict[str, Any], deep: bool = True) -> dict[str, Any]:
     """Update global prod config values and persist to nutrifaq-config/prod_config.json."""
+    global _GLOBAL_PROD_CONFIG
+
     if not isinstance(values, dict):
         raise TypeError("update_prod_config expects a dictionary.")
 
     with _PROD_CONFIG_LOCK:
-        current = load_prod_config(force_reload=False)
+        current = _GLOBAL_PROD_CONFIG.copy()
         updated = deep_merge(current, values) if deep else {**current, **values}
+        _GLOBAL_PROD_CONFIG = updated.copy()
         return save_prod_config(updated)
 
 
