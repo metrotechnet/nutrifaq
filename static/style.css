@@ -1655,8 +1655,14 @@ footer {
     padding: 1rem;
 }
 
+.publish-controls-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
 .publish-controls-card .status-message {
-    margin-top: 1rem;
+    margin-top: 0;
 }
 
 .publish-logs-card {
@@ -1701,20 +1707,69 @@ footer {
 }
 
 .publish-controls-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 0.9rem;
+    display: flex;
     align-items: end;
+    justify-content: space-between;
+    gap: 0.9rem;
+    flex-wrap: wrap;
 }
 
-.publish-model-selector,
-#publish-datetime {
+.download-control-group.wide {
+    flex: 1 1 240px;
+    min-width: 180px;
+}
+
+.download-control-group.actions {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    min-width: 120px;
+}
+
+.publish-model-selector {
+    width: 100%;
     border: 1px solid #bfd3cd;
     border-radius: 8px;
-    padding: 0.62rem 0.75rem;
-    font-size: 0.95rem;
-    min-height: 42px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.86rem;
+    min-height: 38px;
     background: #ffffff;
+    max-height: 120px;
+}
+
+.publish-progress-wrap {
+    margin-top: 0.85rem;
+    display: none;
+}
+
+.publish-progress-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: #e8f3f0;
+    overflow: hidden;
+}
+
+.publish-progress-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0f766e 0%, #2dd4bf 100%);
+    transition: width 0.35s ease;
+}
+
+.publish-progress-text {
+    margin-top: 0.45rem;
+    color: #1f514a;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.publish-finish-message {
+    margin-top: 0.7rem;
+    color: #1f5b52;
+    font-size: 0.8rem;
+    font-weight: 600;
 }
 
 .publish-logs-list {
@@ -1733,40 +1788,6 @@ footer {
     padding: 0.75rem;
     background: #fbfefd;
     box-shadow: 0 1px 0 rgba(15, 118, 110, 0.06);
-}
-
-.publish-log-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.45rem;
-}
-
-.publish-log-index {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.2rem 0.5rem;
-    border-radius: 999px;
-    background: #e7f4f0;
-    color: #17564e;
-    font-size: 0.78rem;
-    font-weight: 700;
-}
-
-.publish-log-model {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.2rem 0.55rem;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #3f4f7f;
-    font-size: 0.78rem;
-    font-weight: 600;
-    max-width: 60%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .publish-log-meta {

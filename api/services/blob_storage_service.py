@@ -8,7 +8,7 @@ import mimetypes
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 try:
     from azure.storage.blob import BlobServiceClient
@@ -64,7 +64,7 @@ def get_blob_prefix() -> str:
     ).strip("/")
 
 
-def get_blob_service_client() -> BlobServiceClient:
+def get_blob_service_client() -> Any:
     if BlobServiceClient is None:
         raise RuntimeError("azure-storage-blob is not installed in the current environment.")
 
@@ -178,11 +178,12 @@ def sync_local_directory_to_blob(
     container_name: str | None = None,
 ) -> list[str]:
     uploaded: list[str] = []
+    prefix_clean = (destination_prefix or "").strip().strip("/")
     for path in source_root.rglob("*"):
         if not path.is_file():
             continue
         relative = path.relative_to(source_root).as_posix()
-        blob_name = f"{destination_prefix.rstrip('/')}/{relative}"
+        blob_name = f"{prefix_clean}/{relative}" if prefix_clean else relative
         upload_file_to_blob(blob_name, path, overwrite=overwrite, container_name=container_name)
         uploaded.append(blob_name)
     return uploaded

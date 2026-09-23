@@ -56,7 +56,7 @@ async function loadModelSelectorOptions() {
         models.forEach((model) => {
             const option = document.createElement('option');
             option.value = model.id || '';
-            option.textContent = model.label || model.id || 'Model';
+            option.textContent = model.label || model.id || tr('main.models.defaultModel', 'Model');
             modelSelector.appendChild(option);
         });
 
@@ -310,10 +310,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (speechMethodIndicator) {
         function updateIndicator() {
             if (useWhisper()) {
-                speechMethodIndicator.textContent = '🎤 Whisper';
+                speechMethodIndicator.textContent = tr('voice.whisperMethod', '🎤 Whisper');
                 speechMethodIndicator.style.background = '#4CAF50';
             } else {
-                speechMethodIndicator.textContent = '🎤 Web Speech';
+                speechMethodIndicator.textContent = tr('voice.webSpeechMethod', '🎤 Web Speech');
                 speechMethodIndicator.style.background = '#2196F3';
             }
         }

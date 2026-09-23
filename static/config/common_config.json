@@ -60,7 +60,7 @@
       "publishTitle": "Publier",
       "publishDescription": "Quand le résultat est satisfaisant, utilisez la section Publier pour finaliser la mise en production.",
       "publishItem1": "Choisissez le bon modèle IA disponible dans la liste.",
-      "publishItem2": "Définissez une date et une heure de publication.",
+      "publishItem2": "Vérifiez le modèle avant publication.",
       "publishItem3": "",
       "publishItem4": "Exportez les logs si vous devez archiver ou analyser les interactions.",
       "dropZoneTitle": "Glissez-déposez un fichier ici",
@@ -137,6 +137,9 @@
       "shareNotSupported": "Le partage n'est pas supporté sur ce navigateur.",
       "comment": "Commentaire",
       "comment_placeholder": "Votre commentaire...",
+      "listen": "Écouter",
+      "like": "J'aime",
+      "dislike": "Je n'aime pas",
       "send": "Envoyer",
       "save": "Sauvegarder",
       "cancel": "Annuler",
@@ -172,6 +175,8 @@
     "voice": {
       "alertTitle": "Information",
       "ok": "OK",
+      "whisperMethod": "🎤 Whisper",
+      "webSpeechMethod": "🎤 Reconnaissance vocale",
       "processingAudio": "⏳ Traitement audio...",
       "recordingRemaining": "⏱️ Enregistrement (5s restantes...)",
       "recordingBase": "🎤 Enregistrement",
@@ -275,41 +280,43 @@
       "models": {
         "loading": "Chargement des modèles...",
         "noneAvailable": "Aucun modèle disponible",
-        "loadError": "Erreur chargement modèles"
+        "loadError": "Erreur chargement modèles",
+        "defaultModel": "Modèle"
       }
     },
     "publish": {
       "ui": {
         "sectionTitle": "Publier",
-        "modelLabel": "Modèle",
-        "datetimeLabel": "Date et heure de publication",
-        "logsTitle": "Logs de questions"
+        "modelLabel": "Modèle final utilisé",
+        "datetimeLabel": "",
+        "logsTitle": "Historique des publications"
       },
       "status": {
         "ready": "Prêt.",
         "modelRequired": "Veuillez sélectionner un modèle.",
-        "datetimeRequired": "Veuillez sélectionner une date et une heure.",
-        "endpointPending": "Publication confirmée."
+        "datetimeRequired": "",
+        "inProgress": "Publication en cours...",
+        "done": "Publication terminée ({count} fichiers)."
       },
       "confirm": {
         "title": "Confirmer la publication ?",
-        "text": "Modèle : {model} - Date : {date}",
+        "text": "Modèle : {model}",
         "action": "Publier"
       },
       "logs": {
         "loading": "Chargement des logs...",
-        "empty": "Aucun log disponible.",
+        "empty": "Aucun log de publication disponible.",
         "error": "Erreur de chargement des logs : {error}",
         "modelUnknown": "Inconnu",
+        "providerUnknown": "Inconnu",
         "dateLabel": "Date",
-        "voteLabel": "Vote",
-        "questionLabel": "Question",
-        "responseLabel": "Réponses",
-        "commentsLabel": "Commentaires",
-        "noComments": "Aucun commentaire.",
+        "providerLabel": "Fournisseur",
+        "modelLabel": "Modèle",
+        "filesLabel": "Fichiers",
         "refresh": "Rafraîchir",
         "reset": "Réinitialiser",
         "export": "Exporter",
+        "footerText": "IMX Technologie Copyright © 2026",
         "exportTitle": "Export des logs",
         "nothingToExport": "Aucun log à exporter.",
         "popupBlocked": "Impossible d'ouvrir la fenêtre d'export. Vérifiez le bloqueur de pop-up.",
@@ -318,9 +325,9 @@
         "exportFailed": "Échec de l'export PDF.",
         "exportFailedWithError": "Échec de l'export PDF : {error}",
         "pdfLibUnavailable": "Librairie PDF indisponible.",
-        "resetConfirm": "Voulez-vous vraiment réinitialiser le fichier de logs sur le serveur ?",
-        "resetSuccess": "Les logs ont été réinitialisés.",
-        "resetError": "Erreur lors de la réinitialisation des logs : {error}"
+        "resetConfirm": "Voulez-vous vraiment réinitialiser le journal de publication ?",
+        "resetSuccess": "Le journal de publication a été réinitialisé.",
+        "resetError": "Erreur lors de la réinitialisation du journal : {error}"
       }
     },
     "about": {
@@ -402,7 +409,7 @@
       "publishTitle": "Publish",
       "publishDescription": "When the result is satisfactory, use the Publish section to finalize production.",
       "publishItem1": "Choose the appropriate AI model available in the list.",
-      "publishItem2": "Set a publication date and time.",
+      "publishItem2": "Confirm the selected model before publishing.",
       "publishItem3": "",
       "publishItem4": "Export the logs if you need to archive or analyze the interactions.",
       "dropZoneTitle": "Drag and drop a file here",
@@ -479,6 +486,9 @@
       "shareNotSupported": "Sharing is not supported on this browser.",
       "comment": "Comment",
       "comment_placeholder": "Your comment...",
+      "listen": "Listen",
+      "like": "Like",
+      "dislike": "Dislike",
       "send": "Send",
       "save": "Save",
       "cancel": "Cancel",
@@ -514,6 +524,8 @@
     "voice": {
       "alertTitle": "Information",
       "ok": "OK",
+      "whisperMethod": "🎤 Whisper",
+      "webSpeechMethod": "🎤 Web Speech",
       "processingAudio": "⏳ Processing audio...",
       "recordingRemaining": "⏱️ Recording (5s remaining...)",
       "recordingBase": "🎤 Recording",
@@ -617,39 +629,41 @@
       "models": {
         "loading": "Loading models...",
         "noneAvailable": "No model available",
-        "loadError": "Error loading models"
+        "loadError": "Error loading models",
+        "defaultModel": "Model"
       }
     },
     "publish": {
       "ui": {
         "sectionTitle": "Publish",
-        "modelLabel": "Model",
-        "datetimeLabel": "Publication date and time",
-        "logsTitle": "Question logs"
+        "modelLabel": "Final model used",
+        "datetimeLabel": "",
+        "logsTitle": "Publish history"
       },
       "status": {
         "ready": "Ready.",
         "modelRequired": "Please select a model.",
-        "datetimeRequired": "Please select a publication date and time.",
-        "endpointPending": "Publication confirmed. Endpoint will be added next."
+        "datetimeRequired": "",
+        "inProgress": "Publishing in progress...",
+        "done": "Publishing completed ({count} files)."
       },
       "confirm": {
         "title": "Confirm publication?",
-        "text": "Model: {model} - Date: {date}",
+        "text": "Model: {model}",
         "action": "Publish"
       },
       "logs": {
         "loading": "Loading logs...",
-        "empty": "No logs available.",
+        "empty": "No publish logs available.",
         "error": "Log loading error: {error}",
         "modelUnknown": "unknown",
+        "providerUnknown": "unknown",
         "dateLabel": "Date",
-        "voteLabel": "Vote",
-        "questionLabel": "Question",
-        "responseLabel": "Responses",
-        "commentsLabel": "Comments",
-        "noComments": "No comments.",
+        "providerLabel": "Provider",
+        "modelLabel": "Model",
+        "filesLabel": "Files",
         "refresh": "Refresh",
+        "reset": "Reset",
         "export": "Export",
         "exportTitle": "Logs export",
         "nothingToExport": "No logs to export.",
@@ -658,7 +672,10 @@
         "exportDone": "PDF downloaded.",
         "exportFailed": "PDF export failed.",
         "exportFailedWithError": "PDF export failed: {error}",
-        "pdfLibUnavailable": "PDF library unavailable."
+        "pdfLibUnavailable": "PDF library unavailable.",
+        "resetConfirm": "Do you really want to reset the publish log?",
+        "resetSuccess": "Publish log has been reset.",
+        "resetError": "Error while resetting publish log: {error}"
       }
     },
     "about": {

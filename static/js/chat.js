@@ -194,7 +194,7 @@ function buildApiHeaders() {
 function truncateTitle(value, maxLength = 72) {
     const text = String(value || '').trim();
     if (!text) {
-        return 'Document';
+        return tr('chat.suggested.documentFallback', 'Document');
     }
     if (text.length <= maxLength) {
         return text;
@@ -440,6 +440,16 @@ function setupMessageActions(messageDiv, contentDiv) {
         const commentTitle = t('messages.comment') || 'Comment';
         copyBtn.title = commentTitle;
         copyBtn.setAttribute('aria-label', commentTitle);
+    }
+    if (likeBtn) {
+        const likeTitle = t('messages.like') || 'Like';
+        likeBtn.title = likeTitle;
+        likeBtn.setAttribute('aria-label', likeTitle);
+    }
+    if (dislikeBtn) {
+        const dislikeTitle = t('messages.dislike') || 'Dislike';
+        dislikeBtn.title = dislikeTitle;
+        dislikeBtn.setAttribute('aria-label', dislikeTitle);
     }
 
     // TTS button

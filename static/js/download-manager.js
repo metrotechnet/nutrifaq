@@ -71,9 +71,12 @@
         filesTbody: document.getElementById("files-tbody"),
         statusMessage: document.getElementById("status-message"),
         publishModelSelector: document.getElementById("publish-model-selector"),
-        publishDatetime: document.getElementById("publish-datetime"),
         publishSubmit: document.getElementById("publish-submit"),
         publishStatus: document.getElementById("publish-status"),
+        publishFinishMessage: document.getElementById("publish-finish-message"),
+        publishProgressWrap: document.getElementById("publish-progress-wrap"),
+        publishProgressBar: document.getElementById("publish-progress-bar"),
+        publishProgressText: document.getElementById("publish-progress-text"),
         publishLogsList: document.getElementById("publish-logs-list"),
         publishRefreshLogs: document.getElementById("publish-refresh-logs"),
         publishResetLogs: document.getElementById("publish-reset-logs"),
@@ -84,13 +87,49 @@
         els.instructionsSection = document.getElementById("instructions-section");
         els.publishSection = document.getElementById("publish-section");
         els.publishModelSelector = document.getElementById("publish-model-selector");
-        els.publishDatetime = document.getElementById("publish-datetime");
         els.publishSubmit = document.getElementById("publish-submit");
         els.publishStatus = document.getElementById("publish-status");
+        els.publishFinishMessage = document.getElementById("publish-finish-message");
+        els.publishProgressWrap = document.getElementById("publish-progress-wrap");
+        els.publishProgressBar = document.getElementById("publish-progress-bar");
+        els.publishProgressText = document.getElementById("publish-progress-text");
         els.publishLogsList = document.getElementById("publish-logs-list");
         els.publishRefreshLogs = document.getElementById("publish-refresh-logs");
         els.publishResetLogs = document.getElementById("publish-reset-logs");
         els.publishExportLogs = document.getElementById("publish-export-logs");
+    }
+
+    function setPublishProgress(value, text) {
+        const progressValue = Math.max(0, Math.min(100, Number(value) || 0));
+        if (els.publishProgressWrap) {
+            els.publishProgressWrap.style.display = "block";
+        }
+        if (els.publishProgressBar) {
+            els.publishProgressBar.style.width = `${progressValue}%`;
+        }
+        if (els.publishProgressText) {
+            els.publishProgressText.textContent = text || `${progressValue}%`;
+        }
+    }
+
+    function hidePublishProgress() {
+        if (els.publishProgressWrap) {
+            els.publishProgressWrap.style.display = "none";
+        }
+        if (els.publishProgressBar) {
+            els.publishProgressBar.style.width = "0%";
+        }
+        if (els.publishProgressText) {
+            els.publishProgressText.textContent = "0%";
+        }
+    }
+
+    function setPublishFinishMessage(message) {
+        if (!els.publishFinishMessage) {
+            return;
+        }
+        els.publishFinishMessage.textContent = message || "";
+        els.publishFinishMessage.hidden = !message;
     }
 
     function ensurePublishRefreshControl() {
@@ -136,15 +175,6 @@
             headerActions.appendChild(refreshBtn);
         }
 
-        if (!headerActions.querySelector("#publish-reset-logs")) {
-            const resetBtn = document.createElement("button");
-            resetBtn.id = "publish-reset-logs";
-            resetBtn.type = "button";
-            resetBtn.className = "dm-btn secondary publish-reset-logs-btn";
-            resetBtn.textContent = tr("publish.logs.reset", "Reset");
-            headerActions.appendChild(resetBtn);
-        }
-
         if (!headerActions.querySelector("#publish-export-logs")) {
             const exportBtn = document.createElement("button");
             exportBtn.id = "publish-export-logs";
@@ -170,12 +200,7 @@
 
         const modelLabel = els.publishSection.querySelector('label[for="publish-model-selector"]');
         if (modelLabel) {
-            modelLabel.textContent = tr("publish.ui.modelLabel", "Modele");
-        }
-
-        const datetimeLabel = els.publishSection.querySelector('label[for="publish-datetime"]');
-        if (datetimeLabel) {
-            datetimeLabel.textContent = tr("publish.ui.datetimeLabel", "Date et heure de publication");
+            modelLabel.textContent = tr("publish.ui.modelLabel", "Modèle IA final utilisé");
         }
 
         if (els.publishSubmit) {
@@ -189,10 +214,6 @@
 
         if (els.publishRefreshLogs) {
             els.publishRefreshLogs.textContent = tr("publish.logs.refresh", "Refresh");
-        }
-
-        if (els.publishResetLogs) {
-            els.publishResetLogs.textContent = tr("publish.logs.reset", "Reset");
         }
 
         if (els.publishExportLogs) {
@@ -218,7 +239,7 @@
     async function resetPublishLogs() {
         const confirmed = await confirmAction({
             title: tr("publish.logs.reset", "Reset"),
-            text: tr("publish.logs.resetConfirm", "Voulez-vous vraiment réinitialiser le fichier de logs sur le serveur ?"),
+            text: tr("publish.logs.resetConfirm", "Voulez-vous vraiment réinitialiser le journal de publication ?"),
             confirmText: tr("publish.logs.reset", "Reset")
         });
 
@@ -228,7 +249,7 @@
 
         try {
             setPublishStatus(tr("publish.logs.reset", "Reset"), false);
-            const response = await fetch(`${BACKEND_URL}/api/reset_question_log`, {
+            const response = await fetch(`${BACKEND_URL}/api/publish/log/reset`, {
                 method: "POST",
                 headers: {
                     ...authHeaders(),
@@ -238,13 +259,13 @@
 
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(payload.detail || payload.message || response.statusText || tr("publish.logs.resetError", "Erreur lors de la réinitialisation des logs: {error}", { error: response.statusText }));
+                throw new Error(payload.detail || payload.message || response.statusText || tr("publish.logs.resetError", "Erreur lors de la reinitialisation du journal: {error}", { error: response.statusText }));
             }
 
             await loadPublishLogs();
-            setPublishStatus(tr("publish.logs.resetSuccess", "Les logs ont été réinitialisés."), false);
+            setPublishStatus(tr("publish.logs.resetSuccess", "Le journal de publication a ete reinitialise."), false);
         } catch (error) {
-            const message = error && error.message ? error.message : tr("publish.logs.resetError", "Erreur lors de la réinitialisation des logs: {error}", { error: "inconnu" });
+            const message = error && error.message ? error.message : tr("publish.logs.resetError", "Erreur lors de la reinitialisation du journal: {error}", { error: "inconnu" });
             setPublishStatus(message, true);
         }
     }
@@ -366,7 +387,7 @@
         }
 
         const totalPages = pdf.internal.getNumberOfPages();
-        const footerText = "IMX Technologie Copyright © 2026";
+        const footerText = tr("publish.logs.footerText", "IMX Technologie Copyright © 2026");
 
         for (let page = 1; page <= totalPages; page += 1) {
             pdf.setPage(page);
@@ -478,20 +499,25 @@
                 <h2>${escapeHtml(tr("publish.ui.sectionTitle", "Publier"))}</h2>
                 <div class="publish-controls-grid">
                     <div class="download-control-group wide">
-                        <label for="publish-model-selector">${escapeHtml(tr("publish.ui.modelLabel", "Modele"))}</label>
+                        <label for="publish-model-selector">${escapeHtml(tr("publish.ui.modelLabel", "Modèle final utilisé"))}</label>
                         <select id="publish-model-selector" class="publish-model-selector">
                             <option value="">${escapeHtml(tr("main.models.loading", "Chargement des modèles..."))}</option>
                         </select>
-                    </div>
-                    <div class="download-control-group wide">
-                        <label for="publish-datetime">${escapeHtml(tr("publish.ui.datetimeLabel", "Date et heure de publication"))}</label>
-                        <input id="publish-datetime" type="datetime-local">
                     </div>
                     <div class="download-control-group actions">
                         <button id="publish-submit" class="dm-btn primary" type="button">${escapeHtml(tr("publish.confirm.action", "Publier"))}</button>
                     </div>
                 </div>
+
+                <div id="publish-progress-wrap" class="publish-progress-wrap" style="display:none;">
+                    <div class="publish-progress-track">
+                        <div id="publish-progress-bar" class="publish-progress-bar" style="width:0%;"></div>
+                    </div>
+                    <div id="publish-progress-text" class="publish-progress-text">0%</div>
+                </div>
+
                 <p id="publish-status" class="status-message">${escapeHtml(tr("publish.status.ready", "Pret."))}</p>
+                <p id="publish-finish-message" class="publish-finish-message" hidden></p>
             </div>
 
             <div class="publish-logs-card" aria-live="polite">
@@ -1190,15 +1216,7 @@
         els.statusMessage.classList.toggle("error", Boolean(isError));
     }
 
-    function toDatetimeLocalValue(date = new Date()) {
-        const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-        return local.toISOString().slice(0, 16);
-    }
-
     function ensurePublishDefaults() {
-        if (els.publishDatetime && !els.publishDatetime.value) {
-            els.publishDatetime.value = toDatetimeLocalValue(new Date());
-        }
         setPublishStatus(tr("publish.status.ready", "Pret."), false);
     }
 
@@ -1228,6 +1246,7 @@
                 const option = document.createElement("option");
                 option.value = model.id || "";
                 option.textContent = model.label || model.id || "Model";
+                option.dataset.provider = String(model.provider || "azure");
                 els.publishModelSelector.appendChild(option);
             });
 
@@ -1253,74 +1272,29 @@
             return;
         }
 
-        const renderMarkdownHtml = (rawText) => {
-            const text = String(rawText || "");
-
-            // Preferred rendering path: markdown -> sanitized HTML.
-            try {
-                if (window.marked && typeof window.marked.parse === "function") {
-                    const markdownHtml = window.marked.parse(text);
-                    if (window.DOMPurify && typeof window.DOMPurify.sanitize === "function") {
-                        return window.DOMPurify.sanitize(markdownHtml);
-                    }
-                    return markdownHtml;
-                }
-            } catch (_) {
-                // Fallback below.
-            }
-
-            // Safe plain-text fallback when markdown libraries are unavailable.
-            return escapeHtml(text).replace(/\n/g, "<br>");
-        };
-
         if (!Array.isArray(logs) || !logs.length) {
-            els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.empty", "Aucun log disponible."))}</p>`;
+            els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.empty", "Aucun log de publication disponible."))}</p>`;
             return;
         }
 
         const rows = logs.slice().reverse().map((entry, index) => {
-            const questionIdRaw = String(entry.question_id || `#${index + 1}`);
             const timestampRaw = String(entry.timestamp || "-");
-            const modelRaw = String(entry.model_used || tr("publish.logs.modelUnknown", "inconnu"));
-            const questionRaw = String(entry.question || "-");
-            const responseRaw = String(entry.response || "-");
+            const modelRaw = String(entry.model || tr("publish.logs.modelUnknown", "inconnu"));
+            const providerRaw = String(entry.provider || tr("publish.logs.providerUnknown", "inconnu"));
+            const filesCountRaw = Number(entry.files_count || 0);
 
             const ts = escapeHtml(formatDate(timestampRaw));
             const model = escapeHtml(modelRaw);
-            const questionHtml = renderMarkdownHtml(questionRaw);
-            const responseHtml = renderMarkdownHtml(responseRaw);
-            const comments = Array.isArray(entry.comments) ? entry.comments : [];
-            const commentsHtml = comments.length
-                ? comments.map((item) => {
-                    const commentText = renderMarkdownHtml(String(item && item.comment ? item.comment : "-"));
-                    return `<div class="publish-log-comment-item">${commentText}</div>`;
-                }).join("")
-                : `<p class="publish-log-comment-empty">${escapeHtml(tr("publish.logs.noComments", "No comments."))}</p>`;
-
-            const likes = entry && typeof entry.likes === "object" ? entry.likes : null;
-            const voteLabel = likes ? (likes.like ? "👍 Like" : "👎 Dislike") : "-";
+            const provider = escapeHtml(providerRaw);
+            const filesCount = Number.isFinite(filesCountRaw) ? filesCountRaw : 0;
 
             return `
                 <article class="publish-log-item">
-                    <div class="publish-log-header">
-                        <span class="publish-log-index">#${index + 1}</span>
-                        <span class="publish-log-model">${model}</span>
-                    </div>
                     <div class="publish-log-meta">
                         <span><strong>${escapeHtml(tr("publish.logs.dateLabel", "Date"))}:</strong> ${ts}</span>
-                        <span><strong>${escapeHtml(tr("publish.logs.voteLabel", "Vote"))}:</strong> ${escapeHtml(voteLabel)}</span>
-                    </div>
-                    <div class="publish-log-block">
-                        <p class="publish-log-label">${escapeHtml(tr("publish.logs.questionLabel", "Question"))}</p>
-                        <div class="publish-log-question publish-log-markdown">${questionHtml}</div>
-                    </div>
-                    <div class="publish-log-block publish-log-answer-block">
-                        <p class="publish-log-label">${escapeHtml(tr("publish.logs.responseLabel", "Responses"))}</p>
-                        <div class="message-text markdown publish-log-response">${responseHtml}</div>
-                    </div>
-                    <div class="publish-log-block publish-log-comments-block">
-                        <p class="publish-log-label">${escapeHtml(tr("publish.logs.commentsLabel", "Comments"))}</p>
-                        ${comments.length ? `<div class="publish-log-comments-list">${commentsHtml}</div>` : commentsHtml}
+                        <span><strong>${escapeHtml(tr("publish.logs.providerLabel", "Fournisseur"))}:</strong> ${provider}</span>
+                        <span><strong>${escapeHtml(tr("publish.logs.modelLabel", "Modèle"))}:</strong> ${model}</span>
+                        <span><strong>${escapeHtml(tr("publish.logs.filesLabel", "Fichiers"))}:</strong> ${filesCount}</span>
                     </div>
                 </article>
             `;
@@ -1336,33 +1310,89 @@
         els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.loading", "Chargement des logs..."))}</p>`;
 
         try {
-            const data = await fetchJson(`${BACKEND_URL}/api/download_log`, {
+            const data = await fetchJson(`${BACKEND_URL}/api/publish/log`, {
                 headers: {
                     ...authHeaders()
                 }
             });
-            renderPublishLogs(Array.isArray(data) ? data : []);
+            const entries = data && Array.isArray(data.entries) ? data.entries : [];
+            renderPublishLogs(entries);
         } catch (error) {
             els.publishLogsList.innerHTML = `<p class="publish-log-empty">${escapeHtml(tr("publish.logs.error", "Erreur chargement logs: {error}", { error: error.message }))}</p>`;
         }
     }
 
+    let publishStatusTimer = null;
+
+    function startPublishStatusPolling() {
+        if (publishStatusTimer) {
+            window.clearInterval(publishStatusTimer);
+        }
+
+        const poll = async () => {
+            try {
+                const data = await fetchJson(`${BACKEND_URL}/api/publish/status`, {
+                    headers: {
+                        ...authHeaders()
+                    }
+                });
+                const progress = Number(data.progress || 0);
+                const running = Boolean(data.running);
+                const message = data.message || "";
+
+                if (running || progress > 0) {
+                    setPublishProgress(progress, `${Math.round(progress)}%`);
+                    if (message) {
+                        setPublishStatus(message, false);
+                    }
+                }
+
+                if (!running && data.status === "completed") {
+                    const filesCount = Number(data.uploaded_files_count || 0);
+                    const timestamp = new Date().toLocaleString();
+                    const finishedText = `Publication terminee (${filesCount} fichiers): ${timestamp}`;
+                    setPublishStatus(finishedText, false);
+                    setPublishProgress(100, "100%");
+                    setPublishFinishMessage("");
+                    window.clearInterval(publishStatusTimer);
+                    publishStatusTimer = null;
+                    await loadPublishLogs();
+                    return;
+                }
+
+                if (!running && data.status === "error") {
+                    setPublishStatus(data.error || "Erreur de publication.", true);
+                    setPublishFinishMessage("");
+                    setPublishProgress(100, "100%");
+                    window.clearInterval(publishStatusTimer);
+                    publishStatusTimer = null;
+                    await loadPublishLogs();
+                    return;
+                }
+            } catch (_) {
+                // Ignore transient polling errors while publish is running.
+            }
+        };
+
+        poll();
+        publishStatusTimer = window.setInterval(poll, 1500);
+    }
+
     async function onPublishSubmit() {
         const selectedModel = els.publishModelSelector ? String(els.publishModelSelector.value || "").trim() : "";
-        const publishAt = els.publishDatetime ? String(els.publishDatetime.value || "").trim() : "";
+        const selectedOption = els.publishModelSelector && els.publishModelSelector.selectedOptions
+            ? els.publishModelSelector.selectedOptions[0]
+            : null;
+        const selectedProvider = selectedOption ? String(selectedOption.dataset.provider || "azure") : "azure";
 
         if (!selectedModel) {
             setPublishStatus(tr("publish.status.modelRequired", "Veuillez selectionner un modele."), true);
             return;
         }
-        if (!publishAt) {
-            setPublishStatus(tr("publish.status.datetimeRequired", "Veuillez selectionner une date et heure."), true);
-            return;
-        }
 
         const confirmed = await confirmAction({
             title: tr("publish.confirm.title", "Confirmer la publication ?"),
-            text: tr("publish.confirm.text", "Modele: {model} - Date: {date}", { model: selectedModel, date: publishAt }),
+            text: tr("publish.confirm.warning", "Attention: une fois lancee, la publication ne peut pas etre annulee pendant son execution."),
             confirmText: tr("publish.confirm.action", "Publier"),
         });
 
@@ -1370,43 +1400,14 @@
             return;
         }
 
+        setPublishProgress(5, "5%")
+        setPublishStatus(tr("publish.status.inProgress", "Publication en cours..."), false);
+        setPublishFinishMessage("");
+
         try {
-            setPublishStatus(tr("publish.status.syncingDebug", "Synchronisation des fichiers debug vers le blob..."), false);
-
-            const syncResponse = await fetch(
-                `${BACKEND_URL}/api/blob/debug/sync-local-to-blob?container=${encodeURIComponent(DEBUG_BLOB_CONTAINER)}&root_folder=${encodeURIComponent(DEBUG_BLOB_ROOT_FOLDER)}`,
-                {
-                    method: "POST",
-                    headers: {
-                        ...authHeaders(),
-                    },
-                }
-            );
-
-            const syncPayload = await syncResponse.json().catch(() => ({}));
-            if (!syncResponse.ok) {
-                throw new Error(
-                    syncPayload.detail ||
-                    syncPayload.message ||
-                    syncResponse.statusText ||
-                    tr("publish.status.syncFailed", "Echec de la synchronisation debug vers blob.")
-                );
-            }
-
-            const uploadedCount = Number(syncPayload.uploaded_files_count || 0);
-            setPublishStatus(
-                tr(
-                    "publish.status.syncDone",
-                    "Synchronisation terminee ({count} fichiers). Planification de la publication...",
-                    { count: uploadedCount }
-                ),
-                false
-            );
-
             const body = {
                 model: selectedModel,
-                provider: "azure",
-                publish_at: new Date(publishAt).toISOString(),
+                provider: selectedProvider,
             };
 
             const response = await fetch(`${BACKEND_URL}/api/publish`, {
@@ -1423,15 +1424,13 @@
                 throw new Error(payload.detail || payload.message || response.statusText || "Publication impossible.");
             }
 
-            const scheduled = payload.job || {};
-            const scheduledAt = scheduled.publish_at || publishAt;
-            setPublishStatus(tr("publish.status.scheduled", "Publication planifiee pour {date}.", { date: scheduledAt }), false);
+            startPublishStatusPolling();
         } catch (error) {
             const message = error && error.message ? error.message : "Erreur de publication.";
             setPublishStatus(message, true);
+            setPublishFinishMessage("");
+            hidePublishProgress();
         }
-
-        await loadPublishLogs();
     }
 
     function getToken() {

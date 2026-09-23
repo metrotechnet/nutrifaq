@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from api.services.config import load_publish_log_entries, reset_publish_log_entries
 from api.services.entra_auth_service import EntraUser, require_admin
-from api.services.publish_scheduler import get_scheduled_jobs, schedule_publish
+from api.services.publish_service import get_publish_status, start_publish
 
 router = APIRouter()
 
@@ -14,35 +13,42 @@ router = APIRouter()
 class PublishRequest(BaseModel):
     model: str
     provider: str | None = None
-    publish_at: str
 
 
 @router.post("/api/publish")
-def schedule_publish_api(
+def publish_now_api(
     payload: PublishRequest,
     _: EntraUser = Depends(require_admin),
 ):
-    """Queue a scheduled publication job from the debug KB to the production KB."""
-    try:
-        publish_dt = datetime.fromisoformat(payload.publish_at.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid publish_at timestamp: {payload.publish_at}") from exc
+    """Start the publication workflow in the background."""
+    model = str(payload.model or "").strip()
+    if not model:
+        raise HTTPException(status_code=400, detail="A model is required for publication.")
 
+    provider = str(payload.provider or "vercel").strip() or "vercel"
+    return start_publish(model=model, provider=provider)
+
+
+@router.get("/api/publish/status")
+def publish_status(_: EntraUser = Depends(require_admin)):
+    """Return current publish job status and progress."""
+    return get_publish_status()
+
+
+@router.get("/api/publish/log")
+def list_publish_log(_: EntraUser = Depends(require_admin)):
+    """Return publish log entries stored in nutrifaq-config blob."""
     try:
-        job = schedule_publish(
-            model=payload.model,
-            provider=payload.provider,
-            publish_at=publish_dt,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"status": "ok", "entries": load_publish_log_entries()}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Unable to schedule publication: {exc}") from exc
-
-    return {"status": "ok", "job": job}
+        raise HTTPException(status_code=500, detail=f"Unable to read publish log: {exc}") from exc
 
 
-@router.get("/api/publish/jobs")
-def list_publish_jobs(_: EntraUser = Depends(require_admin)):
-    """List scheduled publish jobs."""
-    return {"status": "ok", "jobs": get_scheduled_jobs()}
+@router.post("/api/publish/log/reset")
+def reset_publish_log(_: EntraUser = Depends(require_admin)):
+    """Reset publish log entries stored in nutrifaq-config blob."""
+    try:
+        entries = reset_publish_log_entries()
+        return {"status": "ok", "entries": entries}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Unable to reset publish log: {exc}") from exc

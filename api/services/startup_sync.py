@@ -51,12 +51,10 @@ def sync_blob_databases_on_startup(app: "FastAPI | None" = None) -> None:
 
     hydrated_targets: list[Path] = []
 
-    prod_config: dict[str, object] = {}
-
     try:
-        # Refresh in-memory prod config from local nutrifaq-config/prod_config.json.
-        prod_config = load_prod_config(force_reload=True)
-        print(f"[Startup] Loaded prod config in memory ({len(prod_config)} keys).", flush=True)
+        # Refresh in-memory prod config from blob so downstream sync uses the global cache.
+        loaded_config = load_prod_config(force_reload=True)
+        print(f"[Startup] Loaded prod config in memory ({len(loaded_config)} keys).", flush=True)
     except Exception as exc:
         print(f"[Startup] Prod config load skipped: {exc}", flush=True)
 
@@ -84,11 +82,7 @@ def sync_blob_databases_on_startup(app: "FastAPI | None" = None) -> None:
 
     try:
         # Copy the Chroma database from the main KB to the production folder.
-        source_chroma, target_chroma, current_prod_sqlite, new_prod_sqlite = sync_next_prod_chroma_from_main(
-            prod_config,
-            dbase_main_target_root,
-            dbase_prod_target_root,
-        )
+        source_chroma, target_chroma, current_prod_sqlite, new_prod_sqlite = sync_next_prod_chroma_from_main()
 
         hydrated_targets.append(target_chroma)
         print(

@@ -18,6 +18,8 @@ FRONTEND_CONFIG_ROOT = REPO_ROOT / "static" / "config"
 SHARED_CONFIG_ROOT = REPO_ROOT / "nutrifaq-config"
 LEGACY_CONFIG_ROOT = API_ROOT / "config"
 PROD_CONFIG_PATH = SHARED_CONFIG_ROOT / "prod_config.json"
+DBASE_MAIN_TARGET_ROOT = REPO_ROOT / os.getenv("AZURE_KB_MAIN_LOCAL_ROOT", "nutrifaq-dbase-main")
+DBASE_PROD_TARGET_ROOT = REPO_ROOT / os.getenv("AZURE_KB_PROD_LOCAL_ROOT", "nutrifaq-dbase-prod")
 
 _PROD_CONFIG_LOCK = RLock()
 _GLOBAL_PROD_CONFIG: dict[str, Any] = {}
@@ -34,6 +36,11 @@ def _config_blob_prefix() -> str:
 def _prod_config_blob_name() -> str:
     prefix = _config_blob_prefix()
     return f"{prefix}/prod_config.json" if prefix else "prod_config.json"
+
+
+def _publish_log_blob_name() -> str:
+    prefix = _config_blob_prefix()
+    return f"{prefix}/publish_log.json" if prefix else "publish_log.json"
 
 
 def _resolve_config_path(file_name: str) -> Path:
@@ -223,21 +230,25 @@ def resolve_chroma_copy_paths(
 
 
 def sync_next_prod_chroma_from_main(
-    prod_config: dict[str, Any],
-    dbase_main_target_root: Path,
-    dbase_prod_target_root: Path,
+    dbase_main_target_root: Path | None = None,
+    dbase_prod_target_root: Path | None = None,
 ) -> tuple[Path, Path, str, str]:
-    """Copy next Chroma folder from main to prod and persist new PROD_SQLITE."""
+    """Copy next Chroma folder from main to prod using the active global project roots."""
+    main_root = dbase_main_target_root or DBASE_MAIN_TARGET_ROOT
+    prod_root = dbase_prod_target_root or DBASE_PROD_TARGET_ROOT
+
+    prod_config = _GLOBAL_PROD_CONFIG.copy() if _GLOBAL_PROD_CONFIG else load_prod_config(force_reload=False)
+
     source_chroma, target_chroma, current_prod_sqlite = resolve_chroma_copy_paths(
         prod_config,
-        dbase_main_target_root,
-        dbase_prod_target_root,
+        main_root,
+        prod_root,
     )
 
     if not source_chroma.exists():
         raise FileNotFoundError(f"Source Chroma path not found: {source_chroma}")
 
-    dbase_prod_target_root.mkdir(parents=True, exist_ok=True)
+    prod_root.mkdir(parents=True, exist_ok=True)
     if target_chroma.exists():
         shutil.rmtree(target_chroma, ignore_errors=True)
 
@@ -247,3 +258,59 @@ def sync_next_prod_chroma_from_main(
     update_prod_config({"PROD_SQLITE": new_prod_sqlite})
 
     return source_chroma, target_chroma, current_prod_sqlite, new_prod_sqlite
+
+
+def load_publish_log_entries() -> list[dict[str, Any]]:
+    """Load publish log entries from Azure Blob config container."""
+    if not has_blob_storage_config():
+        raise RuntimeError("Azure Blob Storage is required to load publish logs.")
+
+    blob_name = _publish_log_blob_name()
+    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
+
+    try:
+        raw_content = blob_client.download_blob().readall()
+    except Exception as exc:
+        message = str(exc)
+        if "BlobNotFound" in message or "The specified blob does not exist" in message:
+            return []
+        raise
+
+    payload = json.loads(raw_content.decode("utf-8"))
+    if isinstance(payload, dict):
+        entries = payload.get("entries", [])
+    elif isinstance(payload, list):
+        entries = payload
+    else:
+        entries = []
+
+    return [item for item in entries if isinstance(item, dict)]
+
+
+def save_publish_log_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Persist publish log entries to Azure Blob config container."""
+    if not has_blob_storage_config():
+        raise RuntimeError("Azure Blob Storage is required to save publish logs.")
+
+    cleaned_entries = [item for item in entries if isinstance(item, dict)]
+    payload = {"entries": cleaned_entries}
+    blob_name = _publish_log_blob_name()
+    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
+    blob_client.upload_blob(json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"), overwrite=True)
+    return cleaned_entries
+
+
+def append_publish_log_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    """Append one publish log entry and persist it in blob."""
+    if not isinstance(entry, dict):
+        raise TypeError("append_publish_log_entry expects a dictionary.")
+
+    entries = load_publish_log_entries()
+    entries.append(entry)
+    save_publish_log_entries(entries)
+    return entry
+
+
+def reset_publish_log_entries() -> list[dict[str, Any]]:
+    """Reset publish log file to an empty entries list."""
+    return save_publish_log_entries([])
