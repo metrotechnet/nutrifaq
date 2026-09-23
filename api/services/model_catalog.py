@@ -4,11 +4,21 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 from typing import Any
+from api.services.blob_storage_service import get_container_client, has_blob_storage_config
 
-API_ROOT = Path(__file__).resolve().parents[1]
-MODEL_CATALOG_PATH = API_ROOT / "config" / "accessible_models.json"
+
+def _catalog_blob_container_name() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
+
+
+def _catalog_blob_prefix() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
+
+
+def _catalog_blob_name() -> str:
+    prefix = _catalog_blob_prefix()
+    return f"{prefix}/accessible_models.json" if prefix else "accessible_models.json"
 
 
 def _current_provider() -> str:
@@ -16,16 +26,28 @@ def _current_provider() -> str:
 
 
 def load_accessible_models() -> dict[str, Any]:
-    if not MODEL_CATALOG_PATH.exists():
+    if not has_blob_storage_config():
         return {
             "models": [],
             "default_model": None,
             "provider": _current_provider(),
-            "message": f"Catalog file not found: {MODEL_CATALOG_PATH}",
+            "message": "Azure Blob Storage is not configured.",
         }
 
-    with MODEL_CATALOG_PATH.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
+    blob_name = _catalog_blob_name()
+    blob_client = get_container_client(_catalog_blob_container_name()).get_blob_client(blob_name)
+
+    try:
+        raw_content = blob_client.download_blob().readall()
+    except Exception as exc:
+        return {
+            "models": [],
+            "default_model": None,
+            "provider": _current_provider(),
+            "message": f"Catalog blob not found or unreadable: {blob_name} ({exc})",
+        }
+
+    payload = json.loads(raw_content.decode("utf-8"))
 
     models = payload.get("models") if isinstance(payload, dict) else []
     if not isinstance(models, list):

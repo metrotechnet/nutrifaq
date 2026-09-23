@@ -14,7 +14,7 @@ from api.services.blob_storage_service import sync_local_directory_to_blob
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MAIN_KB_ROOT = REPO_ROOT / os.getenv("MAIN_KB_ROOT", "nutrifaq-dbase")
-DEBUG_KB_ROOT = REPO_ROOT / os.getenv("AZURE_KB_DEBUG_LOCAL_ROOT", "nutrifaq-dbase-debug")
+DEBUG_KB_ROOT = REPO_ROOT / os.getenv("AZURE_KB_DEBUG_LOCAL_ROOT", "nutrifaq-dbase-main")
 
 _LOCK = threading.Lock()
 _SCHEDULED_JOBS: dict[str, dict[str, Any]] = {}
@@ -30,7 +30,7 @@ def sync_debug_to_blob(
         prefix
         or os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX")
         or os.getenv("AZURE_KB_BLOB_PREFIX")
-        or "nutrifaq-dbase-debug"
+        or "nutrifaq-dbase-main"
     ).strip("/")
     effective_container = (
         container_name

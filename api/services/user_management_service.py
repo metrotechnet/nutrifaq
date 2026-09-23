@@ -3,17 +3,27 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
+from api.services.blob_storage_service import get_container_client, has_blob_storage_config
 
 ROLE_ADMIN = "admin"
 ROLE_COLLABORATOR = "collaborator"
 ROLE_CLIENT = "client"
 VALID_ROLES = {ROLE_ADMIN, ROLE_COLLABORATOR, ROLE_CLIENT}
 
-_API_ROOT = Path(__file__).resolve().parents[1]
-_ROLE_ASSIGNMENTS_FILE = _API_ROOT / "config" / "user_roles.json"
+def _roles_blob_container_name() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
+
+
+def _roles_blob_prefix() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
+
+
+def _roles_blob_name() -> str:
+    prefix = _roles_blob_prefix()
+    return f"{prefix}/user_roles.json" if prefix else "user_roles.json"
 
 
 def _utc_now_iso() -> str:
@@ -25,12 +35,14 @@ def _default_payload() -> dict[str, Any]:
 
 
 def _load_payload() -> dict[str, Any]:
-    if not _ROLE_ASSIGNMENTS_FILE.exists():
+    if not has_blob_storage_config():
         return _default_payload()
 
     try:
-        with _ROLE_ASSIGNMENTS_FILE.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
+        blob_name = _roles_blob_name()
+        blob_client = get_container_client(_roles_blob_container_name()).get_blob_client(blob_name)
+        raw_content = blob_client.download_blob().readall()
+        payload = json.loads(raw_content.decode("utf-8"))
     except Exception:
         return _default_payload()
 
@@ -44,9 +56,13 @@ def _load_payload() -> dict[str, Any]:
 
 
 def _save_payload(payload: dict[str, Any]) -> None:
-    _ROLE_ASSIGNMENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with _ROLE_ASSIGNMENTS_FILE.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2)
+    if not has_blob_storage_config():
+        raise RuntimeError("Azure Blob Storage is required to save role assignments.")
+
+    blob_name = _roles_blob_name()
+    encoded_payload = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+    blob_client = get_container_client(_roles_blob_container_name()).get_blob_client(blob_name)
+    blob_client.upload_blob(encoded_payload, overwrite=True)
 
 
 def get_assigned_role(user_object_id: str) -> str | None:

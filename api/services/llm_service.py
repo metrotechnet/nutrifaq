@@ -11,12 +11,17 @@ from typing import Any
 from openai import AzureOpenAI, OpenAI
 
 
-def _llm_provider() -> str:
+def _llm_provider(provider_override: str | None = None) -> str:
+    if provider_override:
+        return provider_override.strip().lower()
     return os.getenv("LLM_PROVIDER", "vercel").strip().lower()
 
 
-def _embedding_provider() -> str:
-    return os.getenv("EMBEDDING_PROVIDER", _llm_provider()).strip().lower()
+def _embedding_provider(provider_override: str | None = None) -> str:
+    env_embedding_provider = os.getenv("EMBEDDING_PROVIDER")
+    if env_embedding_provider:
+        return env_embedding_provider.strip().lower()
+    return _llm_provider(provider_override)
 
 
 def _normalize_model_name(model_name: str) -> str:
@@ -131,8 +136,8 @@ def _get_azure_embedding_client() -> OpenAI | AzureOpenAI:
     return _get_azure_client(endpoint, api_key)
 
 
-def get_gateway_client() -> OpenAI | AzureOpenAI:
-    provider = _llm_provider()
+def get_gateway_client(provider_override: str | None = None) -> OpenAI | AzureOpenAI:
+    provider = _llm_provider(provider_override)
     if provider == "azure":
         return _get_azure_chat_client()
 
@@ -146,10 +151,11 @@ def create_chat_completion_stream(
     *,
     client: OpenAI | AzureOpenAI,
     model_name: str | None,
+    provider_override: str | None = None,
     prompt: str,
     temperature: float = 1.0,
 ):
-    provider = _llm_provider()
+    provider = _llm_provider(provider_override)
     requested_model = (model_name or "").strip()
 
     if provider == "azure":
@@ -198,11 +204,12 @@ def create_chat_completion_text(
     *,
     client: OpenAI | AzureOpenAI,
     model_name: str | None,
+    provider_override: str | None = None,
     prompt: str,
     temperature: float = 0.4,
 ) -> str:
     """Create a non-streaming chat completion and return plain text content."""
-    provider = _llm_provider()
+    provider = _llm_provider(provider_override)
     requested_model = (model_name or "").strip()
 
     if provider == "azure":
@@ -259,8 +266,9 @@ def create_embedding(
     *,
     input_text: str,
     model_name: str = "text-embedding-3-large",
+    provider_override: str | None = None,
 ) -> list[float]:
-    provider = _embedding_provider()
+    provider = _embedding_provider(provider_override)
     resolved_model = model_name
     embedding_client: OpenAI | AzureOpenAI
 
@@ -304,11 +312,12 @@ def create_embeddings(
     *,
     input_texts: list[str],
     model_name: str = "text-embedding-3-large",
+    provider_override: str | None = None,
 ) -> list[list[float]]:
     if not input_texts:
         return []
 
-    provider = _embedding_provider()
+    provider = _embedding_provider(provider_override)
     resolved_model = model_name
     embedding_client: OpenAI | AzureOpenAI
 

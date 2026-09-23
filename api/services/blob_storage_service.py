@@ -60,7 +60,7 @@ def get_blob_container_name(container_name: str | None = None) -> str:
 def get_blob_prefix() -> str:
     return os.getenv(
         "AZURE_KB_DEBUG_BLOB_PREFIX",
-        os.getenv("AZURE_KB_BLOB_PREFIX", "nutrifaq-dbase-debug"),
+        os.getenv("AZURE_KB_BLOB_PREFIX", "nutrifaq-dbase-main"),
     ).strip("/")
 
 

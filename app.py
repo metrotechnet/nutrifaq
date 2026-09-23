@@ -28,9 +28,9 @@ APP_VERSION = os.getenv("APP_VERSION", "dev")
 app.state.database_sync_status = "synch"
 
 
-# @app.on_event("startup")
-# async def startup_load_blob_database():
-#     sync_blob_databases_on_startup(app)
+@app.on_event("startup")
+async def startup_load_blob_database():
+    sync_blob_databases_on_startup(app)
 
 # =====================================================
 # Rate Limiting Configuration

@@ -11,7 +11,7 @@ import threading
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = PROJECT_ROOT.parent
-DEFAULT_DEBUG_KB_ROOT = REPO_ROOT / "nutrifaq-dbase-debug"
+DEFAULT_DEBUG_KB_ROOT = REPO_ROOT / "nutrifaq-dbase-main"
 QUESTION_LOG_PATH = DEFAULT_DEBUG_KB_ROOT / "question_log.json"
 question_log_lock = threading.Lock()
 

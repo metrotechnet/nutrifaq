@@ -2,10 +2,8 @@ import os
 import json
 import re
 from typing import Any
-from urllib.parse import urlparse
 from pathlib import Path
 from dotenv import load_dotenv
-import requests
 import chromadb
 from chromadb.config import Settings
 from api.services.refusal_engine import validate_user_query
@@ -19,16 +17,20 @@ from api.services.blob_storage_service import (
 # API and repository roots
 API_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = API_ROOT.parent
+SHARED_CONFIG_ROOT = REPO_ROOT / "nutrifaq-config"
+LEGACY_CONFIG_ROOT = API_ROOT / "config"
 load_dotenv(dotenv_path=REPO_ROOT / '.env')
 
 DEFAULT_PROJECT_NAME = os.getenv("KNOWLEDGE_BASE_NAME", "nutrifaq")
 DEFAULT_COLLECTION_NAME = os.getenv("DEFAULT_COLLECTION_NAME", "nutrifaq-collection")
-CHROMADB_CENTRAL_URL = os.getenv("CHROMADB_CENTRAL_URL", "http://localhost:2000").rstrip("/")
+
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
 AZURE_STORAGE_KEY = os.getenv("AZURE_STORAGE_KEY")
 AZURE_STORAGE_SAS_TOKEN = os.getenv("AZURE_STORAGE_SAS_TOKEN")
+
 AZURE_STORAGE_CONTAINER = get_blob_container_name()
+
 AZURE_BLOB_PREFIX = get_blob_prefix()
 LOCAL_BLOB_CACHE_ROOT = REPO_ROOT / ".cache" / AZURE_BLOB_PREFIX / "chroma_db"
 LOCAL_BLOB_MARKER_FILE = LOCAL_BLOB_CACHE_ROOT / ".blob_signature"
@@ -43,7 +45,11 @@ _PROMPTS_CACHE_MTIME: float | None = None
 def load_style_guides():
     """Load style guides from JSON file"""
     try:
-        with open(API_ROOT / 'config' / 'style_guides.json', 'r', encoding='utf-8') as f:
+        style_guides_path = SHARED_CONFIG_ROOT / "style_guides.json"
+        if not style_guides_path.exists():
+            style_guides_path = LEGACY_CONFIG_ROOT / "style_guides.json"
+
+        with open(style_guides_path, 'r', encoding='utf-8') as f:
             style_data = json.load(f)
         
         # Format the style guides for use in prompts
@@ -68,7 +74,11 @@ def load_style_guides():
 def load_system_prompts():
     """Load system prompts from JSON file"""
     try:
-        with open(API_ROOT / 'config' / 'system_prompts.json', 'r', encoding='utf-8') as f:
+        system_prompts_path = SHARED_CONFIG_ROOT / "system_prompts.json"
+        if not system_prompts_path.exists():
+            system_prompts_path = LEGACY_CONFIG_ROOT / "system_prompts.json"
+
+        with open(system_prompts_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         return {}
@@ -85,7 +95,9 @@ def load_prompts(kb_name=None):
     try:
         prompts_path = REPO_ROOT / "static" / "config" / "prompts.json"
         if not prompts_path.exists():
-            prompts_path = API_ROOT / "config" / "prompts.json"
+            prompts_path = SHARED_CONFIG_ROOT / "prompts.json"
+        if not prompts_path.exists():
+            prompts_path = LEGACY_CONFIG_ROOT / "prompts.json"
         current_mtime = prompts_path.stat().st_mtime
 
         if _PROMPTS_CACHE is not None and _PROMPTS_CACHE_MTIME == current_mtime:
@@ -178,14 +190,21 @@ def _repo_chroma_path() -> Path:
     return REPO_ROOT / "nutrifaq-dbase" / "chroma_db"
 
 
-def _resolve_local_chroma_root(root_folder: str | None = None) -> Path:
+def _resolve_local_chroma_root(
+    root_folder: str | None = None,
+    chroma_db_path: str | None = None,
+) -> Path:
+    if chroma_db_path:
+        candidate = Path(chroma_db_path)
+        return candidate if candidate.is_absolute() else (REPO_ROOT / candidate)
+
     folder = (root_folder or "nutrifaq-dbase").strip("/")
     return REPO_ROOT / folder / "chroma_db"
 
 
 def get_debug_local_kb_root_folder() -> str:
     """Return the local debug KB root folder name used by /query_debug."""
-    return os.getenv("AZURE_KB_DEBUG_LOCAL_ROOT", "nutrifaq-dbase-debug").strip("/")
+    return os.getenv("AZURE_KB_DEBUG_LOCAL_ROOT", "nutrifaq-dbase-main").strip("/")
 
 
 def _remote_chroma_signature() -> str:
@@ -222,8 +241,12 @@ def _sync_chroma_from_blob(force: bool = False) -> Path:
     )
 
 
-def _local_chroma_client(project_name: str, root_folder: str | None = None):
-    kb_path = _resolve_local_chroma_root(root_folder)
+def _local_chroma_client(
+    project_name: str,
+    root_folder: str | None = None,
+    chroma_db_path: str | None = None,
+):
+    kb_path = _resolve_local_chroma_root(root_folder, chroma_db_path)
     if not kb_path.exists():
         raise FileNotFoundError(
             f"Local ChromaDB directory not found: {kb_path}. Blob database was not loaded at startup."
@@ -247,31 +270,16 @@ def _invalidate_chroma_cache() -> None:
     _CHROMA_COLLECTION_CACHE.clear()
 
 
-def _central_query_url() -> str:
-    return f"{CHROMADB_CENTRAL_URL}/query"
-
-
-def _central_health_url() -> str:
-    return f"{CHROMADB_CENTRAL_URL}/health"
-
-
-def _central_host_port():
-    parsed = urlparse(CHROMADB_CENTRAL_URL)
-    host = parsed.hostname or "unknown"
-    if parsed.port is not None:
-        port = parsed.port
-    elif parsed.scheme == "https":
-        port = 443
-    else:
-        port = 80
-    return host, port
-
-
-def query_chromadb(project_name, collection_name=None, data=None, root_folder: str | None = None):
+def query_chromadb(
+    project_name,
+    collection_name=None,
+    data=None,
+    root_folder: str | None = None,
+    chroma_db_path: str | None = None,
+):
     project_name = project_name or DEFAULT_PROJECT_NAME
     collection_name = collection_name or DEFAULT_COLLECTION_NAME
-    remote_host, remote_port = _central_host_port()
-    local_chroma_path = _resolve_local_chroma_root(root_folder)
+    local_chroma_path = _resolve_local_chroma_root(root_folder, chroma_db_path)
 
     try:
         payload = data or {}
@@ -297,7 +305,11 @@ def query_chromadb(project_name, collection_name=None, data=None, root_folder: s
                 "details": "query_embedding must be a non-empty list-like vector",
             }
 
-        client = _local_chroma_client(project_name, root_folder=root_folder)
+        client = _local_chroma_client(
+            project_name,
+            root_folder=root_folder,
+            chroma_db_path=chroma_db_path,
+        )
         cache_key = (str(local_chroma_path), collection_name)
         collection = _CHROMA_COLLECTION_CACHE.get(cache_key)
         if collection is None:
@@ -322,9 +334,6 @@ def query_chromadb(project_name, collection_name=None, data=None, root_folder: s
             "project_name": project_name,
             "collection_name": collection_name,
             "local_path": str(local_chroma_path),
-            "remote_host": remote_host,
-            "remote_port": remote_port,
-            "remote_url": CHROMADB_CENTRAL_URL,
         }
 
 
@@ -332,7 +341,6 @@ def check_remote_chromadb_connection(project_name=None, collection_name=None):
     """Check connectivity to the local ChromaDB knowledge base for the current project."""
     project_name = project_name or DEFAULT_PROJECT_NAME
     collection_name = collection_name or DEFAULT_COLLECTION_NAME
-    remote_host, remote_port = _central_host_port()
 
     try:
         local_path = ROOT_BLOB_CACHE_ROOT
@@ -342,9 +350,6 @@ def check_remote_chromadb_connection(project_name=None, collection_name=None):
                 "project_name": project_name,
                 "collection_name": collection_name,
                 "local_path": str(local_path),
-                "remote_host": remote_host,
-                "remote_port": remote_port,
-                "remote_url": CHROMADB_CENTRAL_URL,
                 "details": f"ChromaDB cache not available locally: {local_path}",
             }
 
@@ -355,9 +360,6 @@ def check_remote_chromadb_connection(project_name=None, collection_name=None):
             "project_name": project_name,
             "collection_name": collection_name,
             "local_path": str(local_path),
-            "remote_host": remote_host,
-            "remote_port": remote_port,
-            "remote_url": CHROMADB_CENTRAL_URL,
             "central_health": {"status": "local", "collection_count": collection.count()},
         }
     except Exception as exc:
@@ -366,9 +368,6 @@ def check_remote_chromadb_connection(project_name=None, collection_name=None):
             "project_name": project_name,
             "collection_name": collection_name,
             "local_path": str(ROOT_BLOB_CACHE_ROOT),
-            "remote_host": remote_host,
-            "remote_port": remote_port,
-            "remote_url": CHROMADB_CENTRAL_URL,
             "details": str(exc),
         }
     
@@ -450,7 +449,9 @@ def ask_question_stream(
     timezone="UTC",
     locale="fr-FR",
     llm_model=None,
+    llm_provider=None,
     kb_root_folder=None,
+    chroma_db_path=None,
     top_k=5,
     conversation_history=None,
     session=None,
@@ -486,10 +487,14 @@ def ask_question_stream(
 
 
     try:
-        client = get_gateway_client()
+        client = get_gateway_client(provider_override=llm_provider)
 
         # Get embedding for the question
-        query_emb = create_embedding(input_text=question, model_name="text-embedding-3-large")
+        query_emb = create_embedding(
+            input_text=question,
+            model_name="text-embedding-3-large",
+            provider_override=llm_provider,
+        )
 
         # Query ChromaDB
         query_params = {
@@ -505,6 +510,7 @@ def ask_question_stream(
             collection_name="nutrifaq-collection",
             data=query_params,
             root_folder=kb_root_folder,
+            chroma_db_path=chroma_db_path,
         )
 
         if not isinstance(results, dict):
@@ -560,6 +566,7 @@ def ask_question_stream(
         stream = create_chat_completion_stream(
             client=client,
             model_name=model_name,
+            provider_override=llm_provider,
             prompt=prompt,
             temperature=1.0,
         )

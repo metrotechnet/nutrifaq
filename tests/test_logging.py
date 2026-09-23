@@ -10,7 +10,7 @@ import api.services.database_regeneration_service as regen_service
 def test_question_log_defaults_to_debug_kb_path():
     path = logging_service.QUESTION_LOG_PATH
     assert path.name == "question_log.json"
-    assert path.parent.name == "nutrifaq-dbase-debug"
+    assert path.parent.name == "nutrifaq-dbase-main"
 
 
 def test_reset_question_log_clears_file(tmp_path, monkeypatch):
@@ -26,7 +26,7 @@ def test_reset_question_log_clears_file(tmp_path, monkeypatch):
 
 
 def test_schedule_publish_executes_debug_to_main_sync_and_indexing(tmp_path, monkeypatch):
-    debug_root = tmp_path / "nutrifaq-dbase-debug"
+    debug_root = tmp_path / "nutrifaq-dbase-main"
     main_root = tmp_path / "nutrifaq-dbase"
     debug_root.mkdir()
     main_root.mkdir()

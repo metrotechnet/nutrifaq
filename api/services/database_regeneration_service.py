@@ -596,7 +596,7 @@ def _save_chromadb_to_blob_and_local_copy(
         resolved_root = (
             (root_folder or "").strip()
             or os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX", "").strip()
-            or "nutrifaq-dbase-debug"
+            or "nutrifaq-dbase-main"
         ).strip("/")
         resolved_container = (
             (container_name or "").strip()
@@ -704,7 +704,7 @@ def run_full_regeneration(
     resolved_root_folder = (
         (root_folder or "").strip()
         or os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX", "").strip()
-        or "nutrifaq-dbase-debug"
+        or "nutrifaq-dbase-main"
     ).strip("/")
     resolved_container_name = (
         (container_name or "").strip()

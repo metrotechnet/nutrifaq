@@ -51,10 +51,10 @@ def _strip_known_root_prefix(path_value: str, root_folder: str | None = None) ->
     variants = [
         f"{known_root}/",
         f"{known_root}",
-        "nutrifaq-dbase-debug/",
-        "nutrifaq-dbase-debug",
-        "nutrifaq-dbase/",
-        "nutrifaq-dbase",
+        "nutrifaq-dbase-main/",
+        "nutrifaq-dbase-main",
+        "nutrifaq-dbase-prod/",
+        "nutrifaq-dbase-prod",
     ]
     for variant in variants:
         if raw.lower().startswith(variant.lower()):

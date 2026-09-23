@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from api.services.blob_storage_service import (
-    get_blob_prefix,
     has_blob_storage_config,
     sync_blob_prefix_to_local,
 )
-from api.services.query_chromadb import get_debug_local_kb_root_folder
+from api.services.config import load_prod_config, sync_next_prod_chroma_from_main
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -17,79 +17,91 @@ if TYPE_CHECKING:
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _copy_directory_contents(source: Path, destination: Path) -> None:
+    """Copy source directory content into destination directory."""
+    if not source.exists():
+        raise FileNotFoundError(f"Source directory not found: {source}")
+
+    destination.mkdir(parents=True, exist_ok=True)
+    for item in source.iterdir():
+        target = destination / item.name
+        if item.is_dir():
+            shutil.copytree(item, target, dirs_exist_ok=True)
+        else:
+            shutil.copy2(item, target)
+
+
 def sync_blob_databases_on_startup(app: "FastAPI | None" = None) -> None:
-    """Hydrate the main and debug KBs from Blob Storage at startup."""
+    """Hydrate local folders and prepare prod ChromaDB layout on startup."""
     if app is not None:
-        app.state.database_sync_status = "synch"
+        app.state.database_sync_status = "syncing"
 
     if not has_blob_storage_config():
         if app is not None:
-            app.state.database_sync_status = "synch"
-        print("[Startup] Azure Blob Storage not configured; skipping database hydration.", flush=True)
+            app.state.database_sync_status = "synced"
+        print("[Startup] Azure Blob Storage not configured; skipping startup data hydration.", flush=True)
         return
 
-    main_prefix = f"{get_blob_prefix()}/chroma_db/"
-    main_target_root = PROJECT_ROOT / "nutrifaq-dbase" / "chroma_db"
+    config_prefix_base =  "nutrifaq-config"
+    dbase_main_prefix_base = "nutrifaq-dbase-main"
 
-    debug_container = os.getenv("AZURE_KB_DEBUG_BLOB_CONTAINER", "nutrifaq-knowledge-base-debug").strip()
-    debug_prefix_base = os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX", "nutrifaq-dbase-debug").strip("/")
-    debug_prefix = f"{debug_prefix_base}/chroma_db/"
-    debug_local_root = get_debug_local_kb_root_folder()
-    debug_target_root = PROJECT_ROOT / debug_local_root / "chroma_db"
-    debug_full_root = PROJECT_ROOT / debug_local_root
+    config_target_root = PROJECT_ROOT / "nutrifaq-config"
+    dbase_main_target_root = PROJECT_ROOT / "nutrifaq-dbase-main"
+    dbase_prod_target_root = PROJECT_ROOT / "nutrifaq-dbase-prod"
 
-    hydrated_targets: list[str] = []
+    hydrated_targets: list[Path] = []
 
-    try:
-        sync_blob_prefix_to_local(prefix=main_prefix, local_root=main_target_root, remove_existing=False)
-        hydrated_targets.append(str(main_target_root))
-        print(f"[Startup] Loaded main blob ChromaDB into {main_target_root}", flush=True)
-    except Exception as exc:
-        print(f"[Startup] Main blob ChromaDB hydration skipped: {exc}", flush=True)
+    prod_config: dict[str, object] = {}
 
     try:
-        sync_blob_prefix_to_local(
-            prefix=f"{debug_prefix_base}/",
-            local_root=debug_full_root,
-            remove_existing=False,
-            container_name=debug_container,
-        )
-        if str(debug_full_root) not in hydrated_targets:
-            hydrated_targets.append(str(debug_full_root))
-        print(
-            f"[Startup] Loaded full debug blob root into {debug_full_root} "
-            f"(container={debug_container}, prefix={debug_prefix_base}, local_root={debug_local_root})",
-            flush=True,
-        )
+        # Refresh in-memory prod config from local nutrifaq-config/prod_config.json.
+        prod_config = load_prod_config(force_reload=True)
+        print(f"[Startup] Loaded prod config in memory ({len(prod_config)} keys).", flush=True)
     except Exception as exc:
-        print(
-            f"[Startup] Full debug blob root hydration skipped: {exc} "
-            f"(container={debug_container}, prefix={debug_prefix_base}, local_root={debug_local_root})",
-            flush=True,
-        )
+        print(f"[Startup] Prod config load skipped: {exc}", flush=True)
+
+
+    # try:
+    #     # Sync the main knowledge base from the blob storage to the local project root.
+    #     sync_blob_prefix_to_local(
+    #         prefix="",
+    #         container_name=f"{dbase_main_prefix_base}",
+    #         local_root=dbase_main_target_root,
+    #         remove_existing=False
+
+    #     )
+    #     hydrated_targets.append(dbase_main_target_root)
+    #     print(
+    #         f"[Startup] Loaded blob main KB into {dbase_main_target_root} "
+    #         f"(prefix={dbase_main_prefix_base})",
+    #         flush=True,
+    #     )
+    # except Exception as exc:
+    #     print(
+    #         f"[Startup] Main KB hydration skipped: {exc}",
+    #         flush=True,
+    #     )
 
     try:
-        sync_blob_prefix_to_local(
-            prefix=debug_prefix,
-            local_root=debug_target_root,
-            remove_existing=False,
-            container_name=debug_container,
+        # Copy the Chroma database from the main KB to the production folder.
+        source_chroma, target_chroma, current_prod_sqlite, new_prod_sqlite = sync_next_prod_chroma_from_main(
+            prod_config,
+            dbase_main_target_root,
+            dbase_prod_target_root,
         )
-        if str(debug_target_root) not in hydrated_targets:
-            hydrated_targets.append(str(debug_target_root))
+
+        hydrated_targets.append(target_chroma)
         print(
-            f"[Startup] Loaded debug blob ChromaDB into {debug_target_root} "
-            f"(container={debug_container}, prefix={debug_prefix_base}, local_root={debug_local_root})",
+            f"[Startup] Copied {source_chroma} to {target_chroma} "
+            f"(PROD_SQLITE old={current_prod_sqlite or 'unset'}, new={new_prod_sqlite})",
             flush=True,
         )
     except Exception as exc:
-        print(
-            f"[Startup] Debug blob ChromaDB hydration skipped: {exc} "
-            f"(container={debug_container}, prefix={debug_prefix_base}, local_root={debug_local_root})",
-            flush=True,
-        )
+        print(f"[Startup] Chroma copy to prod folder skipped: {exc}", flush=True)
+
 
     if app is not None:
-        app.state.database_sync_status = "synch"
+        app.state.database_sync_status = "synced"
     if hydrated_targets:
-        print(f"[Startup] Hydrated KB roots: {', '.join(hydrated_targets)}", flush=True)
+        hydrated_labels = ", ".join(str(path) for path in hydrated_targets)
+        print(f"[Startup] Hydrated local targets: {hydrated_labels}", flush=True)

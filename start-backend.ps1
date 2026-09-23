@@ -35,10 +35,6 @@ Write-Host "Backend API:  http://localhost:8080" -ForegroundColor Cyan
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Set local ChromaDB Central URL
-$env:CHROMADB_CENTRAL_URL = "http://localhost:2000"
-Write-Host "CHROMADB_CENTRAL_URL = $env:CHROMADB_CENTRAL_URL" -ForegroundColor Cyan
-
 # Start the backend server
 & "$envPath\Scripts\python.exe" app.py
 

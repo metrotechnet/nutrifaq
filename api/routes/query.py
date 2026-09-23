@@ -15,6 +15,7 @@ from api.services.sessions import get_or_create_session, is_session_rate_limited
 from api.services.logging import save_question_response, contains_medical_disclaimer
 from api.services.generated_questions_loader import load_generated_questions
 from api.services.query_chromadb import ask_question_stream, get_debug_local_kb_root_folder
+import api.services.config as config_service
 
 router = APIRouter(dependencies=[Depends(require_client_or_query_key)])
 limiter = Limiter(key_func=get_remote_address)
@@ -29,11 +30,70 @@ def _resolve_requested_model(request: Request, query_request: QueryRequest) -> s
     return header_model or None
 
 
+def _resolve_runtime_provider_and_model(
+    request: Request,
+    query_request: QueryRequest,
+    *,
+    debug_mode: bool,
+) -> tuple[str | None, str | None]:
+    prefix = "DEBUG" if debug_mode else "PROD"
+
+    try:
+        config_service.load_prod_config(force_reload=False)
+    except Exception:
+        pass
+
+    config_values = config_service._GLOBAL_PROD_CONFIG
+    provider = str(config_values.get(f"{prefix}_PROVIDER", "") or "").strip().lower() or None
+    model = str(config_values.get(f"{prefix}_LLM", "") or "").strip() or None
+
+    if model is None:
+        model = _resolve_requested_model(request, query_request)
+
+    return provider, model
+
+
+def _resolve_runtime_chroma_path(*, debug_mode: bool, chroma_db_path: str | None) -> str | None:
+    def _normalize_chroma_path(value: str) -> str:
+        normalized = value.strip().replace("\\", "/")
+        if not normalized:
+            return normalized
+        if normalized.startswith("nutrifaq-dbase-main/"):
+            return normalized
+        if normalized.startswith("chroma_db_") and "/" not in normalized:
+            return f"nutrifaq-dbase-main/{normalized}"
+        if "/" not in normalized:
+            return f"nutrifaq-dbase-main/{normalized}"
+        return normalized
+
+    if chroma_db_path and chroma_db_path.strip():
+        return _normalize_chroma_path(chroma_db_path)
+
+    prefix = "DEBUG" if debug_mode else "PROD"
+
+    try:
+        config_service.load_prod_config(force_reload=False)
+    except Exception:
+        pass
+
+    config_values = config_service._GLOBAL_PROD_CONFIG
+    configured_path = (
+        config_values.get(f"{prefix}_SQLITE")
+        or config_values.get(f"{prefix}_CHROMA_DB_PATH")
+        or ""
+    )
+    configured_path = str(configured_path).strip()
+    if not configured_path:
+        return None
+    return _normalize_chroma_path(configured_path)
+
+
 def _query_agent_response(
     request: Request,
     query_request: QueryRequest,
     *,
     debug_mode: bool = False,
+    chroma_db_path: str | None = None,
 ):
     """Shared streaming response builder for /query and /query_debug."""
     # Rate-limit enforcement disabled temporarily.
@@ -65,14 +125,25 @@ def _query_agent_response(
 
             assistant_response = ""
             is_refusal = False
+            provider_name, selected_model = _resolve_runtime_provider_and_model(
+                request,
+                query_request,
+                debug_mode=debug_mode,
+            )
+            resolved_chroma_path = _resolve_runtime_chroma_path(
+                debug_mode=debug_mode,
+                chroma_db_path=chroma_db_path,
+            )
 
             for chunk in ask_question_stream(
                 query_request.question,
                 language=query_request.language,
                 timezone=query_request.timezone,
                 locale=query_request.locale,
-                llm_model=_resolve_requested_model(request, query_request),
+                llm_model=selected_model,
+                llm_provider=provider_name,
                 kb_root_folder=(get_debug_local_kb_root_folder() if debug_mode else None),
+                chroma_db_path=resolved_chroma_path,
                 conversation_history=conversation_history,
                 session=session,
                 question_id=question_id,
@@ -87,7 +158,6 @@ def _query_agent_response(
                 yield f"data: {json.dumps({'chunk': chunk})}\n\n"
 
             # Save question and response to log (including refused ones)
-            selected_model = _resolve_requested_model(request, query_request)
             save_question_response(question_id, query_request.question, assistant_response, model_used=selected_model)
 
             # Check if response contains medical disclaimer (don't show links)
@@ -135,18 +205,18 @@ def _query_agent_response(
 
 @router.post("/query")
 # @limiter.limit("10/hour")  # Max 10 questions per hour per IP
-async def query_agent(request: Request, query_request: QueryRequest):
+async def query_agent(request: Request, query_request: QueryRequest, chroma_db_path: str | None = None):
     """
     Main endpoint to ask questions to the agent and receive streaming responses
     """
-    return _query_agent_response(request, query_request, debug_mode=False)
+    return _query_agent_response(request, query_request, debug_mode=False, chroma_db_path=chroma_db_path)
 
 
 @router.post("/query_debug", dependencies=[Depends(require_admin)])
 # @limiter.limit("10/hour")
-async def query_agent_debug(request: Request, query_request: QueryRequest):
+async def query_agent_debug(request: Request, query_request: QueryRequest, chroma_db_path: str | None = None):
     """Admin-only debug query endpoint using the debug knowledge-base root."""
-    return _query_agent_response(request, query_request, debug_mode=True)
+    return _query_agent_response(request, query_request, debug_mode=True, chroma_db_path=chroma_db_path)
 
 
 @router.get("/api/generated-questions")

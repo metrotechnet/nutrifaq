@@ -1,7 +1,8 @@
 __pycache__/
 .venv/
-nutrifaq-dbase/
-nutrifaq-dbase-debug/
+nutrifaq-config/
+nutrifaq-dbase-prod/
+nutrifaq-dbase-main/
 node_modules/
 .backend-url.tmp
 .env
