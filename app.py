@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pathlib import Path
 import importlib
+from contextlib import asynccontextmanager
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -23,14 +24,19 @@ load_dotenv(dotenv_path=env_path)
 
 import os
 
-app = FastAPI(title="IMX Agent Factory - Nutrifaq Agent API", version="1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    sync_blob_databases_on_startup(app)
+    yield
+
+
+app = FastAPI(
+    title="IMX Agent Factory - Nutrifaq Agent API",
+    version="1.0",
+    lifespan=lifespan,
+)
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 app.state.database_sync_status = "synch"
-
-
-@app.on_event("startup")
-async def startup_load_blob_database():
-    sync_blob_databases_on_startup(app)
 
 # =====================================================
 # Rate Limiting Configuration
