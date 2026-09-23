@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from api.services.config import load_publish_log_entries, reset_publish_log_entries
 from api.services.entra_auth_service import EntraUser, require_admin
-from api.services.publish_service import get_publish_status, start_publish
+from api.services.publish_service import get_publish_status, start_publish, start_revert
 
 router = APIRouter()
 
@@ -27,6 +27,12 @@ def publish_now_api(
 
     provider = str(payload.provider or "vercel").strip() or "vercel"
     return start_publish(model=model, provider=provider)
+
+
+@router.post("/api/publish/revert")
+def revert_publish_api(_: EntraUser = Depends(require_admin)):
+    """Restore the previous container state into the main container and resync Chroma."""
+    return start_revert()
 
 
 @router.get("/api/publish/status")

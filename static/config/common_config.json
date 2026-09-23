@@ -301,7 +301,15 @@
       "confirm": {
         "title": "Confirmer la publication ?",
         "text": "Modèle : {model}",
+        "warning": "Attention : une fois lancée, la publication ne peut pas être annulée en cours.",
         "action": "Publier"
+      },
+      "revert": {
+        "title": "Confirmer la restauration ?",
+        "warning": "Attention : la restauration remplacera la base principale par la version précédente et ne peut pas être annulée en cours.",
+        "action": "Rétablir",
+        "inProgress": "Restauration en cours...",
+        "done": "Restauration terminée ({count} fichiers): {timestamp}"
       },
       "logs": {
         "loading": "Chargement des logs...",
@@ -650,7 +658,15 @@
       "confirm": {
         "title": "Confirm publication?",
         "text": "Model: {model}",
+        "warning": "Warning: once started, publishing cannot be cancelled while in progress.",
         "action": "Publish"
+      },
+      "revert": {
+        "title": "Confirm restore?",
+        "warning": "Warning: restoring will replace the main database with the previous version and cannot be cancelled while in progress.",
+        "action": "Restore",
+        "inProgress": "Restore in progress...",
+        "done": "Restore completed ({count} files): {timestamp}"
       },
       "logs": {
         "loading": "Loading logs...",

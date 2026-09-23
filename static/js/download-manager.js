@@ -72,6 +72,7 @@
         statusMessage: document.getElementById("status-message"),
         publishModelSelector: document.getElementById("publish-model-selector"),
         publishSubmit: document.getElementById("publish-submit"),
+        publishRevert: document.getElementById("publish-revert"),
         publishStatus: document.getElementById("publish-status"),
         publishFinishMessage: document.getElementById("publish-finish-message"),
         publishProgressWrap: document.getElementById("publish-progress-wrap"),
@@ -88,6 +89,7 @@
         els.publishSection = document.getElementById("publish-section");
         els.publishModelSelector = document.getElementById("publish-model-selector");
         els.publishSubmit = document.getElementById("publish-submit");
+        els.publishRevert = document.getElementById("publish-revert");
         els.publishStatus = document.getElementById("publish-status");
         els.publishFinishMessage = document.getElementById("publish-finish-message");
         els.publishProgressWrap = document.getElementById("publish-progress-wrap");
@@ -205,6 +207,10 @@
 
         if (els.publishSubmit) {
             els.publishSubmit.textContent = tr("publish.confirm.action", "Publier");
+        }
+
+        if (els.publishRevert) {
+            els.publishRevert.textContent = tr("publish.revert.action", "Rétablir");
         }
 
         const logsTitle = els.publishSection.querySelector(".publish-logs-header h3");
@@ -506,6 +512,7 @@
                     </div>
                     <div class="download-control-group actions">
                         <button id="publish-submit" class="dm-btn primary" type="button">${escapeHtml(tr("publish.confirm.action", "Publier"))}</button>
+                        <button id="publish-revert" class="dm-btn secondary" type="button">${escapeHtml(tr("publish.revert.action", "Rétablir"))}</button>
                     </div>
                 </div>
 
@@ -539,6 +546,9 @@
 
         if (els.publishSubmit) {
             els.publishSubmit.addEventListener("click", onPublishSubmit);
+        }
+        if (els.publishRevert) {
+            els.publishRevert.addEventListener("click", onRevertSubmit);
         }
         ensurePublishRefreshControl();
         bindPublishRefreshButton();
@@ -1279,8 +1289,8 @@
 
         const rows = logs.slice().reverse().map((entry, index) => {
             const timestampRaw = String(entry.timestamp || "-");
-            const modelRaw = String(entry.model || tr("publish.logs.modelUnknown", "inconnu"));
-            const providerRaw = String(entry.provider || tr("publish.logs.providerUnknown", "inconnu"));
+            const modelRaw = String(entry.model_used || entry.model || tr("publish.logs.modelUnknown", "inconnu"));
+            const providerRaw = String(entry.provider_used || entry.provider || tr("publish.logs.providerUnknown", "inconnu"));
             const filesCountRaw = Number(entry.files_count || 0);
 
             const ts = escapeHtml(formatDate(timestampRaw));
@@ -1350,8 +1360,17 @@
                 if (!running && data.status === "completed") {
                     const filesCount = Number(data.uploaded_files_count || 0);
                     const timestamp = new Date().toLocaleString();
-                    const finishedText = `Publication terminee (${filesCount} fichiers): ${timestamp}`;
-                    setPublishStatus(finishedText, false);
+                    const operation = String(data.operation || "publish");
+                    if (operation === "revert") {
+                        const finishedText = tr("publish.revert.done", "Restauration terminee ({count} fichiers): {timestamp}", {
+                            count: filesCount,
+                            timestamp,
+                        });
+                        setPublishStatus(finishedText, false);
+                    } else {
+                        const finishedText = `Publication terminee (${filesCount} fichiers): ${timestamp}`;
+                        setPublishStatus(finishedText, false);
+                    }
                     setPublishProgress(100, "100%");
                     setPublishFinishMessage("");
                     window.clearInterval(publishStatusTimer);
@@ -1361,7 +1380,9 @@
                 }
 
                 if (!running && data.status === "error") {
-                    setPublishStatus(data.error || "Erreur de publication.", true);
+                    const operation = String(data.operation || "publish");
+                    const defaultError = operation === "revert" ? "Erreur de restauration." : "Erreur de publication.";
+                    setPublishStatus(data.error || defaultError, true);
                     setPublishFinishMessage("");
                     setPublishProgress(100, "100%");
                     window.clearInterval(publishStatusTimer);
@@ -1427,6 +1448,44 @@
             startPublishStatusPolling();
         } catch (error) {
             const message = error && error.message ? error.message : "Erreur de publication.";
+            setPublishStatus(message, true);
+            setPublishFinishMessage("");
+            hidePublishProgress();
+        }
+    }
+
+    async function onRevertSubmit() {
+        const confirmed = await confirmAction({
+            title: tr("publish.revert.title", "Confirmer la restauration ?"),
+            text: tr("publish.revert.warning", "Attention : la restauration remplacera la base principale par la version precedente."),
+            confirmText: tr("publish.revert.action", "Rétablir"),
+        });
+
+        if (!confirmed) {
+            return;
+        }
+
+        setPublishProgress(5, "5%");
+        setPublishStatus(tr("publish.revert.inProgress", "Restauration en cours..."), false);
+        setPublishFinishMessage("");
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/publish/revert`, {
+                method: "POST",
+                headers: {
+                    ...authHeaders(),
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.detail || payload.message || response.statusText || "Restauration impossible.");
+            }
+
+            startPublishStatusPolling();
+        } catch (error) {
+            const message = error && error.message ? error.message : "Erreur de restauration.";
             setPublishStatus(message, true);
             setPublishFinishMessage("");
             hidePublishProgress();
