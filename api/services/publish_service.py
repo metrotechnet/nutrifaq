@@ -13,7 +13,7 @@ from api.services.blob_storage_service import (
     sync_blob_prefix_to_local,
     sync_local_directory_to_blob,
 )
-from api.services.config import append_publish_log_entry, sync_next_prod_chroma_from_main
+from api.services.config import append_publish_log_entry, sync_next_prod_chroma_from_main, update_prod_config, update_prod_config
 from api.services.database_regeneration_service import run_full_regeneration
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -102,7 +102,7 @@ def _run_publish_job(model: str, provider: str) -> None:
             message="Regenerating local database...",
             message_key="publish.status.regeneratingDb",
         )
-
+        # Regenerate the local database before backing up the current main database
         regeneration_result = run_full_regeneration(
             include_extract_docx=False,
             include_extract_references=False,
@@ -120,6 +120,7 @@ def _run_publish_job(model: str, provider: str) -> None:
             message="Backing up current database...",
             message_key="publish.status.backingUp",
         )
+        # Backup the current main database to the previous container
         backup_result = copy_blobs_between_containers(
             source_container=main_container,
             destination_container=prev_container,
@@ -132,6 +133,7 @@ def _run_publish_job(model: str, provider: str) -> None:
             message="Saving new database...",
             message_key="publish.status.savingDatabase",
         )
+        # Sync local main KB folder to the main container in Azure Blob Storage
         sync_local_directory_to_blob(
             source_root=local_main_root,
             destination_prefix="",
@@ -144,7 +146,9 @@ def _run_publish_job(model: str, provider: str) -> None:
             message="Updating production database...",
             message_key="publish.status.updatingProduction",
         )
-        source_chroma, target_chroma, old_prod_sqlite, new_prod_sqlite = sync_next_prod_chroma_from_main()
+
+        # Sync the next production Chroma database from the main database
+        source_chroma, target_chroma, old_prod_sqlite, new_prod_sqlite = sync_next_prod_chroma_from_main(provider, model)
 
         _set_publish_state(
             progress=95,

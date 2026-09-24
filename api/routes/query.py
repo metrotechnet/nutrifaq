@@ -163,7 +163,9 @@ def _query_agent_response(
                 yield f"data: {json.dumps({'chunk': chunk})}\n\n"
 
             # Save question and response to log (including refused ones)
-            save_question_response(question_id, query_request.question, assistant_response, model_used=selected_model)
+            # Only save in debug mode
+            if debug_mode:
+                save_question_response(question_id, query_request.question, assistant_response, model_used=selected_model)
 
             # Check if response contains medical disclaimer (don't show links)
             has_medical_disclaimer = contains_medical_disclaimer(assistant_response)

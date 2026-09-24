@@ -345,7 +345,7 @@
       "started": "Publication lancée en arrière-plan.",
       "preparing": "Préparation de la publication...",
       "regeneratingDb": "Régénération de la base locale...",
-      "backingUp": "Sauvegarde de la base actuelle...",
+      "backingUp": "Sauvegarde de la base deactuelle...",
       "savingDatabase": "Sauvegarde de la nouvelle base...",
       "updatingProduction": "Mise à jour de la base de production...",
       "writingLog": "Écriture du journal de publication...",

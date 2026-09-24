@@ -233,25 +233,23 @@ def resolve_chroma_copy_paths(
 
 
 def sync_next_prod_chroma_from_main(
-    dbase_main_target_root: Path | None = None,
-    dbase_prod_target_root: Path | None = None,
+    provider: str | None = None,
+    model: str | None = None,
 ) -> tuple[Path, Path, str, str]:
     """Copy next Chroma folder from main to prod using the active global project roots."""
-    main_root = dbase_main_target_root or DBASE_MAIN_TARGET_ROOT
-    prod_root = dbase_prod_target_root or DBASE_PROD_TARGET_ROOT
 
     prod_config = _GLOBAL_PROD_CONFIG.copy() if _GLOBAL_PROD_CONFIG else load_prod_config(force_reload=False)
 
     source_chroma, target_chroma, current_prod_sqlite = resolve_chroma_copy_paths(
         prod_config,
-        main_root,
-        prod_root,
+        DBASE_MAIN_TARGET_ROOT,
+        DBASE_PROD_TARGET_ROOT,
     )
 
     if not source_chroma.exists():
         raise FileNotFoundError(f"Source Chroma path not found: {source_chroma}")
 
-    prod_root.mkdir(parents=True, exist_ok=True)
+    DBASE_PROD_TARGET_ROOT.mkdir(parents=True, exist_ok=True)
     if target_chroma.exists():
         shutil.rmtree(target_chroma)
 
@@ -259,6 +257,9 @@ def sync_next_prod_chroma_from_main(
 
     new_prod_sqlite = f"{target_chroma.name}"
     update_prod_config({"PROD_SQLITE": new_prod_sqlite})
+    # Update production configuration with the new model and provider
+    update_prod_config({"PROD_LLM": model})
+    update_prod_config({"PROD_PROVIDER": provider})
 
     return source_chroma, target_chroma, current_prod_sqlite, new_prod_sqlite
 

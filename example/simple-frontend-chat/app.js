@@ -43,6 +43,16 @@ function addBubble(role, initialText = "") {
   return bubble;
 }
 
+function loadingDotsMarkup() {
+  return `
+    <div class="loading" aria-label="Generation en cours" role="status">
+      <span class="loading-dot"></span>
+      <span class="loading-dot"></span>
+      <span class="loading-dot"></span>
+    </div>
+  `;
+}
+
 function setLoading(isLoading) {
   input.disabled = isLoading;
   sendBtn.disabled = isLoading;
@@ -143,7 +153,8 @@ form.addEventListener("submit", async (event) => {
   }
 
   addBubble("user", question);
-  const assistantBubble = addBubble("assistant", "Generation de la reponse...");
+  const assistantBubble = addBubble("assistant", "");
+  assistantBubble.innerHTML = loadingDotsMarkup();
   input.value = "";
   setLoading(true);
 
