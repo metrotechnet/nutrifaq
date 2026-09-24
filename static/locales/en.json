@@ -420,6 +420,9 @@
       "questionsResetSuccess": "Question log has been reset.",
       "resetError": "Error while resetting publish log: {error}",
       "questionsResetError": "Error while resetting question log: {error}"
+    },
+    "popup": {
+      "completedText": "Publication completed successfully ({count} files)."
     }
   },
   "about": {

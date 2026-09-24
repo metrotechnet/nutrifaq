@@ -253,9 +253,9 @@ def sync_next_prod_chroma_from_main(
 
     prod_root.mkdir(parents=True, exist_ok=True)
     if target_chroma.exists():
-        shutil.rmtree(target_chroma, ignore_errors=True)
+        shutil.rmtree(target_chroma)
 
-    shutil.copytree(source_chroma, target_chroma, dirs_exist_ok=True)
+    shutil.copytree(source_chroma, target_chroma)
 
     new_prod_sqlite = f"{target_chroma.name}"
     update_prod_config({"PROD_SQLITE": new_prod_sqlite})

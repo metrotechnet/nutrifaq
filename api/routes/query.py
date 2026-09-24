@@ -66,9 +66,9 @@ def _resolve_runtime_chroma_path(*, debug_mode: bool, chroma_db_path: str | None
         if normalized.startswith("nutrifaq-dbase-main/"):
             return normalized
         if normalized.startswith("chroma_db_") and "/" not in normalized:
-            return f"nutrifaq-dbase-main/{normalized}"
+            return f"nutrifaq-dbase-prod/{normalized}"
         if "/" not in normalized:
-            return f"nutrifaq-dbase-main/{normalized}"
+            return f"nutrifaq-dbase-prod/{normalized}"
         return normalized
 
     if chroma_db_path and chroma_db_path.strip():

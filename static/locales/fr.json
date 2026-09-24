@@ -421,6 +421,9 @@
       "questionsResetSuccess": "Le journal des questions a été réinitialisé.",
       "resetError": "Erreur lors de la réinitialisation du journal : {error}",
       "questionsResetError": "Erreur lors de la réinitialisation du journal des questions : {error}"
+    },
+    "popup": {
+      "completedText": "Publication terminee avec succes ({count} fichiers)."
     }
   },
   "about": {

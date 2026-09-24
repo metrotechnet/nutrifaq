@@ -6,7 +6,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from api.services.blob_storage_service import copy_blobs_between_containers, sync_blob_prefix_to_local, sync_local_directory_to_blob
+from api.services.blob_storage_service import (
+    copy_blobs_between_containers,
+    delete_blob,
+    list_blob_files,
+    sync_blob_prefix_to_local,
+    sync_local_directory_to_blob,
+)
 from api.services.config import append_publish_log_entry, sync_next_prod_chroma_from_main
 from api.services.database_regeneration_service import run_full_regeneration
 
@@ -54,6 +60,16 @@ def get_publish_status() -> dict[str, Any]:
         "error_key": state.get("error_key", "publish.status.error"),
         "result": state.get("result"),
     }
+
+
+def _clear_blob_destination(container_name: str, prefix: str = "") -> int:
+    prefix_value = (prefix or "").strip("/") or None
+    blobs = list_blob_files(prefix=prefix_value, container_name=container_name)
+    removed = 0
+    for blob in blobs:
+        delete_blob(blob.name, container_name=container_name)
+        removed += 1
+    return removed
 
 
 def _run_publish_job(model: str, provider: str) -> None:

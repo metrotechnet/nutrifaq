@@ -1752,6 +1752,14 @@
                             { count: filesCount, timestamp }
                         );
                         setPublishStatus(finishedText, false);
+                        showAlertMessage(
+                            tr(
+                                "publish.popup.completedText",
+                                "Publication terminee avec succes ({count} fichiers).",
+                                { count: filesCount }
+                            ),
+                            false
+                        );
                     }
                     setPublishProgress(100, "100%");
                     setPublishFinishMessage("");
