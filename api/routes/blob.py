@@ -73,6 +73,35 @@ def _local_file_path(blob_name: str, root_folder: str | None = None) -> Path:
     return _debug_local_root(root_folder) / relative_name
 
 
+def _related_transcript_paths(document_path: Path, root_folder: str | None = None) -> list[Path]:
+    """Return transcript files that correspond to a document path under documents/."""
+    local_root = _debug_local_root(root_folder)
+    documents_root = local_root / "documents"
+    transcripts_root = local_root / "transcripts"
+    if not transcripts_root.exists():
+        return []
+
+    try:
+        relative_doc = document_path.relative_to(documents_root)
+    except ValueError:
+        return []
+
+    candidates = [
+        transcripts_root / relative_doc.with_suffix(".txt"),
+        transcripts_root / f"{relative_doc.stem}.txt",
+    ]
+
+    unique_candidates: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        unique_candidates.append(candidate)
+
+    return unique_candidates
+
+
 def _normalize_requested_prefix(prefix: str, container_name: str | None = None) -> str:
     """Normalize optional user prefix and tolerate container-qualified notation."""
     raw = prefix.strip().lstrip("/")
@@ -218,8 +247,28 @@ def remove_file(
         target_path = _local_file_path(blob_name)
         if not target_path.exists():
             raise FileNotFoundError(f"File not found: {blob_name}")
+
+        removed_files: list[str] = []
+
+        transcript_paths = _related_transcript_paths(target_path)
         target_path.unlink()
-        return JSONResponse(status_code=200, content={"status": "ok", "blob_name": blob_name})
+        removed_files.append(str(target_path))
+
+        for transcript_path in transcript_paths:
+            if transcript_path.exists() and transcript_path.is_file():
+                transcript_path.unlink()
+                removed_files.append(str(transcript_path))
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "ok",
+                "blob_name": blob_name,
+                "removed_files": removed_files,
+            },
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

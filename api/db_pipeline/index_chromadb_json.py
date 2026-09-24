@@ -135,13 +135,26 @@ def index_chromadb_json(kb_path):
     print(f"Embedding provider: {embedding_provider}")
     print(f"Loading JSON from: {json_file}")
 
-    with open(json_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    if json_file.stat().st_size == 0:
+        print(f"Error: {json_file} is empty.")
+        print("Run generate_transcripts_json first and ensure it produced valid content.")
+        return
+
+    try:
+        with open(json_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as exc:
+        print(f"Error: invalid JSON in {json_file} ({exc}).")
+        print("Run generate_transcripts_json first and ensure it produced valid content.")
+        return
 
     documents = data.get("documents", [])
     if not documents:
         print("No documents found in JSON file")
         return
+
+    # Always start from a clean local ChromaDB folder before indexing.
+    _reset_chroma_directory(kb_path)
 
     print(f"Found {len(documents)} documents to index\n")
 

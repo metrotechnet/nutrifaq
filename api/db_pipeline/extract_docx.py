@@ -37,6 +37,11 @@ def extract_all_documents(folder_path, output_folder=None):
         output_folder = str(Path(folder_path).parent / "transcripts")
     os.makedirs(output_folder, exist_ok=True)
 
+    output_dir = Path(output_folder)
+    for existing_file in output_dir.iterdir():
+        if existing_file.is_file():
+            existing_file.unlink(missing_ok=True)
+
     docx_files = [f for f in os.listdir(folder_path) if f.endswith(".docx") and not f.startswith("~$")]
 
     print(f"Found {len(docx_files)} documents\n")

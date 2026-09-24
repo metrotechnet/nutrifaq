@@ -136,28 +136,26 @@ def process_documents(documents_dir: Path):
     return results
 
 
-def main():
-    kb_path = resolve_kb_path()
-    documents_dir = kb_path / "documents"
-    output_file = kb_path / "references.json"
+def main() -> None:
+    kb_root = resolve_kb_path()
+    documents_dir = kb_root / "documents"
+    output_path = kb_root / "references.json"
 
-    documents = process_documents(documents_dir)
+    print(f"Scanning documents in: {documents_dir}")
+    results = process_documents(documents_dir)
 
-    output = []
-    for doc in documents:
-        output.append(
-            {
-                "filename": doc["filename"],
-                "text": doc["text"],
-                "references": doc["references"],
-            }
-        )
+    payload = {
+        "total_documents": len(results),
+        "documents": results,
+    }
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
 
-    print(f"Done. Output: {output_file}")
+    print(f"\nSaved references to: {output_path}")
 
 
 if __name__ == "__main__":
     main()
+

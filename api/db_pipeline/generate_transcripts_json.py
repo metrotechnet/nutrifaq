@@ -22,15 +22,12 @@ def generate_transcripts_json(kb_dir: Path):
     documents_dir = kb_dir / "documents"
     output_path = kb_dir / "transcripts_chromadb.json"
 
-    config_path = kb_dir / "config.json"
-    agent_id = "agent"
-    if config_path.exists():
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-                agent_id = config.get("agent_id", "agent")
-        except Exception as e:
-            print(f"Could not read agent_id from config.json: {e}")
+    # Keep existing transcripts; this step consumes .txt files from transcripts/.
+    transcripts_dir.mkdir(parents=True, exist_ok=True)
+
+    # Start from a clean output file for each regeneration run.
+    if output_path.exists():
+        output_path.unlink()
 
     documents = []
     doc_counter = 0
@@ -153,7 +150,7 @@ def generate_transcripts_json(kb_dir: Path):
         return False
 
     transcripts_data = {
-        "knowledge_base": agent_id,
+        "knowledge_base": "agent",
         "format": "chromadb",
         "total_documents": len(documents),
         "extracted_at": datetime.now().isoformat(),
@@ -172,20 +169,23 @@ def generate_transcripts_json(kb_dir: Path):
         return False
 
 
-def main():
+def main() -> int:
     if len(sys.argv) != 2:
         print("Usage: python generate_transcripts_json.py <path_to_knowledge_base>")
-        sys.exit(1)
+        return 1
 
     kb_dir = Path(sys.argv[1])
 
     if not kb_dir.exists():
         print(f"Directory not found: {kb_dir}")
-        sys.exit(1)
+        return 1
 
     success = generate_transcripts_json(kb_dir)
-    sys.exit(0 if success else 1)
+    return 0 if success else 1
 
 
 if __name__ == "__main__":
-    main()
+    exit_code = main()
+    # Avoid debugger interruptions on expected non-zero exits.
+    if sys.gettrace() is None and exit_code != 0:
+        raise SystemExit(exit_code)

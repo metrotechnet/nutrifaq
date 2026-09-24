@@ -41,8 +41,8 @@ STEP_ORDER: list[str] = [
     "extract_docx",
     "extract_references",
     "generate_transcripts_json",
-    "generate_questions",
     "index_chromadb_json",
+    "generate_questions",
 ]
 
 STEP_LABELS: dict[str, str] = {
@@ -235,6 +235,9 @@ def _start_regeneration() -> bool:
         _regen_state["cancel_requested"] = False
         _regen_state["current_step"] = None
         _regen_state["active_process"] = None
+        _regen_state["progress_value"] = None
+        _regen_state["progress_total"] = None
+        _regen_state["progress_kind"] = None
         return True
 
 
@@ -244,6 +247,9 @@ def _finish_regeneration() -> None:
         _regen_state["cancel_requested"] = False
         _regen_state["current_step"] = None
         _regen_state["active_process"] = None
+        _regen_state["progress_value"] = None
+        _regen_state["progress_total"] = None
+        _regen_state["progress_kind"] = None
 
 
 def _set_current_step(step_key: str | None) -> None:
@@ -679,6 +685,26 @@ def _save_chromadb_to_blob_and_local_copy(
     }
 
 
+def _has_readable_documents(local_kb_root: Path) -> bool:
+    """Return True when documents/ contains at least one readable source file."""
+    documents_dir = local_kb_root / "documents"
+    if not documents_dir.exists() or not documents_dir.is_dir():
+        return False
+
+    allowed_extensions = {".docx", ".json", ".txt", ".md"}
+
+    for path in documents_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.name.startswith("~$"):
+            continue
+        if path.suffix.lower() not in allowed_extensions:
+            continue
+        return True
+
+    return False
+
+
 def run_full_regeneration(
     include_extract_docx: bool = False,
     include_extract_references: bool = False,
@@ -689,8 +715,8 @@ def run_full_regeneration(
 
     The core sequence mirrors build-database.bat with question generation:
     1) generate_transcripts_json
-    2) generate_questions
-    3) index_chromadb_json
+    2) index_chromadb_json
+    3) generate_questions
 
     Optional preprocessing steps can be added before it.
     """
@@ -713,56 +739,66 @@ def run_full_regeneration(
     )
     resolved_local_kb_root = REPO_ROOT / resolved_root_folder
 
-    pipeline: List[str] = []
-    if include_extract_docx:
-        pipeline.append("extract_docx")
-    if include_extract_references:
-        pipeline.append("extract_references")
-
-    pipeline.extend(["generate_transcripts_json", "generate_questions", "index_chromadb_json"])
-
-    results: List[Dict[str, object]] = []
-    regen_env = {
-        "AZURE_KB_BLOB_PREFIX": resolved_root_folder,
-        "AZURE_STORAGE_CONTAINER": resolved_container_name,
-        "AZURE_KB_BLOB_CONTAINER": resolved_container_name,
-        "NUTRIFAQ_KB_ROOT": str(resolved_local_kb_root),
-    }
-
-    step_services = {
-        "extract_docx": lambda: _run_step_with_env(
-            "extract_docx",
-            env_overrides=regen_env,
-            step_args_override=[str(resolved_local_kb_root)],
-            cwd_override=resolved_local_kb_root,
-        ),
-        "extract_references": lambda: _run_step_with_env(
-            "extract_references",
-            env_overrides=regen_env,
-            step_args_override=[str(resolved_local_kb_root)],
-            cwd_override=resolved_local_kb_root,
-        ),
-        "generate_transcripts_json": lambda: _run_step_with_env(
-            "generate_transcripts_json",
-            env_overrides=regen_env,
-            step_args_override=[str(resolved_local_kb_root)],
-            cwd_override=resolved_local_kb_root,
-        ),
-        "generate_questions": lambda: run_generate_questions_step(
-            question_count=3,
-            source_root_folder=resolved_root_folder,
-            target_container_name=resolved_container_name,
-            target_root_folder=resolved_root_folder,
-        ),
-        "index_chromadb_json": lambda: _run_step_with_env(
-            "index_chromadb_json",
-            env_overrides=regen_env,
-            step_args_override=[str(resolved_local_kb_root)],
-            cwd_override=resolved_local_kb_root,
-        ),
-    }
-
     try:
+        if not _has_readable_documents(resolved_local_kb_root):
+            return {
+                "status": "error",
+                "message": "No document to read in documents/. Please upload at least one document before running regeneration.",
+                "effective_target": {
+                    "container": resolved_container_name,
+                    "root_folder": resolved_root_folder,
+                },
+            }
+
+        pipeline: List[str] = []
+        if include_extract_docx:
+            pipeline.append("extract_docx")
+        if include_extract_references:
+            pipeline.append("extract_references")
+    
+        pipeline.extend(["generate_transcripts_json", "index_chromadb_json", "generate_questions"])
+
+        results: List[Dict[str, object]] = []
+        regen_env = {
+            "AZURE_KB_BLOB_PREFIX": resolved_root_folder,
+            "AZURE_STORAGE_CONTAINER": resolved_container_name,
+            "AZURE_KB_BLOB_CONTAINER": resolved_container_name,
+            "NUTRIFAQ_KB_ROOT": str(resolved_local_kb_root),
+        }
+
+        step_services = {
+            "extract_docx": lambda: _run_step_with_env(
+                "extract_docx",
+                env_overrides=regen_env,
+                step_args_override=[str(resolved_local_kb_root)],
+                cwd_override=resolved_local_kb_root,
+            ),
+            "extract_references": lambda: _run_step_with_env(
+                "extract_references",
+                env_overrides=regen_env,
+                step_args_override=[str(resolved_local_kb_root)],
+                cwd_override=resolved_local_kb_root,
+            ),
+            "generate_transcripts_json": lambda: _run_step_with_env(
+                "generate_transcripts_json",
+                env_overrides=regen_env,
+                step_args_override=[str(resolved_local_kb_root)],
+                cwd_override=resolved_local_kb_root,
+            ),
+            "generate_questions": lambda: run_generate_questions_step(
+                question_count=3,
+                source_root_folder=resolved_root_folder,
+                target_container_name=resolved_container_name,
+                target_root_folder=resolved_root_folder,
+            ),
+            "index_chromadb_json": lambda: _run_step_with_env(
+                "index_chromadb_json",
+                env_overrides=regen_env,
+                step_args_override=[str(resolved_local_kb_root)],
+                cwd_override=resolved_local_kb_root,
+            ),
+        }
+
         for step_key in pipeline:
             _set_current_step(step_key)
             if _is_cancel_requested():

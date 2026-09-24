@@ -83,13 +83,38 @@ def _build_llm_prompt(text_excerpt: str, topic: str, question_count: int) -> str
     ).format(count=question_count, topic=topic, text=text_excerpt)
 
 
+def _load_transcripts_payload(transcripts_path: Path) -> dict:
+    try:
+        raw = transcripts_path.read_text(encoding="utf-8")
+    except Exception as exc:
+        raise RuntimeError(f"Unable to read input file: {transcripts_path} ({exc})") from exc
+
+    if not raw.strip():
+        raise RuntimeError(
+            f"Input file is empty: {transcripts_path}. "
+            "Regenerate transcripts_chromadb.json before running question generation."
+        )
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"Invalid JSON in {transcripts_path}: line {exc.lineno}, column {exc.colno}. "
+            "Regenerate transcripts_chromadb.json and retry."
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Invalid JSON root in {transcripts_path}: expected an object.")
+
+    return payload
+
+
 def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
     transcripts_path = kb_root / "transcripts_chromadb.json"
     if not transcripts_path.exists():
         raise FileNotFoundError(f"Missing input file: {transcripts_path}")
 
-    with open(transcripts_path, "r", encoding="utf-8") as handle:
-        payload = json.load(handle)
+    payload = _load_transcripts_payload(transcripts_path)
 
     documents = payload.get("documents", []) if isinstance(payload, dict) else []
     if not isinstance(documents, list) or not documents:
@@ -167,31 +192,39 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
+    if len(sys.argv) not in {2, 3}:
         print("Usage: python generate_questions_json.py <knowledge_base_path> [question_count]")
         return 1
 
-    kb_root = Path(sys.argv[1]).resolve()
-    question_count = 3
-    if len(sys.argv) >= 3:
-        try:
-            question_count = max(1, int(sys.argv[2]))
-        except ValueError:
-            print(f"Invalid question_count: {sys.argv[2]}")
-            return 1
-
+    kb_root = Path(sys.argv[1])
     if not kb_root.exists():
         print(f"Directory not found: {kb_root}")
         return 1
 
     try:
-        output_path = generate_questions_json(kb_root, question_count=question_count)
+        question_count = int(sys.argv[2]) if len(sys.argv) == 3 else 3
+    except ValueError:
+        print("question_count must be an integer.")
+        return 1
+
+    if question_count < 1:
+        print("question_count must be >= 1")
+        return 1
+
+    try:
+        output_path = generate_questions_json(kb_root=kb_root, question_count=question_count)
         print(f"Generated questions file: {output_path}")
         return 0
     except Exception as exc:
-        print(f"Failed to generate questions: {exc}")
+        print(f"Error generating questions: {exc}")
         return 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    exit_code = main()
+    # Avoid debugger interruptions on expected non-zero exits.
+    if sys.gettrace() is None and exit_code != 0:
+        raise SystemExit(exit_code)
+
+
+

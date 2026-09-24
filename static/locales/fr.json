@@ -103,9 +103,9 @@
     "publishItem2": "Publiez. Cette étape peut prendre un peu de temps.",
     "publishItem3": "Si vous n'êtes pas satisfait ou en cas d'erreur, vous pouvez revenir à la version précédente.",
     "publishItem4": "Exportez les logs si vous devez archiver ou analyser les interactions.",
-    "dropZoneTitle": "Glissez-déposez un fichier ici",
+    "dropZoneTitle": "Glissez-déposez vos fichiers ici",
     "or": "ou",
-    "browse": "Choisir un fichier",
+    "browse": "Choisir vos fichiers",
     "noFileSelected": "Aucun fichier sélectionné.",
     "resetFiles": "Réinitialiser les fichiers",
     "startIndexing": "Démarrer l'indexation",
@@ -275,7 +275,7 @@
       "noFiles": "Aucun fichier trouvé pour ce filtre.",
       "loading": "Chargement...",
       "errorPrefix": "Erreur: ",
-      "download": "Indexer",
+      "download": "Télécharger",
       "delete": "Supprimer"
     },
     "status": {

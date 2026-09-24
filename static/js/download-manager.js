@@ -689,6 +689,7 @@
     let currentStepPercent = 0;
     let isStepTransitioning = false;
     let stepSwitchTimer = null;
+    let currentFiles = [];
 
     const STEP_LABELS = {
         extract_docx: "downloadManager.steps.extract_docx",
@@ -1240,6 +1241,13 @@
         if (chatTopSpacer) {
             chatTopSpacer.style.display = "none";
         }
+        refreshFilesForDownloadView();
+    }
+
+    function refreshFilesForDownloadView() {
+        loadFiles().catch(() => {
+            // Errors are already handled inside loadFiles.
+        });
     }
 
     function activatePublishView() {
@@ -1328,6 +1336,17 @@
         syncSuggestedPanelToggleButton();
     }
 
+    function refreshSuggestedQuestionsForChatView() {
+        const loader = window.ChatModule && window.ChatModule.loadSuggestedQuestions;
+        if (typeof loader !== "function") {
+            return;
+        }
+
+        loader().catch(() => {
+            // Keep navigation responsive even if refresh fails.
+        });
+    }
+
     function activateTesterView() {
         const chatContainer = document.getElementById("chat-container");
         const chatMainLayout = document.getElementById("chat-main-layout");
@@ -1372,6 +1391,7 @@
             emptyState.style.display = "";
         }
         syncSuggestedPanelToggleButton();
+        refreshSuggestedQuestionsForChatView();
     }
 
     function activateAuthView() {
@@ -2008,6 +2028,62 @@
         els.filesTbody.innerHTML = rows.join("");
     }
 
+    function setFilesFoundStatus(count) {
+        setStatus(tr("downloadManager.status.filesFound", "{count} fichier(s) trouvé(s).", {
+            count: Number(count || 0),
+            container: tr("downloadManager.status.defaultContainer", "le conteneur")
+        }), false);
+    }
+
+    function upsertLocalFileEntry(file) {
+        if (!file) {
+            return;
+        }
+
+        const blobName = file.blob_name || file.name || "";
+        if (!blobName) {
+            return;
+        }
+
+        const normalized = {
+            ...file,
+            name: blobName,
+            blob_name: blobName,
+            filename: file.filename || blobName.split("/").pop() || "-",
+            size: Number(file.size_bytes ?? file.size ?? 0),
+            last_modified: file.last_modified || new Date().toISOString(),
+        };
+
+        const index = currentFiles.findIndex((entry) => {
+            const entryName = entry.blob_name || entry.name || "";
+            return entryName === blobName;
+        });
+
+        if (index >= 0) {
+            currentFiles[index] = normalized;
+        } else {
+            currentFiles.push(normalized);
+        }
+    }
+
+    function removeLocalFileEntry(blobName) {
+        if (!blobName) {
+            return false;
+        }
+
+        const before = currentFiles.length;
+        currentFiles = currentFiles.filter((entry) => {
+            const entryName = entry.blob_name || entry.name || "";
+            return entryName !== blobName;
+        });
+        return currentFiles.length < before;
+    }
+
+    function refreshLocalFilesTable() {
+        renderRows(currentFiles);
+        setFilesFoundStatus(currentFiles.length);
+    }
+
     function escapeHtml(value) {
         return String(value)
             .replace(/&/g, "&amp;")
@@ -2030,11 +2106,8 @@
                     ...authHeaders()
                 }
             });
-            renderRows(Array.isArray(data.files) ? data.files : []);
-            setStatus(tr("downloadManager.status.filesFound", "{count} fichier(s) trouvé(s).", {
-                count: data.count || 0,
-                container: data.container || tr("downloadManager.status.defaultContainer", "le conteneur")
-            }), false);
+            currentFiles = Array.isArray(data.files) ? data.files : [];
+            refreshLocalFilesTable();
         } catch (error) {
             if (els.filesTbody) {
                 els.filesTbody.innerHTML = `<tr><td colspan="4">${escapeHtml(tr("downloadManager.table.errorPrefix", "Erreur: "))}${escapeHtml(error.message)}</td></tr>`;
@@ -2065,7 +2138,12 @@
                 }
             });
             setStatus(tr("downloadManager.status.deleted", "Fichier supprimé: {name}", { name: blobName }), false);
-            await loadFiles();
+            const removed = removeLocalFileEntry(blobName);
+            if (removed) {
+                refreshLocalFilesTable();
+            } else {
+                await loadFiles();
+            }
         } catch (error) {
             setStatus(tr("downloadManager.status.deleteError", "Erreur suppression: {error}", { error: error.message }), true);
         }
@@ -2096,7 +2174,6 @@
             URL.revokeObjectURL(objectUrl);
 
             setStatus(tr("downloadManager.status.downloadStarted", "Téléchargement lancé: {name}", { name: blobName }), false);
-            await loadFiles();
         } catch (error) {
             setStatus(tr("downloadManager.status.downloadError", "Erreur téléchargement: {error}", { error: error.message }), true);
         }
@@ -2128,8 +2205,17 @@
                 throw new Error(payload.detail || payload.message || response.statusText);
             }
 
-            setStatus(tr("downloadManager.status.uploaded", "Fichier téléversé: {name}", { name: payload.blob_name || blobName }), false);
-            await loadFiles();
+            const resolvedBlobName = payload.blob_name || blobName;
+            upsertLocalFileEntry({
+                blob_name: resolvedBlobName,
+                name: resolvedBlobName,
+                filename: safeFileName,
+                size: Number(inputFile.size || 0),
+                last_modified: new Date().toISOString(),
+            });
+            refreshLocalFilesTable();
+
+            setStatus(tr("downloadManager.status.uploaded", "Fichier téléversé: {name}", { name: resolvedBlobName }), false);
         } catch (error) {
             setStatus(tr("downloadManager.status.uploadError", "Erreur upload: {error}", { error: error.message }), true);
         }
@@ -2153,14 +2239,28 @@
             event.stopPropagation();
         };
 
-        const handleSelectedFile = async (file) => {
-            if (!file) {
+        const handleSelectedFiles = async (files) => {
+            const selectedFiles = Array.from(files || []).filter(Boolean);
+            if (selectedFiles.length === 0) {
                 return;
             }
+
             if (els.fileName) {
-                els.fileName.textContent = tr("downloadManager.status.fileSelected", "Fichier sélectionné: {name}", { name: file.name });
+                if (selectedFiles.length === 1) {
+                    els.fileName.textContent = tr("downloadManager.status.fileSelected", "Fichier sélectionné: {name}", { name: selectedFiles[0].name });
+                } else {
+                    els.fileName.textContent = tr(
+                        "downloadManager.status.filesSelected",
+                        "{count} fichiers sélectionnés.",
+                        { count: selectedFiles.length }
+                    );
+                }
             }
-            await uploadFile(file);
+
+            for (const file of selectedFiles) {
+                await uploadFile(file);
+            }
+
             fileInput.value = "";
         };
 
@@ -2179,8 +2279,8 @@
         });
 
         zone.addEventListener("drop", async (event) => {
-            const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
-            await handleSelectedFile(file);
+            const files = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : [];
+            await handleSelectedFiles(files);
         });
 
         const openPicker = () => fileInput.click();
@@ -2202,8 +2302,8 @@
         }
 
         fileInput.addEventListener("change", async (event) => {
-            const file = event.target && event.target.files && event.target.files[0];
-            await handleSelectedFile(file);
+            const files = event.target && event.target.files ? event.target.files : [];
+            await handleSelectedFiles(files);
         });
     }
 

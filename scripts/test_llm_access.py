@@ -121,24 +121,3 @@ def _test_chroma_compatibility(vec: list[float] | None) -> bool:
         print()
         return False
 
-
-def main() -> int:
-    load_dotenv(".env", override=True)
-    _print_env()
-
-    embedding_ok, vec = _test_embedding_access()
-    results = {
-        "embedding": embedding_ok,
-        "chat": _test_chat_access(),
-        "chroma": _test_chroma_compatibility(vec),
-    }
-
-    print("=== Summary ===")
-    for name, ok in results.items():
-        print(f"{name}: {'PASS' if ok else 'FAIL'}")
-
-    return 0 if all(results.values()) else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
