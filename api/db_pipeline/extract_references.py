@@ -17,6 +17,13 @@ from pathlib import Path
 import docx
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parents[1]
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
+
 
 
 def resolve_kb_path() -> Path:
@@ -100,9 +107,17 @@ def process_documents(documents_dir: Path):
     files = sorted(
         f for f in documents_dir.iterdir() if f.suffix.lower() == ".docx" and not f.name.startswith("~$")
     )
+    total_files = len(files)
+    _write_progress_snapshot("extract_references", 0, total_files, "files")
 
     print(f"Found {len(files)} .docx files in {documents_dir}\n")
 
+    if total_files == 0:
+        # Publish a completed snapshot so UI polling can render this step even with no input files.
+        _write_progress_snapshot("extract_references", 1, 1, "files")
+        return results
+
+    processed_files = 0
     for fpath in files:
         try:
             text = read_docx(str(fpath))
@@ -132,6 +147,9 @@ def process_documents(documents_dir: Path):
 
         except Exception as e:
             print(f"Failed to read {fpath.name}: {e}")
+        finally:
+            processed_files += 1
+            _write_progress_snapshot("extract_references", processed_files, total_files, "files")
 
     return results
 

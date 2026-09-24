@@ -123,56 +123,58 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
     client = get_gateway_client()
     generated_documents = []
     llm_failures = 0
-    total_questions = len(documents) * question_count
-    _write_progress_snapshot("generate_questions", 0, total_questions, "questions")
+    total_documents = len(documents)
+    _write_progress_snapshot("generate_questions", 0, total_documents, "files")
 
-    processed_questions = 0
+    processed_documents = 0
     for doc in documents:
-        if not isinstance(doc, dict):
-            continue
-
-        doc_id = str(doc.get("id", "unknown"))
-        metadata = doc.get("metadata", {}) if isinstance(doc.get("metadata"), dict) else {}
-        source_name = str(metadata.get("source") or metadata.get("reference") or doc_id)
-        full_text = str(doc.get("text", ""))
-        topic = _sanitize_question_topic(full_text)
-        text_excerpt = re.sub(r"\s+", " ", full_text).strip()[:2200]
-
-        llm_questions = []
-        llm_error = None
         try:
-            prompt = _build_llm_prompt(text_excerpt, topic, question_count)
-            raw_output = create_chat_completion_text(
-                client=client,
-                model_name=None,
-                prompt=prompt,
-                temperature=0.4,
+            if not isinstance(doc, dict):
+                continue
+
+            doc_id = str(doc.get("id", "unknown"))
+            metadata = doc.get("metadata", {}) if isinstance(doc.get("metadata"), dict) else {}
+            source_name = str(metadata.get("source") or metadata.get("reference") or doc_id)
+            full_text = str(doc.get("text", ""))
+            topic = _sanitize_question_topic(full_text)
+            text_excerpt = re.sub(r"\s+", " ", full_text).strip()[:2200]
+
+            llm_questions = []
+            llm_error = None
+            try:
+                prompt = _build_llm_prompt(text_excerpt, topic, question_count)
+                raw_output = create_chat_completion_text(
+                    client=client,
+                    model_name=None,
+                    prompt=prompt,
+                    temperature=0.4,
+                )
+                llm_questions = _extract_json_array_from_text(raw_output)
+            except Exception as exc:
+                llm_error = str(exc)
+
+            if len(llm_questions) < question_count:
+                llm_failures += 1
+                questions = (llm_questions + _build_questions_fallback(topic, question_count))[:question_count]
+                generation_mode = "fallback"
+            else:
+                questions = llm_questions[:question_count]
+                generation_mode = "llm"
+
+            generated_documents.append(
+                {
+                    "document_id": doc_id,
+                    "source": source_name,
+                    "topic": topic,
+                    "questions": questions,
+                    "generation_mode": generation_mode,
+                    "llm_error": llm_error,
+                }
             )
-            llm_questions = _extract_json_array_from_text(raw_output)
-        except Exception as exc:
-            llm_error = str(exc)
-
-        if len(llm_questions) < question_count:
-            llm_failures += 1
-            questions = (llm_questions + _build_questions_fallback(topic, question_count))[:question_count]
-            generation_mode = "fallback"
-        else:
-            questions = llm_questions[:question_count]
-            generation_mode = "llm"
-
-        generated_documents.append(
-            {
-                "document_id": doc_id,
-                "source": source_name,
-                "topic": topic,
-                "questions": questions,
-                "generation_mode": generation_mode,
-                "llm_error": llm_error,
-            }
-        )
-        processed_questions += len(questions)
-        _write_progress_snapshot("generate_questions", processed_questions, total_questions, "questions")
-        time.sleep(0.05)
+            time.sleep(0.05)
+        finally:
+            processed_documents += 1
+            _write_progress_snapshot("generate_questions", processed_documents, total_documents, "files")
 
     output_data = {
         "status": "ok",

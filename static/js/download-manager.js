@@ -679,12 +679,10 @@
     }
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
-    let indexingProgressTimer = null;
     let indexingStatusTimer = null;
     let indexingAbortController = null;
     let resetProgressTimer = null;
     let isIndexingRunning = false;
-    let hasLiveStepStatus = false;
     let currentStepKey = null;
     let currentStepPercent = 0;
     let isStepTransitioning = false;
@@ -823,7 +821,6 @@
     function beginIndexingProgress() {
         isIndexingRunning = true;
         setDownloadStatusRowDisabled(true);
-        hasLiveStepStatus = false;
         currentStepKey = null;
         currentStepPercent = 0;
         isStepTransitioning = false;
@@ -843,15 +840,7 @@
             els.indexingProgressWrap.classList.add("is-visible");
         }
 
-        let progress = 5;
-        setIndexingProgress(progress, tr("downloadManager.progress.preparing", "Préparation..."));
-        indexingProgressTimer = window.setInterval(() => {
-            if (hasLiveStepStatus) {
-                return;
-            }
-            progress = Math.min(progress + 1, 14);
-            setIndexingProgress(progress, tr("downloadManager.progress.preparing", "Préparation..."));
-        }, 1000);
+        setIndexingProgress(0, tr("downloadManager.progress.preparing", "Préparation..."));
 
         startRegenerationStatusPolling();
     }
@@ -859,17 +848,12 @@
     function finishIndexingProgress(success) {
         isIndexingRunning = false;
         setDownloadStatusRowDisabled(false);
-        hasLiveStepStatus = false;
         currentStepKey = null;
         currentStepPercent = 0;
         isStepTransitioning = false;
         if (stepSwitchTimer) {
             window.clearTimeout(stepSwitchTimer);
             stepSwitchTimer = null;
-        }
-        if (indexingProgressTimer) {
-            window.clearInterval(indexingProgressTimer);
-            indexingProgressTimer = null;
         }
         stopRegenerationStatusPolling();
 
@@ -920,12 +904,6 @@
                 return;
             }
 
-            hasLiveStepStatus = true;
-            if (indexingProgressTimer) {
-                window.clearInterval(indexingProgressTimer);
-                indexingProgressTimer = null;
-            }
-
             const label = regen.current_step_label || getStepLabel(stepKey);
             const stepIndex = Number(regen.step_index || 0);
             const totalSteps = Number(regen.total_steps || 0);
@@ -944,53 +922,13 @@
                 return;
             }
 
-            if (currentStepKey !== stepKey) {
-                if (currentStepKey) {
-                    const previousLabel = getStepLabel(currentStepKey);
-                    const previousStepIndex = Math.max(1, stepIndex - 1);
-                    const previousCountText = previousStepIndex > 0 && totalSteps > 0
-                        ? ` (${previousStepIndex}/${totalSteps})`
-                        : "";
-                    setIndexingProgress(100, tr(
-                        "downloadManager.progress.step",
-                        `Etape${previousCountText}: ${previousLabel} (100%)`,
-                        {
-                            countText: previousCountText,
-                            label: previousLabel,
-                            percent: 100
-                        }
-                    ));
-                    isStepTransitioning = true;
-                    if (stepSwitchTimer) {
-                        window.clearTimeout(stepSwitchTimer);
-                    }
-                    stepSwitchTimer = window.setTimeout(() => {
-                        currentStepKey = stepKey;
-                        currentStepPercent = liveProgressPercent !== null ? liveProgressPercent : 0;
-                        const countText = stepIndex > 0 && totalSteps > 0
-                            ? ` (${stepIndex}/${totalSteps})`
-                            : "";
-                        setIndexingProgress(currentStepPercent, tr(
-                            "downloadManager.progress.step",
-                            `Etape${countText}: ${label} (${Math.round(currentStepPercent)}%)`,
-                            {
-                                countText,
-                                label,
-                                percent: Math.round(currentStepPercent)
-                            }
-                        ));
-                        isStepTransitioning = false;
-                        stepSwitchTimer = null;
-                    }, 260);
-                    return;
-                }
-
-                currentStepKey = stepKey;
-                currentStepPercent = liveProgressPercent !== null ? liveProgressPercent : 0;
-            } else if (liveProgressPercent !== null) {
-                currentStepPercent = liveProgressPercent;
+            currentStepKey = stepKey;
+            if (liveProgressPercent !== null) {
+                currentStepPercent = Math.max(0, Math.min(100, liveProgressPercent));
+            } else if (liveProgressTotal && liveProgressValue !== null) {
+                currentStepPercent = Math.max(0, Math.min(100, (liveProgressValue / liveProgressTotal) * 100));
             } else {
-                currentStepPercent = Math.min(currentStepPercent + 12, 96);
+                return;
             }
 
             const countText = stepIndex > 0 && totalSteps > 0
@@ -1020,7 +958,7 @@
     function startRegenerationStatusPolling() {
         stopRegenerationStatusPolling();
         refreshRegenerationStatus();
-        indexingStatusTimer = window.setInterval(refreshRegenerationStatus, 1500);
+        indexingStatusTimer = window.setInterval(refreshRegenerationStatus, 250);
     }
 
     async function requestCancelIndexing() {

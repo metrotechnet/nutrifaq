@@ -239,14 +239,14 @@
     height: 100%;
     border-radius: 999px;
     background: linear-gradient(90deg, #0f766e 0%, #14b8a6 100%);
-    transition: width 0.8s ease;
+    transition: width 0.18s linear;
 }
 
 .reset-progress-bar {
     height: 100%;
     border-radius: 999px;
     background: linear-gradient(90deg, #1d4ed8 0%, #38bdf8 100%);
-    transition: width 0.8s ease;
+    transition: width 0.18s linear;
 }
 
 .indexing-progress-text {

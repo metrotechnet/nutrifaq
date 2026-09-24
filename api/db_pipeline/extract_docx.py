@@ -8,6 +8,12 @@ from docx import Document
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_KB_ROOT = REPO_ROOT / "nutrifaq-dbase"
 
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
+
+
 
 def resolve_kb_root() -> Path:
     """Resolve knowledge-base root from CLI arg, env, or default path."""
@@ -43,9 +49,12 @@ def extract_all_documents(folder_path, output_folder=None):
             existing_file.unlink(missing_ok=True)
 
     docx_files = [f for f in os.listdir(folder_path) if f.endswith(".docx") and not f.startswith("~$")]
+    total_files = len(docx_files)
+    _write_progress_snapshot("extract_docx", 0, total_files, "files")
 
     print(f"Found {len(docx_files)} documents\n")
 
+    processed_files = 0
     for filename in docx_files:
         file_path = os.path.join(folder_path, filename)
         print(f"Processing: {filename}")
@@ -67,6 +76,9 @@ def extract_all_documents(folder_path, output_folder=None):
 
         except Exception as e:
             print(f"  Error: {str(e)}")
+        finally:
+            processed_files += 1
+            _write_progress_snapshot("extract_docx", processed_files, total_files, "files")
 
 
 if __name__ == "__main__":

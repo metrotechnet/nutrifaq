@@ -227,7 +227,17 @@ def _python_executable() -> str:
     return sys.executable or "python"
 
 
+def _reset_progress_snapshot() -> None:
+    try:
+        if REGEN_PROGRESS_PATH.exists():
+            REGEN_PROGRESS_PATH.unlink()
+    except Exception:
+        # Snapshot reset is best-effort; regeneration can still proceed.
+        pass
+
+
 def _start_regeneration() -> bool:
+    _reset_progress_snapshot()
     with _regen_state_lock:
         if bool(_regen_state.get("running")):
             return False
@@ -321,39 +331,29 @@ def _read_progress_snapshot() -> Dict[str, object]:
 
 def get_regeneration_status() -> Dict[str, object]:
     snapshot = _read_progress_snapshot()
+    
+    
     with _regen_state_lock:
         current_step = _regen_state.get("current_step")
-        step_key = str(current_step) if current_step else None
+        step_key = str(snapshot.get("step")) if snapshot.get("step") else (str(current_step) if current_step else None)
         step_index = STEP_ORDER.index(step_key) + 1 if step_key in STEP_ORDER else None
         total_steps = len(STEP_ORDER)
         progress_percent = None
-        progress_value = _regen_state.get("progress_value")
-        progress_total = _regen_state.get("progress_total")
-        progress_kind = _regen_state.get("progress_kind")
-
-        if step_key in {"generate_questions", "index_chromadb_json"} and snapshot:
-            if snapshot.get("step") == step_key:
-                progress_value = snapshot.get("value", progress_value)
-                progress_total = snapshot.get("total", progress_total)
-                progress_kind = snapshot.get("kind", progress_kind or ("questions" if step_key == "generate_questions" else "tokens"))
-                if isinstance(progress_total, (int, float)) and progress_total > 0 and isinstance(progress_value, (int, float)):
-                    progress_percent = round((float(progress_value) / float(progress_total)) * 100, 1)
-
-        if progress_percent is None and step_index is not None and total_steps > 0:
-            progress_percent = round((step_index / total_steps) * 100, 1)
-
-        if isinstance(progress_value, (int, float)) and isinstance(progress_total, (int, float)) and progress_total > 0:
+        progress_value = snapshot.get("value")
+        progress_total = snapshot.get("total")
+        progress_kind = snapshot.get("kind")
+        if isinstance(progress_total, (int, float)) and progress_total > 0 and isinstance(progress_value, (int, float)):
             progress_percent = round((float(progress_value) / float(progress_total)) * 100, 1)
 
         if progress_total is not None:
             progress_total = int(progress_total)
         if progress_value is not None:
             progress_value = int(progress_value)
-
+        # print(step_key,"Progress value:", progress_value, "Progress total:", progress_total)
         _regen_state["progress_value"] = progress_value
         _regen_state["progress_total"] = progress_total
         _regen_state["progress_kind"] = progress_kind
-
+        
         return {
             "running": bool(_regen_state.get("running")),
             "cancel_requested": bool(_regen_state.get("cancel_requested")),
@@ -750,13 +750,12 @@ def run_full_regeneration(
                 },
             }
 
-        pipeline: List[str] = []
-        if include_extract_docx:
-            pipeline.append("extract_docx")
-        if include_extract_references:
-            pipeline.append("extract_references")
-    
-        pipeline.extend(["generate_transcripts_json", "index_chromadb_json", "generate_questions"])
+        pipeline: List[str] = ["extract_docx","extract_references","generate_transcripts_json", "index_chromadb_json", "generate_questions"]
+ 
+        if not include_extract_docx:
+            pipeline.remove("extract_docx")
+        if not include_extract_references:
+            pipeline.remove("extract_references")
 
         results: List[Dict[str, object]] = []
         regen_env = {
