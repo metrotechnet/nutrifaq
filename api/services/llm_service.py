@@ -11,6 +11,144 @@ from typing import Any
 from openai import AzureOpenAI, OpenAI
 
 
+PROMPTS_JSON: dict[str, Any] = {
+    "default": {
+        "system_role": "You are IMX, a virtual assistant based on artificial intelligence.",
+        "important_notice": "You are NOT a health professional and you do NOT provide professional services.",
+        "language_constraint": {
+            "default_language": "fr",
+        },
+        "communication_style": {
+            "title": "YOUR COMMUNICATION STYLE",
+            "tone_and_voice": {
+                "title": "Tone and voice",
+                "characteristics": [
+                    "Conversational and accessible tone",
+                    "Rigorous scientific popularization",
+                    "Educational and nuanced approach",
+                    "Recognize the limits of scientific knowledge",
+                    "Explain scientific vocabulary simply",
+                    "Avoid absolutes, miracle solutions, and dogmatic claims",
+                ],
+            },
+            "recurring_messages": {
+                "title": "Recurring educational messages (informational only)",
+                "messages": [
+                    "There is no universal solution",
+                    "Effects depend on context and quantities",
+                    "Nutrition is part of a holistic approach",
+                    "Diet, sleep, and physical activity are interrelated",
+                ],
+            },
+        },
+        "absolute_rules": {
+            "title": "ABSOLUTE RULES (NON-NEGOTIABLE)",
+            "rules": [
+                "Answer ONLY questions related to health and nutrition. For any other questions, politely indicate that you cannot answer on this topic",
+                "Generate a short and clear response",
+                "Use ONLY information present in the provided context",
+                "If information is not in the context, indicate that you cannot answer",
+                "NEVER diagnose",
+                "NEVER provide personalized recommendations",
+                "NEVER recommend medications, supplements, or dosages",
+                "NEVER suggest an individualized meal plan",
+                "For any medical, clinical, or personal question: clearly redirect to a qualified health professional",
+            ],
+        },
+        "behavioral_constraints": {
+            "title": "BEHAVIORAL GUIDELINES",
+            "constraints": [
+                "Provide only general information for educational purposes",
+                "Avoid wording that could influence a personal health decision",
+                "Do not create follow-up or continuity relationships",
+                "Use conversation history only for coherence, never to personalize health advice",
+            ],
+        },
+        "format_constraints": {
+            "title": "FORMAT CONSTRAINTS",
+            "rules": [
+                "Return the final answer in clean, readable Markdown",
+                "Use short sections with explicit headings when useful",
+                "Use bullet points for lists or key takeaways",
+                "Highlight key facts clearly",
+            ],
+        },
+        "template": "{system_role}\n\nIMPORTANT:\n{important_notice}\n\nLANGUAGE CONSTRAINT:\nYou must respond in {response_language}. If the user language is unknown, default to French (fr).\n\n# {format_constraints_title}\n{format_constraints_content}\n\n# {communication_style_title}\n{communication_style_content}\n\n# {absolute_rules_title}\n{absolute_rules_content}\n\n# {behavioral_constraints_title}\n{behavioral_constraints_content}\n\nAVAILABLE CONTEXT (GENERAL INFORMATION ONLY):\n{context}\n{history}\n\nUSER QUESTION:\n{question}",
+    },
+}
+
+
+def build_prompt_from_template(
+    language: str | None,
+    context: str,
+    question: str,
+    history_text: str = "",
+    agent: str | None = None,
+) -> tuple[str | None, dict[str, str]]:
+    """Build a prompt from inline JSON configuration.
+
+    The agent parameter is accepted for backward compatibility.
+    """
+    _ = agent
+    prompts_data = PROMPTS_JSON
+    template_data = prompts_data.get("default", {})
+
+
+    requested_language = (language or "").strip().lower()
+    language_constraint = template_data.get("language_constraint", {})
+    default_language = str(language_constraint.get("default_language", "fr"))
+    response_language = requested_language or default_language
+
+    comm_style = template_data.get("communication_style", {})
+    tone = comm_style.get("tone_and_voice", {})
+    recurring = comm_style.get("recurring_messages", {})
+
+    tone_content = f"## {tone.get('title', '')}\n"
+    for char in tone.get("characteristics", []):
+        tone_content += f"- {char}\n"
+
+    recurring_content = f"\n## {recurring.get('title', '')}\n"
+    for msg in recurring.get("messages", []):
+        recurring_content += f"- \"{msg}\"\n"
+
+    communication_style_content = tone_content + recurring_content
+
+    rules = template_data.get("absolute_rules", {})
+    rules_content = ""
+    for rule in rules.get("rules", []):
+        rules_content += f"- {rule}\n"
+
+    constraints = template_data.get("behavioral_constraints", {})
+    constraints_content = ""
+    for constraint in constraints.get("constraints", []):
+        constraints_content += f"- {constraint}\n"
+
+    format_constraints = template_data.get("format_constraints", {})
+    format_constraints_content = ""
+    for rule in format_constraints.get("rules", []):
+        format_constraints_content += f"- {rule}\n"
+
+    template = str(template_data.get("template", ""))
+    prompt = template.format(
+        system_role=template_data.get("system_role", ""),
+        important_notice=template_data.get("important_notice", ""),
+        communication_style_title=comm_style.get("title", ""),
+        communication_style_content=communication_style_content,
+        absolute_rules_title=rules.get("title", ""),
+        absolute_rules_content=rules_content,
+        behavioral_constraints_title=constraints.get("title", ""),
+        behavioral_constraints_content=constraints_content,
+        format_constraints_title=format_constraints.get("title", ""),
+        format_constraints_content=format_constraints_content,
+        response_language=response_language,
+        context=context,
+        history=history_text,
+        question=question,
+    )
+
+    return prompt
+
+
 def _llm_provider(provider_override: str | None = None) -> str:
     if provider_override:
         return provider_override.strip().lower()

@@ -35,7 +35,7 @@ from pathlib import Path
 root = Path(os.environ["PROJECT_ROOT"]).resolve()
 zip_path = Path(os.environ["ZIP_PATH"])
 include = {"app.py", "__init__.py", "requirements.txt", "startup.sh"}
-include_dirs = {"api", "nutrifaq-dbase"}
+include_dirs = {"api"}
 exclude = {
     ".git", ".venv", "__pycache__", ".pytest_cache", ".azure", ".vs",
     ".vscode", ".firebase", "node_modules", "public",
@@ -43,7 +43,7 @@ exclude = {
     "deploy-frontend.bat", "deploy-gcp-backend.bat", "deploy-gcp-frontend.bat",
     "index-database.bat", "question_log.json", "app.zip"
 }
-
+    
 with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
     for entry in root.iterdir():
         if entry.name in exclude:

@@ -7,19 +7,21 @@ from dotenv import load_dotenv
 import chromadb
 from chromadb.config import Settings
 from api.services.refusal_engine import validate_user_query
-from api.services.llm_service import create_chat_completion_stream, create_embedding, get_gateway_client
+from api.services.llm_service import (
+    build_prompt_from_template,
+    create_chat_completion_stream,
+    create_embedding,
+    get_gateway_client,
+)
 from api.services.blob_storage_service import (
     get_blob_container_name,
     get_blob_prefix,
     get_blob_properties,
-    get_container_client,
 )
 
 # API and repository roots
 API_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = API_ROOT.parent
-SHARED_CONFIG_ROOT = REPO_ROOT / "nutrifaq-config"
-LEGACY_CONFIG_ROOT = API_ROOT / "config"
 load_dotenv(dotenv_path=REPO_ROOT / '.env')
 
 DEFAULT_PROJECT_NAME = os.getenv("KNOWLEDGE_BASE_NAME", "nutrifaq")
@@ -40,163 +42,6 @@ ROOT_BLOB_CACHE_ROOT = REPO_ROOT / "nutrifaq-dbase" / "chroma_db"
 _CHROMA_CLIENT_CACHE: dict[str, Any] = {}
 _CHROMA_COLLECTION_CACHE: dict[tuple[str, str], Any] = {}
 _CHROMA_SIGNATURE_CACHE: str | None = None
-_PROMPTS_CACHE: dict[str, Any] | None = None
-
-
-def _config_blob_container_name() -> str:
-    return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
-
-
-def _config_blob_prefix() -> str:
-    return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
-
-
-def _prompts_blob_name() -> str:
-    prefix = _config_blob_prefix()
-    return f"{prefix}/prompts.json" if prefix else "prompts.json"
-
-
-def _load_prompts_from_blob() -> dict[str, Any]:
-    blob_name = _prompts_blob_name()
-    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
-    raw_content = blob_client.download_blob().readall()
-    loaded = json.loads(raw_content.decode("utf-8"))
-    if not isinstance(loaded, dict):
-        raise ValueError(f"Invalid prompts JSON root in blob '{blob_name}': expected an object.")
-    return loaded
-
-def load_style_guides():
-    """Load style guides from JSON file"""
-    try:
-        style_guides_path = SHARED_CONFIG_ROOT / "style_guides.json"
-        if not style_guides_path.exists():
-            style_guides_path = LEGACY_CONFIG_ROOT / "style_guides.json"
-
-        with open(style_guides_path, 'r', encoding='utf-8') as f:
-            style_data = json.load(f)
-        
-        # Format the style guides for use in prompts
-        formatted_guides = {}
-        for lang, data in style_data.items():
-            guide = f"# {data['title']}\n\n"
-            guide += f"\n## {data['characteristic_expressions']['title']}\n"
-            for phrase in data['characteristic_expressions']['phrases']:
-                guide += f"- \"{phrase}\"\n"
-            guide += f"\n## {data['tone_and_voice']['title']}\n"
-            for char in data['tone_and_voice']['characteristics']:
-                guide += f"- {char}\n"
-            guide += f"\n## {data['key_messages']['title']}\n"
-            for msg in data['key_messages']['messages']:
-                guide += f"- \"{msg}\"\n"
-            formatted_guides[lang] = guide
-        
-        return formatted_guides, style_data
-    except Exception as e:
-        return {}, {}
-
-def load_system_prompts():
-    """Load system prompts from JSON file"""
-    try:
-        system_prompts_path = SHARED_CONFIG_ROOT / "system_prompts.json"
-        if not system_prompts_path.exists():
-            system_prompts_path = LEGACY_CONFIG_ROOT / "system_prompts.json"
-
-        with open(system_prompts_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        return {}
-
-def load_prompts(kb_name=None):
-    """
-    Load prompts from JSON file in the knowledge base folder (single-agent setup)
-    
-    Args:
-        kb_name: Ignored for single-agent setup
-    """
-    global _PROMPTS_CACHE
-
-    try:
-        if _PROMPTS_CACHE is not None:
-            return _PROMPTS_CACHE
-
-        loaded = _load_prompts_from_blob()
-        _PROMPTS_CACHE = loaded
-        return loaded
-    except Exception:
-        return {}
-
-def build_prompt_from_template(language, context, question, history_text="", agent=None):
-    """Build a complete prompt from the JSON template. Returns (prompt, model_config)"""
-    prompts_data = load_prompts(kb_name=agent)
-    template_data = prompts_data.get("default", {})
-    
-    # Extract model configuration
-    model_config = {
-        "supplier": prompts_data.get("model_supplier", "openai"),
-        "name": prompts_data.get("model_name", "gpt-4o-mini")
-    }
-    
-    if not template_data:
-        return None, model_config
-
-    requested_language = (language or "").strip().lower()
-    language_constraint = template_data.get("language_constraint", {})
-    default_language = language_constraint.get("default_language", "fr")
-    response_language = requested_language or default_language
-    
-    # Build communication style content
-    comm_style = template_data.get('communication_style', {})
-    tone = comm_style.get('tone_and_voice', {})
-    recurring = comm_style.get('recurring_messages', {})
-    
-    tone_content = f"## {tone.get('title', '')}\n"
-    for char in tone.get('characteristics', []):
-        tone_content += f"- {char}\n"
-    
-    recurring_content = f"\n## {recurring.get('title', '')}\n"
-    for msg in recurring.get('messages', []):
-        recurring_content += f"- « {msg} »\n"
-    
-    communication_style_content = tone_content + recurring_content
-    
-    # Build absolute rules content
-    rules = template_data.get('absolute_rules', {})
-    rules_content = ""
-    for rule in rules.get('rules', []):
-        rules_content += f"- {rule}\n"
-    
-    # Build behavioral constraints content
-    constraints = template_data.get('behavioral_constraints', {})
-    constraints_content = ""
-    for constraint in constraints.get('constraints', []):
-        constraints_content += f"- {constraint}\n"
-
-    # Build format constraints content
-    format_constraints = template_data.get('format_constraints', {})
-    format_constraints_content = ""
-    for rule in format_constraints.get('rules', []):
-        format_constraints_content += f"- {rule}\n"
-    
-    # Build the final prompt using the template
-    template = template_data.get('template', '')
-    prompt = template.format(
-        system_role=template_data.get('system_role', ''),
-        important_notice=template_data.get('important_notice', ''),
-        communication_style_title=comm_style.get('title', ''),
-        communication_style_content=communication_style_content,
-        absolute_rules_title=rules.get('title', ''),
-        absolute_rules_content=rules_content,
-        behavioral_constraints_title=constraints.get('title', ''),
-        behavioral_constraints_content=constraints_content,
-        format_constraints_title=format_constraints.get('title', ''),
-        format_constraints_content=format_constraints_content,
-        response_language=response_language,
-        context=context,
-        history=history_text,
-        question=question
-    )
-    
-    return prompt, model_config
 
 
 def _repo_chroma_path() -> Path:
@@ -566,7 +411,7 @@ def ask_question_stream(
             session['links'][question_id] = links
 
         # Build prompt using template from JSON
-        prompt, model_config = build_prompt_from_template(language, context, question, history_text, agent=agent)
+        prompt = build_prompt_from_template(language, context, question, history_text, agent=agent)
 
         if not prompt:
             yield "Error: Unable to load prompt template."
@@ -574,7 +419,7 @@ def ask_question_stream(
 
         # Get streaming response from Vercel AI Gateway
         requested_model = (llm_model or "").strip()
-        model_name = requested_model or model_config.get('name', 'openai/gpt-4o-mini')
+        model_name = requested_model 
         
         stream = create_chat_completion_stream(
             client=client,
