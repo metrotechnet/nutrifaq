@@ -622,11 +622,13 @@ function setupMessageActions(messageDiv, contentDiv) {
         const likeTitle = t('messages.like') || 'Like';
         likeBtn.title = likeTitle;
         likeBtn.setAttribute('aria-label', likeTitle);
+        likeBtn.setAttribute('aria-pressed', 'false');
     }
     if (dislikeBtn) {
         const dislikeTitle = t('messages.dislike') || 'Dislike';
         dislikeBtn.title = dislikeTitle;
         dislikeBtn.setAttribute('aria-label', dislikeTitle);
+        dislikeBtn.setAttribute('aria-pressed', 'false');
     }
 
     // TTS button
@@ -659,8 +661,12 @@ function setupMessageActions(messageDiv, contentDiv) {
                 console.log('Like button clicked but no question_id available');
                 return;
             }
-            likeBtn.style.background = '#49fc49ff';
-            if (dislikeBtn) dislikeBtn.style.background = '#f9e6e6';
+            likeBtn.classList.add('is-selected');
+            likeBtn.setAttribute('aria-pressed', 'true');
+            if (dislikeBtn) {
+                dislikeBtn.classList.remove('is-selected');
+                dislikeBtn.setAttribute('aria-pressed', 'false');
+            }
             
             fetch(`${BACKEND_URL}/api/like_answer`, {
                 method: 'POST',
@@ -683,8 +689,12 @@ function setupMessageActions(messageDiv, contentDiv) {
                 console.log('Dislike button clicked but no question_id available');
                 return;
             }
-            dislikeBtn.style.background = '#ff8686';
-            if (likeBtn) likeBtn.style.background = '#e6f9e6';
+            dislikeBtn.classList.add('is-selected');
+            dislikeBtn.setAttribute('aria-pressed', 'true');
+            if (likeBtn) {
+                likeBtn.classList.remove('is-selected');
+                likeBtn.setAttribute('aria-pressed', 'false');
+            }
             
             fetch(`${BACKEND_URL}/api/like_answer`, {
                 method: 'POST',

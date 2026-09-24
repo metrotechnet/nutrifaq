@@ -770,7 +770,7 @@
 
     function beginResetProgress() {
         if (els.indexingProgressWrap) {
-            els.indexingProgressWrap.style.display = "block";
+            els.indexingProgressWrap.classList.add("is-visible");
         }
         if (els.resetDebugFiles) {
             els.resetDebugFiles.disabled = true;
@@ -802,14 +802,26 @@
 
         window.setTimeout(() => {
             if (els.indexingProgressWrap) {
-                els.indexingProgressWrap.style.display = "none";
+                els.indexingProgressWrap.classList.remove("is-visible");
             }
             setResetProgress(0, "0%");
         }, success ? 1200 : 1800);
     }
 
+    function setDownloadStatusRowDisabled(isDisabled) {
+        const row = document.querySelector("#download-section .download-status-row");
+        if (!row) {
+            return;
+        }
+
+        const disabled = Boolean(isDisabled);
+        row.classList.toggle("is-disabled", disabled);
+        row.setAttribute("aria-disabled", String(disabled));
+    }
+
     function beginIndexingProgress() {
         isIndexingRunning = true;
+        setDownloadStatusRowDisabled(true);
         hasLiveStepStatus = false;
         currentStepKey = null;
         currentStepPercent = 0;
@@ -827,7 +839,7 @@
             els.cancelIndexing.disabled = false;
         }
         if (els.indexingProgressWrap) {
-            els.indexingProgressWrap.style.display = "block";
+            els.indexingProgressWrap.classList.add("is-visible");
         }
 
         let progress = 5;
@@ -845,6 +857,7 @@
 
     function finishIndexingProgress(success) {
         isIndexingRunning = false;
+        setDownloadStatusRowDisabled(false);
         hasLiveStepStatus = false;
         currentStepKey = null;
         currentStepPercent = 0;
@@ -873,7 +886,7 @@
 
         window.setTimeout(() => {
             if (els.indexingProgressWrap) {
-                els.indexingProgressWrap.style.display = "none";
+                els.indexingProgressWrap.classList.remove("is-visible");
             }
             if (els.cancelIndexing) {
                 els.cancelIndexing.style.display = "none";

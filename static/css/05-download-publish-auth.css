@@ -180,7 +180,7 @@
 }
 
 .dm-btn.table-action {
-    padding: 0.42rem 0.65rem;
+    padding: 0.62rem 0.9rem;
     margin-right: 0.35rem;
     font-size: 0.82rem;
     background: #eef7f4;
@@ -203,11 +203,28 @@
     border-radius: 12px;
 }
 
+.download-status-row.is-disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
 .indexing-progress-wrap {
+    display: none;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.85rem;
     background: #ffffff;
     border: 1px solid #d5e3df;
     border-radius: 12px;
     padding: 0.75rem 1rem;
+}
+
+.indexing-progress-wrap.is-visible {
+    display: grid;
+}
+
+.indexing-progress-main {
+    min-width: 0;
 }
 
 .indexing-progress-track {
@@ -237,6 +254,10 @@
     color: #1f514a;
     font-size: 0.9rem;
     font-weight: 600;
+}
+
+#cancel-indexing {
+    justify-self: end;
 }
 
 .status-message {
@@ -347,7 +368,7 @@
     border-radius: 999px;
     background: #f4fbf8;
     color: #1f5b52;
-    padding: 0.35rem 0.65rem;
+    padding: 0.62rem 0.9rem;
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
@@ -360,12 +381,12 @@
 }
 
 .publish-refresh-logs-btn {
-    padding: 0.42rem 0.7rem;
+    padding: 0.62rem 0.9rem;
     font-size: 0.82rem;
 }
 
 .publish-reset-logs-btn {
-    padding: 0.42rem 0.7rem;
+    padding: 0.62rem 0.9rem;
     font-size: 0.82rem;
 }
 
@@ -373,7 +394,7 @@
     background: #0f766e;
     color: #ffffff;
     border: none;
-    padding: 0.42rem 0.7rem;
+    padding: 0.62rem 0.9rem;
     font-size: 0.82rem;
 }
 
@@ -383,11 +404,10 @@
 }
 
 .publish-controls-grid {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(260px, 560px) minmax(0, 1fr);
     align-items: end;
-    justify-content: space-between;
     gap: 0.9rem;
-    flex-wrap: wrap;
 }
 
 .publish-controls-grid.is-disabled {
@@ -395,16 +415,20 @@
     pointer-events: none;
 }
 
-.download-control-group.wide {
-    flex: 1 1 240px;
-    min-width: 180px;
+.publish-controls-grid .download-control-group.wide {
+    width: min(100%, 560px);
+    min-width: 240px;
 }
 
-.download-control-group.actions {
+.publish-controls-grid .download-control-group.actions {
     display: flex;
     align-items: flex-end;
     justify-content: flex-end;
-    min-width: 120px;
+    justify-self: end;
+    min-width: 0;
+    width: auto;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .publish-model-selector {
@@ -665,9 +689,18 @@
         grid-template-columns: 1fr;
     }
 
+    .publish-controls-grid .download-control-group.wide {
+        width: 100%;
+        min-width: 0;
+    }
+
     .download-status-row {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .indexing-progress-wrap {
+        grid-template-columns: minmax(0, 1fr) auto;
     }
 
     .azure-auth-grid {

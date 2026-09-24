@@ -263,15 +263,17 @@
                             <div class="indexing-actions">
                                 <button id="reset-debug-files" class="dm-btn secondary" type="button" data-i18n="instructions.resetFiles">Réinitialiser les fichiers</button>
                                 <button id="start-indexing" class="dm-btn indexing" data-i18n="instructions.startIndexing">Démarrer un indexage</button>
-                                <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;" data-i18n="instructions.cancel">Annuler</button>
                             </div>
                         </section>
 
-                        <section id="indexing-progress-wrap" class="indexing-progress-wrap" style="display:none;" aria-live="polite">
-                            <div class="indexing-progress-track">
-                                <div id="indexing-progress-bar" class="indexing-progress-bar" style="width:0%;"></div>
+                        <section id="indexing-progress-wrap" class="indexing-progress-wrap" aria-live="polite">
+                            <div class="indexing-progress-main">
+                                <div class="indexing-progress-track">
+                                    <div id="indexing-progress-bar" class="indexing-progress-bar" style="width:0%;"></div>
+                                </div>
+                                <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
                             </div>
-                            <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
+                            <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;" data-i18n="instructions.cancel">Annuler</button>
                         </section>
 
                         <section class="download-files-list" aria-live="polite" style="display:none;">
