@@ -216,6 +216,23 @@ function setSuggestedQuestionsState({ metaText, emptyText, isError = false }) {
     }
 }
 
+function collapseSuggestedPanelOnMobileAfterCopy() {
+    const isMobile = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 768px)').matches;
+    if (!isMobile) {
+        return;
+    }
+
+    const mainPane = document.querySelector('.main-pane');
+    if (!mainPane || mainPane.classList.contains('suggested-panel-collapsed')) {
+        return;
+    }
+
+    const toggleButton = document.getElementById('toggle-suggested-panel-btn');
+    if (toggleButton && typeof toggleButton.click === 'function') {
+        toggleButton.click();
+    }
+}
+
 function copyQuestionToInput(question, button) {
     const inputBox = document.getElementById('input-box');
     if (!inputBox) {
@@ -235,6 +252,8 @@ function copyQuestionToInput(question, button) {
     } else if (typeof sendMessage === 'function') {
         sendMessage();
     }
+
+    collapseSuggestedPanelOnMobileAfterCopy();
 
     if (!button) {
         return;

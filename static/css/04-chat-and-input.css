@@ -218,15 +218,6 @@
 
 
 
-@media (max-width: 768px) {
-    .input-area {
-        width: 100%;
-        grid-template-columns: 1fr;
-        gap: 0;
-        padding: 1rem 1rem 1rem;
-    }
-}
-
 .input-wrapper {
     max-width: none;
     width: 100%;

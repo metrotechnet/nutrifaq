@@ -1089,6 +1089,15 @@
         panel.classList.toggle("panel-empty", Boolean(isEmpty));
     }
 
+    function getDownloadViewSections() {
+        const activeDownloadSection = document.getElementById("download-section");
+        if (activeDownloadSection) {
+            return activeDownloadSection.querySelectorAll("section");
+        }
+
+        return [];
+    }
+
     function activateInstructionsView() {
         const panel = document.getElementById("download-manager-panel");
         const chatContainer = document.getElementById("chat-container");
@@ -1097,6 +1106,8 @@
         const emptyState = document.getElementById("empty-state");
         const chatTopSpacer = document.getElementById("chat-top-spacer");
         const mainPane = document.querySelector(".main-pane");
+        const chatSection = document.getElementById("chat-section");
+        const downloadSection = document.getElementById("download-section");
 
         hideIntegratedPanels();
 
@@ -1116,6 +1127,12 @@
             section.style.display = (section.id === "instructions-section") ? "flex" : "none";
         });
 
+        if (chatSection) {
+            chatSection.style.display = "none";
+        }
+        if (downloadSection) {
+            downloadSection.style.display = "none";
+        }
         if (els.instructionsSection) {
             els.instructionsSection.style.display = "flex";
         }
@@ -1151,6 +1168,8 @@
         const emptyState = document.getElementById("empty-state");
         const chatTopSpacer = document.getElementById("chat-top-spacer");
         const mainPane = document.querySelector(".main-pane");
+        const chatSection = document.getElementById("chat-section");
+        const instructionsSection = document.getElementById("instructions-section");
 
         hideIntegratedPanels();
 
@@ -1162,9 +1181,16 @@
             chatInputArea.style.display = "none";
         }
 
+        if (chatSection) {
+            chatSection.style.display = "none";
+        }
+        if (instructionsSection) {
+            instructionsSection.style.display = "none";
+        }
+
         ensurePublishSectionMounted();
 
-        const panelSections = panel ? panel.querySelectorAll("section") : [];
+        const panelSections = getDownloadViewSections();
         panelSections.forEach((section) => {
             const shouldShow = section.id === "download-section" ||
                 section.classList.contains("download-dropzone-section") ||
@@ -1209,6 +1235,9 @@
         const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
         const mainPane = document.querySelector(".main-pane");
+        const chatSection = document.getElementById("chat-section");
+        const instructionsSection = document.getElementById("instructions-section");
+        const downloadSection = document.getElementById("download-section");
 
         hideIntegratedPanels();
 
@@ -1227,6 +1256,16 @@
             panelSections.forEach((section) => {
                 section.style.display = (section.id === "publish-section") ? "flex" : "none";
             });
+        }
+
+        if (chatSection) {
+            chatSection.style.display = "none";
+        }
+        if (instructionsSection) {
+            instructionsSection.style.display = "none";
+        }
+        if (downloadSection) {
+            downloadSection.style.display = "none";
         }
 
         if (els.instructionsSection) {
@@ -1251,16 +1290,59 @@
         }
     }
 
+    function syncSuggestedPanelToggleButton() {
+        const button = document.getElementById("toggle-suggested-panel-btn");
+        const mainPane = document.querySelector(".main-pane");
+        if (!button || !mainPane) {
+            return;
+        }
+
+        const isCollapsed = mainPane.classList.contains("suggested-panel-collapsed");
+        button.setAttribute("aria-label", isCollapsed ? "Afficher la liste des questions" : "Masquer la liste des questions");
+        button.title = isCollapsed ? "Afficher la liste des questions" : "Masquer la liste des questions";
+        button.innerHTML = isCollapsed
+            ? '<i class="bi bi-question-circle"></i>'
+            : '<i class="bi bi-question-circle-fill"></i>';
+        button.style.display = "inline-flex";
+    }
+
+    function toggleSuggestedQuestionsPanel() {
+        const mainPane = document.querySelector(".main-pane");
+        if (!mainPane) {
+            return;
+        }
+        mainPane.classList.toggle("suggested-panel-collapsed");
+        syncSuggestedPanelToggleButton();
+    }
+
     function activateTesterView() {
         const chatContainer = document.getElementById("chat-container");
         const chatMainLayout = document.getElementById("chat-main-layout");
         const chatInputArea = document.getElementById("chat-input-area");
         const emptyState = document.getElementById("empty-state");
         const mainPane = document.querySelector(".main-pane");
+        const chatSection = document.getElementById("chat-section");
+        const instructionsSection = document.getElementById("instructions-section");
+        const downloadSection = document.getElementById("download-section");
+        const publishSection = document.getElementById("publish-section");
 
         hideIntegratedPanels();
         if (mainPane) {
             mainPane.classList.remove("non-chat-mode");
+            const isMobile = typeof window.matchMedia === "function" && window.matchMedia("(max-width: 768px)").matches;
+            mainPane.classList.toggle("suggested-panel-collapsed", isMobile);
+        }
+        if (chatSection) {
+            chatSection.style.display = "grid";
+        }
+        if (instructionsSection) {
+            instructionsSection.style.display = "none";
+        }
+        if (downloadSection) {
+            downloadSection.style.display = "none";
+        }
+        if (publishSection) {
+            publishSection.style.display = "none";
         }
         if (chatContainer) {
             chatContainer.classList.remove("download-mode");
@@ -1276,6 +1358,7 @@
         if (emptyState && !document.querySelector("#chat-container .message")) {
             emptyState.style.display = "";
         }
+        syncSuggestedPanelToggleButton();
     }
 
     function activateAuthView() {
@@ -1312,6 +1395,55 @@
         const testerLink = document.getElementById("tester-link");
         const authLink = document.getElementById("auth-link");
         const validateLink = document.getElementById("validate-link");
+        const toggleSuggestedPanelButton = document.getElementById("toggle-suggested-panel-btn");
+        const closeSuggestedPanelButton = document.getElementById("close-suggested-panel-btn");
+        const chatContainer = document.getElementById("chat-container");
+
+        if (toggleSuggestedPanelButton) {
+            toggleSuggestedPanelButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleSuggestedQuestionsPanel();
+            });
+        }
+
+        if (chatContainer) {
+            chatContainer.addEventListener("click", (event) => {
+                const isMobile = typeof window.matchMedia === "function" && window.matchMedia("(max-width: 768px)").matches;
+                if (!isMobile) {
+                    return;
+                }
+
+                if (event.target && event.target.closest("#toggle-suggested-panel-btn")) {
+                    return;
+                }
+
+                const mainPane = document.querySelector(".main-pane");
+                if (!mainPane || mainPane.classList.contains("suggested-panel-collapsed")) {
+                    return;
+                }
+
+                mainPane.classList.add("suggested-panel-collapsed");
+                syncSuggestedPanelToggleButton();
+            });
+        }
+
+        if (closeSuggestedPanelButton) {
+            closeSuggestedPanelButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const isMobile = typeof window.matchMedia === "function" && window.matchMedia("(max-width: 768px)").matches;
+                if (!isMobile) {
+                    return;
+                }
+                const mainPane = document.querySelector(".main-pane");
+                if (!mainPane) {
+                    return;
+                }
+                mainPane.classList.add("suggested-panel-collapsed");
+                syncSuggestedPanelToggleButton();
+            });
+        }
 
         if (instructionsLink) {
             instructionsLink.addEventListener("click", (event) => {

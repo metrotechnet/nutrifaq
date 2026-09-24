@@ -93,288 +93,310 @@
         </div>
     </div>
 
-    <div class="auth-gate-overlay" id="auth-gate-overlay" style="display:none;">
-        <div class="auth-gate-card">
-            <h2>Connexion requise</h2>
-            <p>Connectez-vous avec Azure Entra ID pour accéder à NutriFAQ-Chat.</p>
-            <button id="startup-login-btn" class="dm-btn primary">Se connecter avec Azure</button>
-            <button id="startup-forgot-password-btn" class="dm-btn secondary">Mot de passe oublié ?</button>
-            <p id="startup-auth-status" class="status-message">En attente de connexion.</p>
-        </div>
-    </div>
-
     <div class="content">
-    <div class="main-workspace">
-    <header>
-        <button class="menu-toggle" id="menu-toggle" title="" data-i18n-title="header.menuButton">
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
-        <h1 class="header-title">NutriFAQ-Chat</h1>
-    </header>
-
-    <div class="main-pane">
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>NutriFAQ-Chat</h2>
-        </div>
-        <nav class="sidebar-nav">
-            <a href="#" class="sidebar-link" id="instructions-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm1 9V3.5L18.5 10H15zm-6 4h8v2H9v-2zm0-4h8v2H9v-2zm0-4h5v2H9V7z"/>
-                </svg>
-                <span>Instructions</span>
-            </a>
-            <a href="#" class="sidebar-link" id="download-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M5 20h14v-2H5v2zM12 2v12l4-4 1.41 1.41L12 17.83l-5.41-5.42L8 10l4 4V2h0z"/>
-                </svg>
-                <span data-i18n="sidebar.download">Indexer</span>
-            </a>
-            <a href="#chat-container" class="sidebar-link" id="tester-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8v2c5.52 0 10-4.48 10-10S17.52 2 12 2zm-1 5v6l5.25 3.15.75-1.23-4.5-2.67V7H11z"/>
-                </svg>
-                <span data-i18n="sidebar.test">Valider</span>
-            </a>
-            <a href="#" class="sidebar-link" id="validate-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-                <span data-i18n="sidebar.validate">Publier</span>
-            </a>
-            <div class="language-selector-container">
-                <label for="model-selector" data-i18n="sidebar.model">Modèle IA</label>
-                <select id="model-selector" class="language-selector">
-                    <option value="">Chargement des modèles...</option>
-                </select>
-            </div>
-            <div class="language-selector-container" id="language-selector-container">
-                <label for="language-selector" data-i18n="sidebar.language">Langue</label>
-                <select id="language-selector" class="language-selector">
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                </select>
-            </div>
-        </nav>
-        <footer class="sidebar-footer" aria-label="Sidebar footer actions">
-            <button type="button" class="sidebar-footer-menu-button" id="sidebar-footer-menu-button" aria-expanded="false" aria-controls="sidebar-footer-menu" title="">
-                <span id="sidebar-user-email" class="sidebar-user-email">Compte</span>
-                <span class="sidebar-footer-menu-label" data-i18n="sidebar.accountMenu">Menu du compte</span>
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M7 10l5 5 5-5z"/>
-                </svg>
+        <header>
+            <button class="menu-toggle" id="menu-toggle" title="" data-i18n-title="header.menuButton">
+                <span></span>
+                <span></span>
+                <span></span>
             </button>
-            <div class="sidebar-footer-menu" id="sidebar-footer-menu" hidden>
-            <a href="#" class="sidebar-link sidebar-footer-link" id="sidebar-logout-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.1 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
-                </svg>
-                <span data-i18n="sidebar.logout">Déconnecter</span>
-            </a>
-            <a href="https://imxtech.ca/" target="_blank" rel="noopener noreferrer" class="sidebar-link sidebar-footer-link" id="about-imx-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
-                </svg>
-                <span data-i18n="sidebar.aboutImx">À propos d'IMX</span>
-            </a>
-            <a href="#" class="sidebar-link sidebar-footer-link" id="about-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v2h-2zm0 4h2v6h-2z"/>
-                </svg>
-                <span data-i18n="sidebar.about">À propos de l'application</span>
-            </a>
-            <a href="#" class="sidebar-link sidebar-footer-link" id="legal-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                </svg>
-                <span data-i18n="sidebar.legal">Avertissements</span>
-            </a>
-            <a href="/privacy.html" target="_blank" class="sidebar-link sidebar-footer-link" id="privacy-link">
-                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-                </svg>
-                <span data-i18n="sidebar.privacy">Politique de confidentialité</span>
-            </a>
-            <div class="footer-info">© IMX Technologie inc. – 2026</div>
-            </div>
-        </footer>
-    </div>
+            <h1 class="header-title">NutriFAQ-Chat</h1>
+        </header>
 
-        <div id="chat-container">
-        <div id="chat-main-layout" class="chat-main-layout">
-            <div id="chat-stream" class="chat-stream">
-                <div id="chat-top-spacer" style="flex: 1; min-height: 0;"></div>
-                <div class="empty-state" id="empty-state">
-                    <img src="/static/logos/logo-imx.png" alt="IMX Multi-Agent" data-i18n-alt="intro.profileAlt" data-i18n-src="intro.profileImage" class="profile-photo">
-                    <h2 data-i18n="intro.title">Bienvenue sur IMX Multi-Agent</h2>
-                    <p data-i18n="intro.description"></p>
-                    <p><strong data-i18n="intro.disclaimer"></strong></p>
-                </div>
+        <div class="main-pane">
+            <div class="sidebar" id="sidebar">
+                    <div class="sidebar-header">
+                        <h2>NutriFAQ-Chat</h2>
+                        <button type="button" class="close-sidebar" id="close-sidebar" aria-label="Fermer le menu" title="Fermer le menu">&times;</button>
+                    </div>
+                    <nav class="sidebar-nav">
+                        <a href="#" class="sidebar-link" id="instructions-link">
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm1 9V3.5L18.5 10H15zm-6 4h8v2H9v-2zm0-4h8v2H9v-2zm0-4h5v2H9V7z"/>
+                            </svg>
+                            <span>Instructions</span>
+                        </a>
+                        <a href="#" class="sidebar-link" id="download-link">
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M5 20h14v-2H5v2zM12 2v12l4-4 1.41 1.41L12 17.83l-5.41-5.42L8 10l4 4V2h0z"/>
+                            </svg>
+                            <span data-i18n="sidebar.download">Indexer</span>
+                        </a>
+                        <a href="#chat-container" class="sidebar-link" id="tester-link">
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8v2c5.52 0 10-4.48 10-10S17.52 2 12 2zm-1 5v6l5.25 3.15.75-1.23-4.5-2.67V7H11z"/>
+                            </svg>
+                            <span data-i18n="sidebar.test">Valider</span>
+                        </a>
+                        <a href="#" class="sidebar-link" id="validate-link">
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg>
+                            <span data-i18n="sidebar.validate">Publier</span>
+                        </a>
+                        <div class="language-selector-container">
+                            <label for="model-selector" data-i18n="sidebar.model">Modèle IA</label>
+                            <select id="model-selector" class="language-selector">
+                                <option value="">Chargement des modèles...</option>
+                            </select>
+                        </div>
+                        <div class="language-selector-container" id="language-selector-container">
+                            <label for="language-selector" data-i18n="sidebar.language">Langue</label>
+                            <select id="language-selector" class="language-selector">
+                                <option value="fr">Français</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                    </nav>
+                    <footer class="sidebar-footer" aria-label="Sidebar footer actions">
+                        <button type="button" class="sidebar-footer-menu-button" id="sidebar-footer-menu-button" aria-expanded="false" aria-controls="sidebar-footer-menu" title="">
+                            <span id="sidebar-user-email" class="sidebar-user-email">Compte</span>
+                            <span class="sidebar-footer-menu-label" data-i18n="sidebar.accountMenu">Menu du compte</span>
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M7 10l5 5 5-5z"/>
+                            </svg>
+                        </button>
+                        <div class="sidebar-footer-menu" id="sidebar-footer-menu" hidden>
+                        <a href="#" class="sidebar-link sidebar-footer-link" id="sidebar-logout-link">
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.1 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                            </svg>
+                            <span data-i18n="sidebar.logout">Déconnecter</span>
+                        </a>
+                        <a href="https://imxtech.ca/" target="_blank" rel="noopener noreferrer" class="sidebar-link sidebar-footer-link" id="about-imx-link">
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
+                            </svg>
+                            <span data-i18n="sidebar.aboutImx">À propos d'IMX</span>
+                        </a>
+                        <a href="#" class="sidebar-link sidebar-footer-link" id="about-link">
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v2h-2zm0 4h2v6h-2z"/>
+                            </svg>
+                            <span data-i18n="sidebar.about">À propos de l'application</span>
+                        </a>
+                        <a href="#" class="sidebar-link sidebar-footer-link" id="legal-link">
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                            </svg>
+                            <span data-i18n="sidebar.legal">Avertissements</span>
+                        </a>
+                        <a href="/privacy.html" target="_blank" class="sidebar-link sidebar-footer-link" id="privacy-link">
+                            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                            </svg>
+                            <span data-i18n="sidebar.privacy">Politique de confidentialité</span>
+                        </a>
+                        <div class="footer-info">© IMX Technologie inc. – 2026</div>
+                        </div>
+                    </footer>
+            </div>
+
+            <div class="workspace-content">
+
+                <section id="instructions-section" class="instructions-section  mobile-extended-section " aria-label="Instructions de mise à jour NutriFAQ-Chat">
+                        <div class="instructions-header">
+                            <span class="instructions-badge" data-i18n="instructions.badge">Guide</span>
+                            <h2 data-i18n="instructions.title">Instructions de mise à jour NutriFAQ-Chat</h2>
+                        </div>
+
+                        <div class="instruction-steps">
+                            <article class="instruction-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h3 data-i18n="instructions.downloadTitle">Indexer</h3>
+                                    <p data-i18n="instructions.downloadDescription">Utilisez cette section pour préparer le contenu de la base de connaissances avant de l’intégrer à NutriFAQ-Chat.</p>
+                                    <ul>
+                                        <li data-i18n="instructions.downloadItem1">Glissez-déposez un fichier ou sélectionnez-le avec le bouton Choisir un fichier.</li>
+                                        <li data-i18n="instructions.downloadItem2">Indexez la base de données pour transformer les fichiers en données consultables par le système.</li>
+                                        <li data-i18n="instructions.downloadItem3">Cette étape permet au chatbot de retrouver les bons contenus lors des réponses et d’améliorer la précision des résultats.</li>
+                                    </ul>
+                                </div>
+                            </article>
+
+                            <article class="instruction-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h3 data-i18n="instructions.testTitle">Valider</h3>
+                                    <p data-i18n="instructions.testDescription">Une fois les fichiers chargés et indexés, passez en mode Valider pour vérifier le comportement réel.</p>
+                                    <ul>
+                                        <li data-i18n="instructions.testItem1">Posez une question de test en rapport avec le contenu indexé.</li>
+                                        <li data-i18n="instructions.testItem2">Vérifiez que la réponse est corect et cohérente.</li>
+                                        <li data-i18n="instructions.testItem3">Contrôlez la qualité du formatage, du contexte et des réponses générées par le modèle.</li>
+                                        <li data-i18n="instructions.testItem4">Essayez différents modèles IA pour comparer la qualité et la pertinence des réponses.</li>
+                                    </ul>
+                                </div>
+                            </article>
+
+                            <article class="instruction-step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <h3 data-i18n="instructions.publishTitle">Publier</h3>
+                                    <p data-i18n="instructions.publishDescription">Quand le résultat est satisfaisant, utilisez la section Publier pour finaliser la mise en production.</p>
+                                    <ul>
+                                        <li data-i18n="instructions.publishItem1">Choisissez le bon modèle IA disponible dans la liste.</li>
+                                        <li data-i18n="instructions.publishItem2">Publiez. Cette étape peut prendre un peu de temps.</li>
+                                        <li data-i18n="instructions.publishItem3">Si vous n'êtes pas satisfait ou en cas d'erreur, vous pouvez revenir à la version précédente.</li>
+                                    </ul>
+                                </div>
+                            </article>
+                        </div>
+
+                        <p class="instructions-support-note" data-i18n="instructions.supportNote">
+                            Besoin d’aide ? Écrivez-nous à info@imxtech.ca
+                        </p>
+                </section>
+
+                <section id="download-section" class="download-section  mobile-extended-section " aria-label="Gestion des fichiers" >
+                        <section class="download-dropzone-section" aria-label="Téléversement de fichier" style="display:none;">
+                            <div id="dnd-upload-area" class="dnd-upload-area" role="button" tabindex="0" aria-label="Glissez un fichier ici ou cliquez pour sélectionner">
+                                        <input type="file" id="upload-file" hidden>
+                                        <p class="dnd-upload-title" data-i18n="instructions.dropZoneTitle">Glissez-déposez un fichier ici</p>
+                                        <p class="dnd-upload-subtitle" data-i18n="instructions.or">ou</p>
+                                        <button id="dnd-browse-btn" class="dm-btn secondary" type="button" data-i18n="instructions.browse">Choisir un fichier</button>
+                                        <p id="dnd-file-name" class="dnd-file-name" data-i18n="instructions.noFileSelected">Aucun fichier sélectionné.</p>
+                            </div>
+                        </section>
+
+                        <section class="download-status-row" style="display:none;">
+                            <p id="status-message" class="status-message" data-i18n="messages.ready">Prêt.</p>
+                            <div class="indexing-actions">
+                                <button id="reset-debug-files" class="dm-btn secondary" type="button" data-i18n="instructions.resetFiles">Réinitialiser les fichiers</button>
+                                <button id="start-indexing" class="dm-btn indexing" data-i18n="instructions.startIndexing">Démarrer un indexage</button>
+                                <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;" data-i18n="instructions.cancel">Annuler</button>
+                            </div>
+                        </section>
+
+                        <section id="indexing-progress-wrap" class="indexing-progress-wrap" style="display:none;" aria-live="polite">
+                            <div class="indexing-progress-track">
+                                <div id="indexing-progress-bar" class="indexing-progress-bar" style="width:0%;"></div>
+                            </div>
+                            <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
+                        </section>
+
+                        <section class="download-files-list" aria-live="polite" style="display:none;">
+                            <table class="files-table" id="files-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="downloadManager.table.name">Nom</th>
+                                        <th data-i18n="downloadManager.table.size">Taille</th>
+                                        <th data-i18n="downloadManager.table.lastModified">Dernière modification</th>
+                                        <th data-i18n="downloadManager.table.actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="files-tbody">
+                                    <tr>
+                                        <td colspan="4">Chargement des fichiers...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </section>
+                </section>
+
+                <section id="chat-section" class="page-section chat-page  mobile-extended-section" aria-label="Conversation">
+                    <div id="chat-container">
+                            <div class="chat-container-actions">
+                                <button class="header-toggle-panel-btn" id="toggle-suggested-panel-btn" type="button" aria-label="Masquer la liste des questions" title="Masquer la liste des questions">
+                                    <i class="bi bi-question-circle"></i>
+                                </button>
+                            </div>
+                            <div id="chat-main-layout" class="chat-main-layout">
+                                <div id="chat-stream" class="chat-stream">
+                                    <div id="chat-top-spacer" style="flex: 1; min-height: 0;"></div>
+                                    <div class="empty-state" id="empty-state">
+                                        <img src="/static/logos/logo-imx.png" alt="IMX Multi-Agent" data-i18n-alt="intro.profileAlt" data-i18n-src="intro.profileImage" class="profile-photo">
+                                        <h2 data-i18n="intro.title">Bienvenue sur IMX Multi-Agent</h2>
+                                        <p data-i18n="intro.description"></p>
+                                        <p><strong data-i18n="intro.disclaimer"></strong></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="chat-input-area" class="input-area">
+                                <div class="input-wrapper">
+                                    <textarea 
+                                        id="input-box" 
+                                        class="input-box" 
+                                        placeholder="Pose-moi une question..." 
+                                        data-i18n-placeholder="components.inputArea.placeholder"
+                                        rows="1"
+                                    ></textarea>
+                                    <div class="input-buttons">
+                                        <button id="send-button" class="send-button bi bi-send" style="color: white;" title="" data-i18n-title="components.inputArea.sendButton"> </button>
+                                        <button id="stop-button" class="send-button bi bi-stop-fill" style="color: white; display: none;" title="Cancel" data-i18n-title="components.inputArea.stopButton"> </button>
+                                    </div>
+                                </div>
+                                <div class="input-disclaimer">
+                                    <span data-i18n="components.inputArea.disclaimer">⚠️ Peut contenir des erreurs. Ne remplace pas un avis professionnel.</span>
+                                    <span id="speech-method-indicator" style="margin-left: 10px; padding: 2px 8px; background: #4CAF50; color: white; border-radius: 12px; font-size: 0.75em; cursor: pointer;" title="Click to toggle recognition method">
+                                        🎤 Whisper
+                                    </span>
+                                </div>
+                            </div>
+                    </div>
+
+                    <aside id="suggested-questions-panel" class="suggested-questions-panel" aria-label="Questions suggerees">
+                        <div class="suggested-questions-header">
+                            <h3>Questions suggérées</h3>
+                            <button type="button" class="suggested-panel-close-btn" id="close-suggested-panel-btn" aria-label="Fermer" title="Fermer">
+                                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                            </button>
+                            <p id="suggested-questions-meta">Chargement...</p>
+                        </div>
+                        <div id="suggested-questions-list" class="suggested-questions-list">
+                            <p class="suggested-questions-empty">Chargement des questions...</p>
+                        </div>
+                    </aside>
+                </section>
+
+                <section id="publish-section" class="publish-section  mobile-extended-section" aria-label="Publication" style="display:none;">
+                        <div class="publish-controls-card">
+                            <h2 data-i18n="publish.ui.sectionTitle">Publier</h2>
+                            <div class="publish-controls-grid">
+                                <div class="download-control-group wide">
+                                    <label for="publish-model-selector" data-i18n="publish.ui.modelLabel">Modèle final utilisé</label>
+                                    <select id="publish-model-selector" class="publish-model-selector">
+                                        <option value="" data-i18n="main.models.loading">Chargement des modèles...</option>
+                                    </select>
+                                </div>
+                                <div class="download-control-group actions">
+                                    <button id="publish-revert" class="dm-btn secondary" type="button" data-i18n="publish.revert.action">Rétablir</button>
+                                    <button id="publish-submit" class="dm-btn primary" type="button" data-i18n="publish.confirm.action">Publier</button>
+                                </div>
+                            </div>
+
+                            <div id="publish-progress-wrap" class="publish-progress-wrap" style="display:none;">
+                                <div class="publish-progress-track">
+                                    <div id="publish-progress-bar" class="publish-progress-bar" style="width:0%;"></div>
+                                </div>
+                                <div id="publish-progress-text" class="publish-progress-text">0%</div>
+                            </div>
+
+                            <p id="publish-status" class="status-message" data-i18n="publish.status.ready">Prêt.</p>
+                            <p id="publish-finish-message" class="publish-finish-message" hidden></p>
+                        </div>
+
+                        <div class="publish-logs-card" aria-live="polite">
+                            <div class="publish-logs-header">
+                                <h3 data-i18n="publish.ui.logsTitle">Historique d'activité</h3>
+                                <div class="publish-logs-actions">
+                                    <button id="publish-refresh-logs" class="dm-btn secondary publish-refresh-logs-btn" type="button" data-i18n="publish.logs.refresh">Refresh</button>
+                                    <button id="publish-reset-logs" class="dm-btn secondary publish-reset-logs-btn" type="button" data-i18n="publish.logs.reset">Reinit</button>
+                                    <button id="publish-export-logs" class="dm-btn primary publish-export-logs-btn" type="button" data-i18n="publish.logs.export">Export</button>
+                                </div>
+                            </div>
+                            <div id="publish-logs-tabs" class="publish-logs-tabs">
+                                <button id="publish-logs-tab-questions" class="publish-logs-tab" type="button" data-tab="questions" data-i18n="publish.logs.tabs.questions">Conversations</button>
+                                <button id="publish-logs-tab-publish" class="publish-logs-tab" type="button" data-tab="publish" data-i18n="publish.logs.tabs.publish">Publications</button>
+                            </div>
+                            <div id="publish-logs-list" class="publish-logs-list">
+                                <p class="publish-log-empty" data-i18n="publish.logs.loading">Chargement des logs...</p>
+                            </div>
+                        </div>
+                </section>
+
             </div>
         </div>
-
-        <main class="download-manager-content" id="download-manager-panel" style="display:flex;">
-            <section id="instructions-section" class="instructions-section" aria-label="Instructions de mise à jour NutriFAQ-Chat">
-                <div class="instructions-header">
-                    <span class="instructions-badge" data-i18n="instructions.badge">Guide</span>
-                    <h2 data-i18n="instructions.title">Instructions de mise à jour NutriFAQ-Chat</h2>
-                </div>
-
-                <div class="instruction-steps">
-                    <article class="instruction-step">
-                        <div class="step-number">1</div>
-                        <div class="step-content">
-                            <h3 data-i18n="instructions.downloadTitle">Indexer</h3>
-                            <p data-i18n="instructions.downloadDescription">Utilisez cette section pour préparer le contenu de la base de connaissances avant de l’intégrer à NutriFAQ-Chat.</p>
-                            <ul>
-                                <li data-i18n="instructions.downloadItem1">Glissez-déposez un fichier ou sélectionnez-le avec le bouton Choisir un fichier.</li>
-                                <li data-i18n="instructions.downloadItem2">Indexez la base de données pour transformer les fichiers en données consultables par le système.</li>
-                                <li data-i18n="instructions.downloadItem3">Cette étape permet au chatbot de retrouver les bons contenus lors des réponses et d’améliorer la précision des résultats.</li>
-                            </ul>
-                        </div>
-                    </article>
-
-                    <article class="instruction-step">
-                        <div class="step-number">2</div>
-                        <div class="step-content">
-                            <h3 data-i18n="instructions.testTitle">Valider</h3>
-                            <p data-i18n="instructions.testDescription">Une fois les fichiers chargés et indexés, passez en mode Valider pour vérifier le comportement réel.</p>
-                            <ul>
-                                <li data-i18n="instructions.testItem1">Posez une question de test en rapport avec le contenu indexé.</li>
-                                <li data-i18n="instructions.testItem2">Vérifiez que la réponse est corect et cohérente.</li>
-                                <li data-i18n="instructions.testItem3">Contrôlez la qualité du formatage, du contexte et des réponses générées par le modèle.</li>
-                                <li data-i18n="instructions.testItem4">Essayez différents modèles IA pour comparer la qualité et la pertinence des réponses.</li>
-                            </ul>
-                        </div>
-                    </article>
-
-                    <article class="instruction-step">
-                        <div class="step-number">3</div>
-                        <div class="step-content">
-                            <h3 data-i18n="instructions.publishTitle">Publier</h3>
-                            <p data-i18n="instructions.publishDescription">Quand le résultat est satisfaisant, utilisez la section Publier pour finaliser la mise en production.</p>
-                            <ul>
-                                <li data-i18n="instructions.publishItem1">Choisissez le bon modèle IA disponible dans la liste.</li>
-                                <li data-i18n="instructions.publishItem2">Publiez. Cette étape peut prendre un peu de temps.</li>
-                                <li data-i18n="instructions.publishItem3">Si vous n'êtes pas satisfait ou en cas d'erreur, vous pouvez revenir à la version précédente.</li>
-                            </ul>
-                        </div>
-                    </article>
-                </div>
-
-                <p class="instructions-support-note" data-i18n="instructions.supportNote">
-                    Besoin d’aide ? Écrivez-nous à info@imxtech.ca
-                </p>
-            </section>
-
-            <section class="download-dropzone-section" aria-label="Téléversement de fichier" style="display:none;">
-                <div id="dnd-upload-area" class="dnd-upload-area" role="button" tabindex="0" aria-label="Glissez un fichier ici ou cliquez pour sélectionner">
-                    <input type="file" id="upload-file" hidden>
-                    <p class="dnd-upload-title" data-i18n="instructions.dropZoneTitle">Glissez-déposez un fichier ici</p>
-                    <p class="dnd-upload-subtitle" data-i18n="instructions.or">ou</p>
-                    <button id="dnd-browse-btn" class="dm-btn secondary" type="button" data-i18n="instructions.browse">Choisir un fichier</button>
-                    <p id="dnd-file-name" class="dnd-file-name" data-i18n="instructions.noFileSelected">Aucun fichier sélectionné.</p>
-                </div>
-            </section>
-
-            <section class="download-status-row" style="display:none;">
-                <p id="status-message" class="status-message" data-i18n="messages.ready">Prêt.</p>
-                <div class="indexing-actions">
-                    <button id="reset-debug-files" class="dm-btn secondary" type="button" data-i18n="instructions.resetFiles">Réinitialiser les fichiers</button>
-                    <button id="start-indexing" class="dm-btn indexing" data-i18n="instructions.startIndexing">Démarrer un indexage</button>
-                    <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;" data-i18n="instructions.cancel">Annuler</button>
-                </div>
-            </section>
-            <section id="indexing-progress-wrap" class="indexing-progress-wrap" style="display:none;" aria-live="polite">
-                <div class="indexing-progress-track">
-                    <div id="indexing-progress-bar" class="indexing-progress-bar" style="width:0%;"></div>
-                </div>
-                <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
-            </section>
-
-            <section class="download-files-list" aria-live="polite" style="display:none;">
-                <table class="files-table" id="files-table">
-                    <thead>
-                        <tr>
-                            <th data-i18n="downloadManager.table.name">Nom</th>
-                            <th data-i18n="downloadManager.table.size">Taille</th>
-                            <th data-i18n="downloadManager.table.lastModified">Dernière modification</th>
-                            <th data-i18n="downloadManager.table.actions">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="files-tbody">
-                        <tr>
-                            <td colspan="4">Chargement des fichiers...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
-        </main>
-
-        <section class="azure-auth-panel" id="azure-auth-panel" style="display:none;">
-            <h2>Authentification Azure (Entra ID)</h2>
-            <p class="azure-auth-subtitle">Connectez-vous pour récupérer les informations utilisateur et le token d'administration.</p>
-
-            <div class="azure-auth-actions">
-                <button id="azure-login-btn" class="dm-btn primary">Se connecter</button>
-                <button id="azure-refresh-token-btn" class="dm-btn secondary">Rafraîchir le token</button>
-                <button id="azure-logout-btn" class="dm-btn secondary">Se déconnecter</button>
-            </div>
-
-            <p id="azure-auth-status" class="status-message">Non connecté.</p>
-
-            <div class="azure-auth-grid">
-                <div class="azure-auth-card">
-                    <h3>Compte</h3>
-                    <pre id="azure-account-info">-</pre>
-                </div>
-                <div class="azure-auth-card">
-                    <h3>Claims du token</h3>
-                    <pre id="azure-token-claims">-</pre>
-                </div>
-                <div class="azure-auth-card full-width">
-                    <h3>Réponse API /api/users/me</h3>
-                    <pre id="azure-me-response">-</pre>
-                </div>
-            </div>
-        </section>
-
-        <div id="chat-input-area" class="input-area">
-            <div class="input-wrapper">
-                <textarea 
-                    id="input-box" 
-                    class="input-box" 
-                    placeholder="Pose-moi une question..." 
-                    data-i18n-placeholder="components.inputArea.placeholder"
-                    rows="1"
-                ></textarea>
-                <div class="input-buttons">
-                    <button id="send-button" class="send-button bi bi-send" style="color: white;" title="" data-i18n-title="components.inputArea.sendButton"> </button>
-                    <button id="stop-button" class="send-button bi bi-stop-fill" style="color: white; display: none;" title="Cancel" data-i18n-title="components.inputArea.stopButton"> </button>
-                </div>
-            </div>
-            <div class="input-disclaimer">
-                <span data-i18n="components.inputArea.disclaimer">⚠️ Peut contenir des erreurs. Ne remplace pas un avis professionnel.</span>
-                <span id="speech-method-indicator" style="margin-left: 10px; padding: 2px 8px; background: #4CAF50; color: white; border-radius: 12px; font-size: 0.75em; cursor: pointer;" title="Click to toggle recognition method">
-                    🎤 Whisper
-                </span>
-            </div>
-        </div>
-        </div>
-
-        <aside id="suggested-questions-panel" class="suggested-questions-panel" aria-label="Questions suggerees">
-            <div class="suggested-questions-header">
-                <h3>Questions suggérées</h3>
-                <p id="suggested-questions-meta">Chargement...</p>
-            </div>
-            <div id="suggested-questions-list" class="suggested-questions-list">
-                <p class="suggested-questions-empty">Chargement des questions...</p>
-            </div>
-        </aside>
-    </div>
-    </div>
     </div>
     
     <!-- Cookie Consent Banner -->

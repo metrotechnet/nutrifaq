@@ -35,8 +35,8 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         path = path.split('?', 1)[0]
         path = path.split('#', 1)[0]
         
-        # Serve login page at root
-        if path == '/':
+        # Serve login page at root and at /login.html for direct navigation
+        if path == '/' or path == '/login.html':
             return 'SERVE_LOGIN_TEMPLATE'
         # Serve main app
         if path == '/index.html' or path == '/app' or path == '/app.html':

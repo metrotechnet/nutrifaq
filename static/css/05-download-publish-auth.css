@@ -33,14 +33,16 @@
 }
 
 .download-manager-content {
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
     padding: 1.25rem;
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
     gap: 1rem;
+    overflow: auto;
 }
 
 .download-control-bar,
@@ -248,24 +250,41 @@
 }
 
 .download-files-list {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    align-self: stretch;
+    box-sizing: border-box;
     background: #ffffff;
     border: 1px solid #d5e3df;
     border-radius: 12px;
     overflow: auto;
+    overflow-y: auto;
+    overflow-x: auto;
 }
 
 .download-section {
     display: flex;
     flex-direction: column;
+    flex: 1;
     gap: 1rem;
+    min-height: 0;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .publish-section {
     display: flex;
     flex-direction: column;
-    flex: 1;
+    flex: 1 1 auto;
+    width: 100%;
     min-height: 0;
-    gap: 1rem;
+    height: 100vh;
+    max-height: 100vh;
+    gap: 1.25rem;
+    box-sizing: border-box;
 }
 
 .publish-controls-card,
@@ -553,7 +572,8 @@
 .files-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 900px;
+    min-width: 0;
+    table-layout: fixed;
 }
 
 .files-table th,
@@ -563,6 +583,9 @@
     padding: 0.72rem 0.8rem;
     font-size: 0.9rem;
     vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .files-table thead th {
@@ -649,6 +672,13 @@
 
     .azure-auth-grid {
         grid-template-columns: 1fr;
+    }
+
+    .download-section,
+    .publish-section {
+        height: auto;
+        max-height: none;
+        overflow: visible;
     }
 }
 

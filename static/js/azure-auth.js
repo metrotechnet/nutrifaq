@@ -105,8 +105,14 @@
         });
     }
 
-    function hasPanel() {
-        return Boolean(document.getElementById("azure-auth-panel") || authGateOverlay);
+    function hasAuthUi() {
+        return Boolean(
+            document.getElementById("azure-auth-panel") ||
+            authGateOverlay ||
+            sidebarLogoutLink ||
+            sidebarUserEmailEl ||
+            logoutBtn
+        );
     }
 
     function setStatus(message, isError) {
@@ -149,9 +155,39 @@
             return;
         }
         const safeEmail = typeof email === "string" ? email.trim() : "";
+        const tokenEmail = getEmailFromStoredToken();
         const fallbackAccount = tr("azureAuth.accountDefault", "Account");
-        sidebarUserEmailEl.textContent = safeEmail || fallbackAccount;
-        sidebarUserEmailEl.title = safeEmail || fallbackAccount;
+        const displayEmail = safeEmail || tokenEmail || fallbackAccount;
+        sidebarUserEmailEl.textContent = displayEmail;
+        sidebarUserEmailEl.title = displayEmail;
+    }
+
+    function getEmailFromStoredToken() {
+        try {
+            const token = localStorage.getItem(TOKEN_KEY) || "";
+            if (!token) {
+                return "";
+            }
+
+            const claims = decodeJwt(token) || {};
+            const candidates = [
+                claims.preferred_username,
+                claims.upn,
+                claims.email,
+                claims.unique_name
+            ];
+
+            for (const value of candidates) {
+                const text = typeof value === "string" ? value.trim() : "";
+                if (text) {
+                    return text;
+                }
+            }
+        } catch (_) {
+            // Ignore token parsing errors and fallback to default label.
+        }
+
+        return "";
     }
 
     function decodeJwt(token) {
@@ -401,7 +437,7 @@
     }
 
     async function logout(msalApp) {
-        const account = msalApp.getActiveAccount() || msalApp.getAllAccounts()[0];
+        const account = msalApp ? (msalApp.getActiveAccount() || msalApp.getAllAccounts()[0]) : null;
         localStorage.removeItem(TOKEN_KEY);
         window.dispatchEvent(new CustomEvent("nutrifaq:admin-token-updated", { detail: { token: "" } }));
 
@@ -410,7 +446,7 @@
         prettyPrint(meResponseEl, "-");
         setSidebarUserEmail("");
 
-        if (account) {
+        if (msalApp && account) {
             await msalApp.logoutPopup({ account });
         }
 
@@ -419,9 +455,12 @@
     }
 
     async function init() {
-        if (!hasPanel()) {
+        if (!hasAuthUi()) {
             return;
         }
+
+        // Always hydrate the sidebar from local token claims when available.
+        setSidebarUserEmail("");
 
         let msalApp;
         try {
@@ -440,13 +479,11 @@
                 setStatus(tr("azureAuth.statusAccountDetectedRefresh", "Account detected. Click Refresh token."), false);
                 hideLoginGate();
             } else {
-                setSidebarUserEmail("");
-                redirectToLogin();
-                return;
+                setStatus(tr("azureAuth.statusNoActiveAccount", "No active Azure session detected."), false);
             }
         } catch (error) {
+            // Keep sidebar token/logout behavior available even when MSAL bootstrap fails.
             setStatus(tr("azureAuth.statusInitError", "Azure auth initialization error: {error}", { error: error.message }), true);
-            return;
         }
 
         if (loginBtn) {
@@ -506,7 +543,7 @@
             });
         }
 
-        if (msalApp.getActiveAccount()) {
+        if (msalApp && msalApp.getActiveAccount()) {
             try {
                 await refreshToken(msalApp);
             } catch (error) {

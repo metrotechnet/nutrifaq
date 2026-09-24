@@ -1,4 +1,4 @@
-﻿/*
+/*
 ----------------------------------------------------
  Cookie Banner
 ----------------------------------------------------
@@ -79,19 +79,19 @@
     .cookie-banner {
         padding: 1rem;
     }
-    
+
     .cookie-content h3 {
         font-size: 1.1rem;
     }
-    
+
     .cookie-content p {
         font-size: 0.9rem;
     }
-    
+
     .cookie-buttons {
         flex-direction: column;
     }
-    
+
     .cookie-btn {
         width: 100%;
         padding: 0.875rem;
@@ -100,109 +100,90 @@
 
 /*
 ----------------------------------------------------
- Mobile Keyboard State
+ Mobile-first layout pass
 ----------------------------------------------------
-Styles when mobile keyboard is visible
 */
-
-body.keyboard-visible {
-    /* Prevent body scroll when keyboard is shown */
-    overflow: hidden;
-}
-
-body.keyboard-visible #chat-container {
-    /* Adjust chat container when keyboard appears */
-    padding-bottom: 0;
-}
-
-body.keyboard-visible .input-area {
-    /* Ensure input stays visible above keyboard */
-    position: sticky;
-    bottom: 0;
-    z-index: 100;
-}
 
 @media (max-width: 768px) {
-    body.keyboard-visible .content {
-        /* Adjust content height for mobile keyboard */
-        max-height: calc(100vh - env(safe-area-inset-bottom));
+    #chat-container {
+        gap: 0.5rem;
     }
-    
-    body.keyboard-visible #chat-container {
-        /* Reduce padding when keyboard is visible */
-        padding: 1rem;
-        padding-bottom: 0;
+
+    #chat-container > .chat-main-layout,
+    #chat-container > .download-manager-content,
+    #chat-container > .azure-auth-panel,
+    .suggested-questions-panel {
+        border-radius: 10px;
     }
-}
 
-/*
-----------------------------------------------------
- Message Action Buttons
-----------------------------------------------------
-*/
+    #chat-container > .chat-main-layout,
+    #chat-container > .download-manager-content,
+    #chat-container > .azure-auth-panel {
+        padding: 0.65rem;
+    }
 
-.message-actions {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-}
+    .chat-stream {
+        gap: 0.85rem;
+    }
 
-.message-model-name {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.2rem 0.55rem;
-    border-radius: 999px;
-    border: 1px solid #d1e4f7;
-    background: #f3f8ff;
-    color: #1f4f85;
-    font-size: 0.76rem;
-    font-weight: 600;
-    line-height: 1.1;
-}
+    .message {
+        padding: 0.85rem;
+    }
 
-.action-btn {
-    border-radius: 50%;
-    padding: 0;
-    border: none;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
-    cursor: pointer;
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
-    max-width: 40px;
-    max-height: 40px;
-    aspect-ratio: 1 / 1;
-    line-height: 1;
-    overflow: hidden;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
+    .download-control-bar,
+    .download-upload-bar,
+    .publish-controls-grid,
+    .download-status-row,
+    .azure-auth-grid {
+        grid-template-columns: 1fr;
+    }
 
-.action-btn i {
-    display: block;
-    font-size: 1.1rem;
-    line-height: 1;
-}
+    .download-status-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+    }
 
-.action-btn.copy-btn {
-    background: #f3f3f3;
-    margin-left: 6px;
-}
+    .indexing-actions,
+    .publish-logs-actions,
+    .azure-auth-actions {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
 
-.action-btn.like-btn {
-    background: #e6f9e6;
-    margin-left: 6px;
-}
+    .indexing-actions .dm-btn,
+    .publish-logs-actions .dm-btn,
+    .azure-auth-actions .dm-btn {
+        flex: 1 1 160px;
+    }
 
-.action-btn.dislike-btn {
-    background: #f9e6e6;
-    margin-left: 2px;
-}
+    .publish-logs-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.55rem;
+    }
 
-.action-btn.tts-btn {
-    background: #c1ddf1;
-    margin-left: 2px;
+    .publish-logs-tabs {
+        flex-wrap: wrap;
+    }
+
+    .download-files-list {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .azure-auth-card pre {
+        max-height: 180px;
+        overflow: auto;
+    }
+
+    .input-area {
+        padding: 0.7rem 0.7rem 0;
+    }
+
+    .input-wrapper .input-box {
+        padding-right: 6rem;
+    }
 }
