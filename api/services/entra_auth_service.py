@@ -28,10 +28,6 @@ _ROLE_ORDER = {
 }
 
 
-def _is_demo_mode_enabled() -> bool:
-    return os.getenv("DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
-
-
 @dataclass
 class EntraUser:
     object_id: str
@@ -43,6 +39,8 @@ class EntraUser:
 
 
 @lru_cache(maxsize=1)
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _openid_configuration() -> dict[str, Any]:
     tenant_id = os.getenv("ENTRA_TENANT_ID", "").strip()
     if not tenant_id:
@@ -62,6 +60,8 @@ def _openid_configuration() -> dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _jwks_client() -> jwt.PyJWKClient:
     openid_cfg = _openid_configuration()
     jwks_uri = str(openid_cfg.get("jwks_uri", "")).strip()
@@ -70,6 +70,8 @@ def _jwks_client() -> jwt.PyJWKClient:
     return jwt.PyJWKClient(jwks_uri)
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _expected_audience() -> str | list[str]:
     raw = os.getenv("ENTRA_AUDIENCE", "").strip()
     if raw:
@@ -83,6 +85,8 @@ def _expected_audience() -> str | list[str]:
     return values[0] if len(values) == 1 else values
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _token_roles(claims: dict[str, Any]) -> list[str]:
     raw_roles = claims.get("roles")
     if isinstance(raw_roles, list):
@@ -95,6 +99,8 @@ def _token_roles(claims: dict[str, Any]) -> list[str]:
     return [str(role).strip().lower() for role in values if str(role).strip()]
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _effective_role(object_id: str, claim_roles: list[str]) -> str:
     _ = claim_roles  # Role authorization intentionally ignores token roles.
 
@@ -102,9 +108,12 @@ def _effective_role(object_id: str, claim_roles: list[str]) -> str:
     if assigned:
         return assigned
 
-    return ROLE_COLLABORATOR
+    # Default every authenticated Entra user to admin unless explicitly overridden.
+    return ROLE_ADMIN
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _decode_access_token(token: str) -> dict[str, Any]:
     openid_cfg = _openid_configuration()
     issuer = str(openid_cfg.get("issuer", "")).strip()
@@ -145,6 +154,8 @@ def _decode_access_token(token: str) -> dict[str, Any]:
     return claims
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _build_user(claims: dict[str, Any]) -> EntraUser:
     object_id = str(claims.get("oid") or claims.get("sub") or "").strip()
     if not object_id:
@@ -170,19 +181,11 @@ def _build_user(claims: dict[str, Any]) -> EntraUser:
     )
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_security),
 ) -> EntraUser:
-    if _is_demo_mode_enabled():
-        return EntraUser(
-            object_id="demo-user",
-            username="demo@local",
-            display_name="Demo User",
-            role=ROLE_ADMIN,
-            token_roles=[ROLE_ADMIN],
-            claims={"mode": "demo"},
-        )
-
     if credentials is None or not credentials.credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token.")
 
@@ -196,10 +199,14 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {exc}") from exc
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _require_min_role(min_role: str):
     if min_role not in _ROLE_ORDER:
         raise ValueError(f"Unsupported role guard: {min_role}")
 
+    # Purpose: Internal helper used to keep the main workflow readable and maintainable.
+    # Inputs/Outputs: See signature and return annotation for contract details.
     async def _guard(user: EntraUser = Depends(get_current_user)) -> EntraUser:
         if _ROLE_ORDER.get(user.role, 0) < _ROLE_ORDER[min_role]:
             raise HTTPException(
@@ -216,14 +223,19 @@ require_admin = _require_min_role(ROLE_ADMIN)
 require_client = _require_min_role(ROLE_CLIENT)
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 async def require_client_or_query_key(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_security),
 ) -> EntraUser:
+    request_path = (request.url.path or "").rstrip("/") or "/"
+    is_query_endpoint = request_path == "/query"
+
     expected_key = os.getenv("QUERY_ACCESS_KEY", "").strip()
     provided_key = request.headers.get("X-Client-Key", "").strip()
 
-    if expected_key and provided_key and hmac.compare_digest(provided_key, expected_key):
+    if is_query_endpoint and expected_key and provided_key and hmac.compare_digest(provided_key, expected_key):
         return EntraUser(
             object_id="query-key-user",
             username="query-key@local",

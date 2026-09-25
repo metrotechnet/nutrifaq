@@ -36,6 +36,8 @@ class CreateUserRequest(BaseModel):
     role: str = Field("client", description="Role to assign after creation: admin, collaborator, or client")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _get_graph_access_token() -> str:
     tenant_id = os.getenv("ENTRA_TENANT_ID", "").strip()
     client_id = os.getenv("ENTRA_CLIENT_ID", "").strip()
@@ -59,6 +61,8 @@ def _get_graph_access_token() -> str:
     return token
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _get_verified_domains(token: str) -> tuple[list[str], str | None]:
     response = requests.get(
         "https://graph.microsoft.com/v1.0/domains?$select=id,isVerified,isDefault",
@@ -85,6 +89,8 @@ def _get_verified_domains(token: str) -> tuple[list[str], str | None]:
     return deduped_domains, default_domain
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _create_entra_user_via_graph(email: str, display_name: str | None, password: str | None) -> dict[str, Any]:
     token = _get_graph_access_token()
 
@@ -121,6 +127,8 @@ def _create_entra_user_via_graph(email: str, display_name: str | None, password:
     if upn_email.lower() != email.lower():
         payload["otherMails"] = [email]
 
+    # Purpose: Internal helper used to keep the main workflow readable and maintainable.
+    # Inputs/Outputs: See signature and return annotation for contract details.
     def _post_user(candidate_payload: dict[str, Any]) -> requests.Response:
         return requests.post(
             "https://graph.microsoft.com/v1.0/users",
@@ -132,6 +140,8 @@ def _create_entra_user_via_graph(email: str, display_name: str | None, password:
             timeout=30,
         )
 
+    # Purpose: Internal helper used to keep the main workflow readable and maintainable.
+    # Inputs/Outputs: See signature and return annotation for contract details.
     def _error_message(candidate_response: requests.Response) -> str:
         try:
             payload = candidate_response.json()

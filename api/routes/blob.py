@@ -32,16 +32,22 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 router = APIRouter()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _documents_prefix(root_folder: str | None = None) -> str:
     base_root = (root_folder or get_blob_prefix()).strip("/")
     return f"{base_root}/documents/"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _debug_local_root(root_folder: str | None = None) -> Path:
     resolved_root = (root_folder or get_debug_local_kb_root_folder()).strip("/")
     return REPO_ROOT / resolved_root
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _strip_known_root_prefix(path_value: str, root_folder: str | None = None) -> str:
     raw = (path_value or "").strip().lstrip("/")
     if not raw:
@@ -66,6 +72,8 @@ def _strip_known_root_prefix(path_value: str, root_folder: str | None = None) ->
     return raw.strip("/")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _local_file_path(blob_name: str, root_folder: str | None = None) -> Path:
     relative_name = _strip_known_root_prefix(blob_name, root_folder=root_folder)
     if not relative_name:
@@ -133,6 +141,8 @@ def _resolve_upload_target(blob_name: str, root_folder: str | None = None) -> st
     return candidate
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _list_local_debug_files(prefix: str | None = None, root_folder: str | None = None) -> list[dict]:
     local_root = _debug_local_root(root_folder)
     documents_root = local_root / "documents"

@@ -111,6 +111,8 @@ def _extract_json_array_from_text(text: str) -> list[str]:
     return [str(item).strip() for item in payload if isinstance(item, (str, int, float)) and str(item).strip()]
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _build_llm_prompt_for_questions(text_excerpt: str, topic: str, question_count: int) -> str:
     return (
         "Tu es un assistant de creation de jeux de questions en nutrition. "
@@ -223,10 +225,14 @@ class StepDefinition:
     args: List[str]
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _python_executable() -> str:
     return sys.executable or "python"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _reset_progress_snapshot() -> None:
     try:
         if REGEN_PROGRESS_PATH.exists():
@@ -236,6 +242,8 @@ def _reset_progress_snapshot() -> None:
         pass
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _start_regeneration() -> bool:
     _reset_progress_snapshot()
     with _regen_state_lock:
@@ -251,6 +259,8 @@ def _start_regeneration() -> bool:
         return True
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _finish_regeneration() -> None:
     with _regen_state_lock:
         _regen_state["running"] = False
@@ -262,21 +272,29 @@ def _finish_regeneration() -> None:
         _regen_state["progress_kind"] = None
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _set_current_step(step_key: str | None) -> None:
     with _regen_state_lock:
         _regen_state["current_step"] = step_key
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _set_active_process(process: subprocess.Popen[str] | None) -> None:
     with _regen_state_lock:
         _regen_state["active_process"] = process
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _is_cancel_requested() -> bool:
     with _regen_state_lock:
         return bool(_regen_state.get("cancel_requested"))
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def request_regeneration_cancel() -> Dict[str, object]:
     with _regen_state_lock:
         if not bool(_regen_state.get("running")):
@@ -302,6 +320,8 @@ def request_regeneration_cancel() -> Dict[str, object]:
     }
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _write_progress_snapshot(step_key: str, value: int, total: int, kind: str) -> None:
     target_path = REGEN_PROGRESS_PATH
     target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -316,6 +336,8 @@ def _write_progress_snapshot(step_key: str, value: int, total: int, kind: str) -
         json.dump(payload, handle, ensure_ascii=False)
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _read_progress_snapshot() -> Dict[str, object]:
     if not REGEN_PROGRESS_PATH.exists():
         return {}
@@ -329,6 +351,8 @@ def _read_progress_snapshot() -> Dict[str, object]:
     return payload
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_regeneration_status() -> Dict[str, object]:
     snapshot = _read_progress_snapshot()
     
@@ -368,6 +392,8 @@ def get_regeneration_status() -> Dict[str, object]:
         }
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _step_definitions() -> Dict[str, StepDefinition]:
     return {
         "extract_docx": StepDefinition(
@@ -408,6 +434,8 @@ def _step_definitions() -> Dict[str, StepDefinition]:
     }
 
 
+# Purpose: Collect and return a list view for API responses or internal processing.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def list_regeneration_steps() -> List[Dict[str, str]]:
     steps = _step_definitions()
     listed_steps: list[dict[str, str]] = []
@@ -417,10 +445,14 @@ def list_regeneration_steps() -> List[Dict[str, str]]:
     return listed_steps
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _run_step(step_key: str) -> Dict[str, object]:
     return _run_step_with_env(step_key)
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _run_step_with_env(
     step_key: str,
     env_overrides: Dict[str, str] | None = None,
@@ -557,6 +589,8 @@ def run_generate_questions_step(
     }
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def run_regeneration_step(step_key: str) -> Dict[str, object]:
     step_services = {
         "extract_docx": run_extract_docx_step,
@@ -576,6 +610,8 @@ def run_regeneration_step(step_key: str) -> Dict[str, object]:
     return runner()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _save_chromadb_to_blob_and_local_copy(
     *,
     local_kb_root: Path,

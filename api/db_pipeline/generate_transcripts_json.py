@@ -183,6 +183,8 @@ def generate_transcripts_json(kb_dir: Path):
         return False
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def main() -> int:
     if len(sys.argv) != 2:
         print("Usage: python generate_transcripts_json.py <path_to_knowledge_base>")

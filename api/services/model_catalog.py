@@ -8,23 +8,33 @@ from typing import Any
 from api.services.blob_storage_service import get_container_client, has_blob_storage_config
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _catalog_blob_container_name() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _catalog_blob_prefix() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _catalog_blob_name() -> str:
     prefix = _catalog_blob_prefix()
     return f"{prefix}/accessible_models.json" if prefix else "accessible_models.json"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _current_provider() -> str:
     return os.getenv("LLM_PROVIDER", "vercel").strip().lower()
 
 
+# Purpose: Load configuration or persisted data and normalize the result for runtime use.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def load_accessible_models() -> dict[str, Any]:
     if not has_blob_storage_config():
         return {

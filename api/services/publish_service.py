@@ -36,12 +36,16 @@ _publish_state: dict[str, Any] = {
 }
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _set_publish_state(**updates: Any) -> None:
     with _publish_state_lock:
         _publish_state.update(updates)
         _publish_state["updated_at"] = datetime.now(timezone.utc).isoformat()
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_publish_status() -> dict[str, Any]:
     with _publish_state_lock:
         state = dict(_publish_state)
@@ -62,6 +66,8 @@ def get_publish_status() -> dict[str, Any]:
     }
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _clear_blob_destination(container_name: str, prefix: str = "") -> int:
     prefix_value = (prefix or "").strip("/") or None
     blobs = list_blob_files(prefix=prefix_value, container_name=container_name)
@@ -72,6 +78,8 @@ def _clear_blob_destination(container_name: str, prefix: str = "") -> int:
     return removed
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _run_publish_job(model: str, provider: str) -> None:
     try:
         _set_publish_state(
@@ -209,6 +217,8 @@ def _run_publish_job(model: str, provider: str) -> None:
         )
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _run_revert_job() -> None:
     try:
         _set_publish_state(
@@ -316,6 +326,8 @@ def _run_revert_job() -> None:
         )
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def start_publish(model: str, provider: str) -> dict[str, Any]:
     with _publish_state_lock:
         if bool(_publish_state.get("running")):
@@ -350,6 +362,8 @@ def start_publish(model: str, provider: str) -> dict[str, Any]:
     }
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def start_revert() -> dict[str, Any]:
     with _publish_state_lock:
         if bool(_publish_state.get("running")):

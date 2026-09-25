@@ -30,6 +30,8 @@ async def translate_text_endpoint(request: TranslateRequest):
     """Translate text to target language using GPT with streaming."""
     question_id = str(uuid.uuid4())
     
+    # Purpose: Implement a focused unit of backend behavior used by routes or services.
+    # Inputs/Outputs: See signature and return annotation for contract details.
     def generate():
         # Send question_id in first chunk
         yield f"data: {json.dumps({'question_id': question_id, 'chunk': ''})}\n\n"
@@ -108,6 +110,8 @@ async def translate_audio_endpoint(
         return JSONResponse({"error": "Could not transcribe audio"}, status_code=400)
     
     # Step 2: Translate the transcribed text
+    # Purpose: Implement a focused unit of backend behavior used by routes or services.
+    # Inputs/Outputs: See signature and return annotation for contract details.
     def generate():
         # First send the transcription
         yield f"data: {json.dumps({'transcription': transcribed_text, 'chunk': ''})}\n\n"

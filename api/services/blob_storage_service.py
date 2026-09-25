@@ -25,26 +25,38 @@ class BlobFileInfo:
     content_type: str | None
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _storage_connection_string() -> str | None:
     return os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _storage_account_name() -> str | None:
     return os.getenv("AZURE_STORAGE_ACCOUNT")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _storage_account_key() -> str | None:
     return os.getenv("AZURE_STORAGE_KEY")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _storage_sas_token() -> str | None:
     return os.getenv("AZURE_STORAGE_SAS_TOKEN")
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def has_blob_storage_config() -> bool:
     return bool(_storage_connection_string() or (_storage_account_name() and _storage_account_key()))
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_blob_container_name(container_name: str | None = None) -> str:
     if container_name:
         return container_name
@@ -57,6 +69,8 @@ def get_blob_container_name(container_name: str | None = None) -> str:
     )
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_blob_prefix() -> str:
     return os.getenv(
         "AZURE_KB_DEBUG_BLOB_PREFIX",
@@ -64,6 +78,8 @@ def get_blob_prefix() -> str:
     ).strip("/")
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_blob_service_client() -> Any:
     if BlobServiceClient is None:
         raise RuntimeError("azure-storage-blob is not installed in the current environment.")
@@ -82,11 +98,15 @@ def get_blob_service_client() -> Any:
     raise RuntimeError("Azure Blob Storage configuration is required.")
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_container_client(container_name: str | None = None):
     client = get_blob_service_client()
     return client.get_container_client(get_blob_container_name(container_name))
 
 
+# Purpose: Collect and return a list view for API responses or internal processing.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def list_blob_files(prefix: str | None = None, container_name: str | None = None) -> list[BlobFileInfo]:
     container_client = get_container_client(container_name)
     blobs = container_client.list_blobs(name_starts_with=prefix)
@@ -105,10 +125,14 @@ def list_blob_files(prefix: str | None = None, container_name: str | None = None
     ]
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_blob_properties(blob_name: str, container_name: str | None = None):
     return get_container_client(container_name).get_blob_client(blob_name).get_blob_properties()
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def download_blob_to_path(blob_name: str, destination_path: Path, container_name: str | None = None) -> Path:
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     blob_client = get_container_client(container_name).get_blob_client(blob_name)
@@ -117,6 +141,8 @@ def download_blob_to_path(blob_name: str, destination_path: Path, container_name
     return destination_path
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def upload_file_to_blob(
     blob_name: str,
     source_path: Path,
@@ -129,10 +155,14 @@ def upload_file_to_blob(
     return blob_name
 
 
+# Purpose: Delete the targeted resource and keep state consistent after removal.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def delete_blob(blob_name: str, container_name: str | None = None) -> None:
     get_container_client(container_name).delete_blob(blob_name)
 
 
+# Purpose: Synchronize source and destination data while preserving operational safety.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def sync_blob_prefix_to_local(
     prefix: str,
     local_root: Path,
@@ -170,6 +200,8 @@ def sync_blob_prefix_to_local(
     return local_root
 
 
+# Purpose: Synchronize source and destination data while preserving operational safety.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def sync_local_directory_to_blob(
     source_root: Path,
     destination_prefix: str,

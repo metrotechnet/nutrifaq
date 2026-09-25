@@ -43,6 +43,8 @@ AZURE_STORAGE_CONTAINER = get_blob_container_name()
 AZURE_BLOB_PREFIX = get_blob_prefix()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _sync_transcripts_json_from_blob(kb_path: Path) -> Path:
     local_json = kb_path / "transcripts_chromadb.json"
     if local_json.exists():
@@ -97,12 +99,16 @@ def init_chromadb(kb_path):
     return chroma_client, collection
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _reset_chroma_directory(kb_path: Path) -> None:
     chroma_path = kb_path / "chroma_db"
     if chroma_path.exists():
         shutil.rmtree(chroma_path, ignore_errors=True)
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _is_missing_collections_table_error(exc: Exception) -> bool:
     message = str(exc).lower()
     return "no such table: collections" in message or "error getting collection" in message

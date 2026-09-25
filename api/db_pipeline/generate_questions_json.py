@@ -19,6 +19,8 @@ from api.services.llm_service import create_chat_completion_text, get_gateway_cl
 from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _sanitize_question_topic(text: str, *, max_words: int = 8) -> str:
     normalized = re.sub(r"\s+", " ", text or "").strip()
     if not normalized:
@@ -31,6 +33,8 @@ def _sanitize_question_topic(text: str, *, max_words: int = 8) -> str:
     return short if short else "ce document"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _build_questions_fallback(topic: str, question_count: int) -> list[str]:
     templates = [
         "Quels sont les points cles de {topic} ?",
@@ -43,6 +47,8 @@ def _build_questions_fallback(topic: str, question_count: int) -> list[str]:
     return [templates[idx % len(templates)].format(topic=topic) for idx in range(question_count)]
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _extract_json_array_from_text(text: str) -> list[str]:
     if not text:
         return []
@@ -67,6 +73,8 @@ def _extract_json_array_from_text(text: str) -> list[str]:
     return [str(item).strip() for item in payload if isinstance(item, (str, int, float)) and str(item).strip()]
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _build_llm_prompt(text_excerpt: str, topic: str, question_count: int) -> str:
     return (
         "Tu es un assistant de creation de jeux de questions en nutrition. "
@@ -83,6 +91,8 @@ def _build_llm_prompt(text_excerpt: str, topic: str, question_count: int) -> str
     ).format(count=question_count, topic=topic, text=text_excerpt)
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _load_transcripts_payload(transcripts_path: Path) -> dict:
     try:
         raw = transcripts_path.read_text(encoding="utf-8")
@@ -109,6 +119,8 @@ def _load_transcripts_payload(transcripts_path: Path) -> dict:
     return payload
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
     transcripts_path = kb_root / "transcripts_chromadb.json"
     if not transcripts_path.exists():
@@ -193,6 +205,8 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
     return output_path
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def main() -> int:
     if len(sys.argv) not in {2, 3}:
         print("Usage: python generate_questions_json.py <knowledge_base_path> [question_count]")

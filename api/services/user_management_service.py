@@ -13,27 +13,39 @@ ROLE_COLLABORATOR = "collaborator"
 ROLE_CLIENT = "client"
 VALID_ROLES = {ROLE_ADMIN, ROLE_COLLABORATOR, ROLE_CLIENT}
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _roles_blob_container_name() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _roles_blob_prefix() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _roles_blob_name() -> str:
     prefix = _roles_blob_prefix()
     return f"{prefix}/user_roles.json" if prefix else "user_roles.json"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _default_payload() -> dict[str, Any]:
     return {"users": {}}
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _load_payload() -> dict[str, Any]:
     if not has_blob_storage_config():
         return _default_payload()
@@ -55,6 +67,8 @@ def _load_payload() -> dict[str, Any]:
     return payload
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _save_payload(payload: dict[str, Any]) -> None:
     if not has_blob_storage_config():
         raise RuntimeError("Azure Blob Storage is required to save role assignments.")
@@ -65,6 +79,8 @@ def _save_payload(payload: dict[str, Any]) -> None:
     blob_client.upload_blob(encoded_payload, overwrite=True)
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_assigned_role(user_object_id: str) -> str | None:
     payload = _load_payload()
     users = payload.get("users", {})
@@ -78,6 +94,8 @@ def get_assigned_role(user_object_id: str) -> str | None:
     return None
 
 
+# Purpose: Update in-memory state that drives subsequent operations.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def set_assigned_role(user_object_id: str, role: str, assigned_by: str) -> dict[str, Any]:
     role = role.strip().lower()
     if role not in VALID_ROLES:
@@ -94,6 +112,8 @@ def set_assigned_role(user_object_id: str, role: str, assigned_by: str) -> dict[
     return users[user_object_id]
 
 
+# Purpose: Delete the targeted resource and keep state consistent after removal.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def remove_assigned_role(user_object_id: str) -> bool:
     payload = _load_payload()
     users = payload.get("users", {})
@@ -105,6 +125,8 @@ def remove_assigned_role(user_object_id: str) -> bool:
     return True
 
 
+# Purpose: Collect and return a list view for API responses or internal processing.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def list_assigned_roles() -> dict[str, dict[str, Any]]:
     payload = _load_payload()
     users = payload.get("users", {})

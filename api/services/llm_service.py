@@ -149,12 +149,16 @@ def build_prompt_from_template(
     return prompt
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _llm_provider(provider_override: str | None = None) -> str:
     if provider_override:
         return provider_override.strip().lower()
     return os.getenv("LLM_PROVIDER", "vercel").strip().lower()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _embedding_provider(provider_override: str | None = None) -> str:
     env_embedding_provider = os.getenv("EMBEDDING_PROVIDER")
     if env_embedding_provider:
@@ -162,17 +166,23 @@ def _embedding_provider(provider_override: str | None = None) -> str:
     return _llm_provider(provider_override)
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _normalize_model_name(model_name: str) -> str:
     # Vercel gateway model IDs often include provider prefixes like "openai/".
     return model_name.split("/", 1)[1] if "/" in model_name else model_name
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _is_azure_apim_gateway(endpoint: str | None) -> bool:
     if not endpoint:
         return False
     return "azure-api.net" in endpoint.lower()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _is_azure_openai_v1_endpoint(endpoint: str | None) -> bool:
     if not endpoint:
         return False
@@ -185,10 +195,14 @@ def _is_azure_openai_v1_endpoint(endpoint: str | None) -> bool:
     )
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _normalize_base_url(endpoint: str, suffix: str) -> str:
     return f"{endpoint.rstrip('/')}/{suffix.lstrip('/')}"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _status_code_from_error(exc: Exception) -> int | None:
     status_code = getattr(exc, "status_code", None)
     if isinstance(status_code, int):
@@ -203,6 +217,8 @@ def _status_code_from_error(exc: Exception) -> int | None:
     return None
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _retry_after_from_error(exc: Exception) -> float | None:
     response = getattr(exc, "response", None)
     if response is None:
@@ -229,10 +245,14 @@ def _retry_after_from_error(exc: Exception) -> float | None:
         return None
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _is_rate_limit_error(exc: Exception) -> bool:
     return _status_code_from_error(exc) == 429 or "rate_limit" in str(exc).lower()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _log_rate_limit_wait(kind: str, attempt: int, max_retries: int, delay: float, batch_size: int | None = None) -> None:
     if os.getenv("LLM_RETRY_VERBOSE", "true").strip().lower() not in {"1", "true", "yes", "on"}:
         return
@@ -244,6 +264,8 @@ def _log_rate_limit_wait(kind: str, attempt: int, max_retries: int, delay: float
     )
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _get_azure_client(
     endpoint_override: str | None = None,
     api_key_override: str | None = None,
@@ -260,6 +282,8 @@ def _get_azure_client(
     return AzureOpenAI(azure_endpoint=endpoint, api_key=api_key, api_version=api_version)
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _get_azure_chat_client() -> OpenAI | AzureOpenAI:
     endpoint = os.getenv("AZURE_OPENAI_CHAT_ENDPOINT")
     api_key = os.getenv("AZURE_OPENAI_CHAT_API_KEY")
@@ -267,6 +291,8 @@ def _get_azure_chat_client() -> OpenAI | AzureOpenAI:
     return _get_azure_client(endpoint, api_key)
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _get_azure_embedding_client() -> OpenAI | AzureOpenAI:
     endpoint = os.getenv("AZURE_OPENAI_EMBEDDING_ENDPOINT") 
     api_key = os.getenv("AZURE_OPENAI_EMBEDDING_API_KEY") 
@@ -274,6 +300,8 @@ def _get_azure_embedding_client() -> OpenAI | AzureOpenAI:
     return _get_azure_client(endpoint, api_key)
 
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_gateway_client(provider_override: str | None = None) -> OpenAI | AzureOpenAI:
     provider = _llm_provider(provider_override)
     if provider == "azure":
@@ -285,6 +313,8 @@ def get_gateway_client(provider_override: str | None = None) -> OpenAI | AzureOp
     return OpenAI(api_key=api_key, base_url="https://ai-gateway.vercel.sh/v1")
 
 
+# Purpose: Create a resource by coordinating validation and backend calls.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def create_chat_completion_stream(
     *,
     client: OpenAI | AzureOpenAI,
@@ -400,6 +430,8 @@ def create_chat_completion_text(
     raise RuntimeError("Failed to create chat completion.")
 
 
+# Purpose: Create a resource by coordinating validation and backend calls.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def create_embedding(
     *,
     input_text: str,
@@ -446,6 +478,8 @@ def create_embedding(
     raise RuntimeError("Failed to create embedding.")
 
 
+# Purpose: Create a resource by coordinating validation and backend calls.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def create_embeddings(
     *,
     input_texts: list[str],
@@ -473,6 +507,8 @@ def create_embeddings(
     max_delay = max(base_delay, float(os.getenv("EMBEDDING_RETRY_MAX_DELAY", "90")))
     split_after = max(0, int(os.getenv("EMBEDDING_SPLIT_AFTER_RETRIES", "2")))
 
+    # Purpose: Internal helper used to keep the main workflow readable and maintainable.
+    # Inputs/Outputs: See signature and return annotation for contract details.
     def _request_batch(texts: list[str]) -> list[list[float]]:
         last_error: Exception | None = None
         for attempt in range(max_retries + 1):

@@ -25,24 +25,34 @@ _PROD_CONFIG_LOCK = RLock()
 _GLOBAL_PROD_CONFIG: dict[str, Any] = {}
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _config_blob_container_name() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _config_blob_prefix() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _prod_config_blob_name() -> str:
     prefix = _config_blob_prefix()
     return f"{prefix}/prod_config.json" if prefix else "prod_config.json"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _publish_log_blob_name() -> str:
     prefix = _config_blob_prefix()
     return f"{prefix}/publish_log.json" if prefix else "publish_log.json"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _resolve_config_path(file_name: str) -> Path:
     frontend_path = FRONTEND_CONFIG_ROOT / file_name
     if frontend_path.exists():
@@ -204,7 +214,7 @@ def update_prod_config(values: dict[str, Any], deep: bool = True) -> dict[str, A
         current = _GLOBAL_PROD_CONFIG.copy()
         updated = deep_merge(current, values) if deep else {**current, **values}
         _GLOBAL_PROD_CONFIG = updated.copy()
-        return save_prod_config(updated)
+        return updated
 
 
 def next_chroma_target_dirname(prod_sqlite_value: str | None) -> str:
@@ -256,11 +266,11 @@ def sync_next_prod_chroma_from_main(
     shutil.copytree(source_chroma, target_chroma)
 
     new_prod_sqlite = f"{target_chroma.name}"
-    update_prod_config({"PROD_SQLITE": new_prod_sqlite})
+    updated = update_prod_config({"PROD_SQLITE": new_prod_sqlite})
     # Update production configuration with the new model and provider
-    update_prod_config({"PROD_LLM": model})
-    update_prod_config({"PROD_PROVIDER": provider})
-
+    updated = update_prod_config({"PROD_LLM": model})
+    updated = update_prod_config({"PROD_PROVIDER": provider})
+    save_prod_config(updated)
     return source_chroma, target_chroma, current_prod_sqlite, new_prod_sqlite
 
 

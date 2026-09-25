@@ -44,10 +44,14 @@ _CHROMA_COLLECTION_CACHE: dict[tuple[str, str], Any] = {}
 _CHROMA_SIGNATURE_CACHE: str | None = None
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _repo_chroma_path() -> Path:
     return REPO_ROOT / "nutrifaq-dbase" / "chroma_db"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _resolve_local_chroma_root(
     root_folder: str | None = None,
     chroma_db_path: str | None = None,
@@ -65,10 +69,14 @@ def get_debug_local_kb_root_folder() -> str:
     return os.getenv("AZURE_KB_DEBUG_LOCAL_ROOT", "nutrifaq-dbase-main").strip("/")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _remote_chroma_signature() -> str:
     return get_blob_properties(f"{AZURE_BLOB_PREFIX}/chroma_db/chroma.sqlite3").etag
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _read_local_signature() -> str | None:
     if not LOCAL_BLOB_MARKER_FILE.exists():
         return None
@@ -78,11 +86,15 @@ def _read_local_signature() -> str | None:
         return None
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _write_local_signature(signature: str) -> None:
     LOCAL_BLOB_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
     LOCAL_BLOB_MARKER_FILE.write_text(signature, encoding="utf-8")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _sync_chroma_from_blob(force: bool = False) -> Path:
     global _CHROMA_SIGNATURE_CACHE
 
@@ -99,6 +111,8 @@ def _sync_chroma_from_blob(force: bool = False) -> Path:
     )
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _local_chroma_client(
     project_name: str,
     root_folder: str | None = None,
@@ -123,11 +137,15 @@ def _local_chroma_client(
     return client
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _invalidate_chroma_cache() -> None:
     _CHROMA_CLIENT_CACHE.clear()
     _CHROMA_COLLECTION_CACHE.clear()
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def query_chromadb(
     project_name,
     collection_name=None,

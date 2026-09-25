@@ -26,6 +26,8 @@ from api.services.database_regeneration_service import _write_progress_snapshot 
 
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def resolve_kb_path() -> Path:
     if len(sys.argv) >= 2 and sys.argv[1].strip():
         return Path(sys.argv[1]).resolve()
@@ -154,6 +156,8 @@ def process_documents(documents_dir: Path):
     return results
 
 
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def main() -> None:
     kb_root = resolve_kb_path()
     documents_dir = kb_root / "documents"

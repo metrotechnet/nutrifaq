@@ -10,6 +10,8 @@ from api.services.query_chromadb import get_debug_local_kb_root_folder
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _resolve_generated_questions_path(kb_root_folder: str | None = None) -> Path:
     root_folder = (kb_root_folder or get_debug_local_kb_root_folder()).strip("/")
     return REPO_ROOT / root_folder / "generated_questions.json"

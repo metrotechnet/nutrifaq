@@ -10,17 +10,19 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from api.schemas.models import QueryRequest
-from api.services.entra_auth_service import require_admin, require_client_or_query_key
+from api.services.entra_auth_service import require_admin, require_client, require_client_or_query_key
 from api.services.sessions import get_or_create_session, is_session_rate_limited
 from api.services.logging import save_question_response, contains_medical_disclaimer
 from api.services.generated_questions_loader import load_generated_questions
 from api.services.query_chromadb import ask_question_stream, get_debug_local_kb_root_folder
 import api.services.config as config_service
 
-router = APIRouter(dependencies=[Depends(require_client_or_query_key)])
+router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _resolve_requested_model(request: Request, query_request: QueryRequest) -> str | None:
     body_model = (query_request.llm_model or "").strip()
     if body_model:
@@ -30,6 +32,8 @@ def _resolve_requested_model(request: Request, query_request: QueryRequest) -> s
     return header_model or None
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _resolve_runtime_provider_and_model(
     request: Request,
     query_request: QueryRequest,
@@ -58,7 +62,11 @@ def _resolve_runtime_provider_and_model(
     return provider, model
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _resolve_runtime_chroma_path(*, debug_mode: bool, chroma_db_path: str | None) -> str | None:
+    # Purpose: Internal helper used to keep the main workflow readable and maintainable.
+    # Inputs/Outputs: See signature and return annotation for contract details.
     def _normalize_chroma_path(value: str) -> str:
         normalized = value.strip().replace("\\", "/")
         if not normalized:
@@ -123,6 +131,8 @@ def _query_agent_response(
 
     question_id = str(uuid.uuid4())
 
+    # Purpose: Implement a focused unit of backend behavior used by routes or services.
+    # Inputs/Outputs: See signature and return annotation for contract details.
     def generate():
         # Generate the assistant's streaming response (SSE)
         try:
@@ -211,7 +221,7 @@ def _query_agent_response(
     )
 
 
-@router.post("/query")
+@router.post("/query", dependencies=[Depends(require_client_or_query_key)])
 # @limiter.limit("10/hour")  # Max 10 questions per hour per IP
 async def query_agent(request: Request, query_request: QueryRequest, chroma_db_path: str | None = None):
     """
@@ -227,7 +237,7 @@ async def query_agent_debug(request: Request, query_request: QueryRequest, chrom
     return _query_agent_response(request, query_request, debug_mode=True, chroma_db_path=chroma_db_path)
 
 
-@router.get("/api/generated-questions")
+@router.get("/api/generated-questions", dependencies=[Depends(require_client)])
 async def list_generated_questions():
     """Return generated questions grouped by document title from local debug KB."""
     try:

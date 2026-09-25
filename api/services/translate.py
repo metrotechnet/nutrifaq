@@ -17,6 +17,8 @@ SHARED_CONFIG_ROOT = REPO_ROOT / "nutrifaq-config"
 LEGACY_CONFIG_ROOT = PROJECT_ROOT / "config"
 load_dotenv(dotenv_path=PROJECT_ROOT / '.env')
 
+# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def get_openai_client() -> OpenAI:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -57,19 +59,27 @@ SUPPORTED_LANGUAGES = {
 _TRANSLATOR_PROMPTS_CACHE: dict | None = None
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _config_blob_container_name() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _config_blob_prefix() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _prompts_blob_name() -> str:
     prefix = _config_blob_prefix()
     return f"{prefix}/prompts.json" if prefix else "prompts.json"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _load_prompts_from_blob() -> dict:
     blob_name = _prompts_blob_name()
     blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)

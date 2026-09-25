@@ -32,19 +32,27 @@ REPO_ROOT = PROJECT_ROOT.parent
 FRONTEND_CONFIG_ROOT = REPO_ROOT / "static" / "config"
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _config_blob_container_name() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _config_blob_prefix() -> str:
     return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _config_blob_name(file_name: str) -> str:
     prefix = _config_blob_prefix()
     return f"{prefix}/{file_name}" if prefix else file_name
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _load_json_from_config_blob(file_name: str) -> Dict[str, Any]:
     if not has_blob_storage_config():
         raise RuntimeError("Azure Blob Storage is required to load refusal config.")
@@ -105,6 +113,8 @@ def get_patterns_for_language(language: str = "fr") -> Dict[str, List[str]]:
     return all_patterns.get(language, all_patterns.get("fr", {}))
 
 
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _match_patterns(text: str, patterns: List[str]) -> List[str]:
     hits = []
     for pat in patterns:
