@@ -155,6 +155,22 @@ function getSelectedModel() {
 
 // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
 // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
+function getSelectedProvider() {
+    const selector = document.getElementById('model-selector');
+    if (selector) {
+        const selectedOption = selector.options[selector.selectedIndex];
+        if (selectedOption) {
+            const provider = String(selectedOption.dataset.provider || '').trim();
+            if (provider) {
+                return provider;
+            }
+        }
+    }
+    return String(localStorage.getItem('nutrifaq_selected_provider') || 'azure').trim() || 'azure';
+}
+
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getSelectedModelLabel() {
     const selector = document.getElementById('model-selector');
     if (!selector) {
@@ -974,6 +990,7 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
     const requestData = {
         question: question,
         agent: 'agent',
+        provider: getSelectedProvider(),
         language: getCurrentLanguage(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         locale: navigator.language || (getCurrentLanguage() === 'en' ? 'en-US' : 'fr-FR'),

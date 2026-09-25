@@ -14,6 +14,7 @@ class QueryRequest(BaseModel):
     timezone: str = "UTC"
     locale: str = "fr-FR"
     llm_model: Optional[str] = None
+    provider: Optional[str] = None
     session_id: Optional[str] = None
 
 

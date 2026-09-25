@@ -48,7 +48,8 @@ def _resolve_runtime_provider_and_model(
         pass
 
     config_values = config_service._GLOBAL_PROD_CONFIG
-    provider = str(config_values.get(f"{prefix}_PROVIDER", "") or "").strip().lower() or None
+    requested_provider = (query_request.provider or "").strip().lower() or None
+    provider = requested_provider or str(config_values.get(f"{prefix}_PROVIDER", "") or "").strip().lower() or None
     saved_model = str(config_values.get(f"{prefix}_LLM", "") or "").strip() or None
     requested_model = _resolve_requested_model(request, query_request)
 
@@ -145,6 +146,15 @@ def _query_agent_response(
                 query_request,
                 debug_mode=debug_mode,
             )
+            if debug_mode:
+                prod_updates = {}
+                if provider_name:
+                    prod_updates["PROD_PROVIDER"] = provider_name
+                if selected_model:
+                    prod_updates["PROD_LLM"] = selected_model
+                if prod_updates:
+                    updated_prod_config = config_service.update_prod_config(prod_updates, deep=False)
+                    config_service.save_prod_config(updated_prod_config)
             resolved_chroma_path = _resolve_runtime_chroma_path(
                 debug_mode=debug_mode,
                 chroma_db_path=chroma_db_path,

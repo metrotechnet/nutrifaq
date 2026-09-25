@@ -211,10 +211,12 @@ def update_prod_config(values: dict[str, Any], deep: bool = True) -> dict[str, A
         raise TypeError("update_prod_config expects a dictionary.")
 
     with _PROD_CONFIG_LOCK:
+        current = load_prod_config()
         current = _GLOBAL_PROD_CONFIG.copy()
         updated = deep_merge(current, values) if deep else {**current, **values}
         _GLOBAL_PROD_CONFIG = updated.copy()
-        return updated
+        return  save_prod_config(updated)
+
 
 
 def next_chroma_target_dirname(prod_sqlite_value: str | None) -> str:
@@ -266,11 +268,13 @@ def sync_next_prod_chroma_from_main(
     shutil.copytree(source_chroma, target_chroma)
 
     new_prod_sqlite = f"{target_chroma.name}"
-    updated = update_prod_config({"PROD_SQLITE": new_prod_sqlite})
+    if (new_prod_sqlite != "" and new_prod_sqlite is not None):
+        update_prod_config({"PROD_SQLITE": new_prod_sqlite})
     # Update production configuration with the new model and provider
-    updated = update_prod_config({"PROD_LLM": model})
-    updated = update_prod_config({"PROD_PROVIDER": provider})
-    save_prod_config(updated)
+    if(model!="" and model is not None):
+        update_prod_config({"PROD_LLM": model})
+    if(provider!="" and provider is not None):
+        update_prod_config({"PROD_PROVIDER": provider})
     return source_chroma, target_chroma, current_prod_sqlite, new_prod_sqlite
 
 

@@ -361,6 +361,14 @@
         });
     }
 
+    function bindPublishSubmitButton() {
+        if (!els.publishSubmit || els.publishSubmit.dataset.bound === "1") {
+            return;
+        }
+        els.publishSubmit.dataset.bound = "1";
+        els.publishSubmit.addEventListener("click", onPublishSubmit);
+    }
+
     async function resetQuestionLogs() {
         const confirmed = await confirmAction({
             title: tr("publish.logs.questionsResetTitle", "Reset question logs?"),
@@ -700,9 +708,7 @@
         panel.appendChild(publishSection);
         hydratePublishElements();
 
-        if (els.publishSubmit) {
-            els.publishSubmit.addEventListener("click", onPublishSubmit);
-        }
+        bindPublishSubmitButton();
         ensurePublishRefreshControl();
         bindPublishLogsTabButtons();
         bindPublishRefreshButton();
@@ -777,7 +783,7 @@
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function showAlertMessage(message, isError) {
         if (hasSweetAlert()) {
-            window.Swal.fire({
+            return window.Swal.fire({
                 title: isError
                     ? tr("downloadManager.alert.errorTitle", "Erreur")
                     : tr("downloadManager.alert.infoTitle", "Information"),
@@ -785,9 +791,9 @@
                 icon: isError ? "error" : "info",
                 confirmButtonText: tr("downloadManager.alert.ok", "OK"),
             });
-            return;
         }
         alert(message);
+        return Promise.resolve();
     }
 
     // Purpose: Updates UI or local state so downstream interactions stay consistent.
@@ -1761,17 +1767,31 @@
     }
 
     let publishStatusTimer = null;
+    let publishStatusPollInFlight = false;
+    let publishTerminalStateHandled = false;
+
+    function stopPublishStatusPolling() {
+        if (publishStatusTimer) {
+            window.clearInterval(publishStatusTimer);
+            publishStatusTimer = null;
+        }
+    }
 
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function startPublishStatusPolling() {
-        if (publishStatusTimer) {
-            window.clearInterval(publishStatusTimer);
-        }
+        stopPublishStatusPolling();
+        publishStatusPollInFlight = false;
+        publishTerminalStateHandled = false;
 
         // Purpose: Implements a focused frontend behavior used by this module.
         // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         const poll = async () => {
+            if (publishStatusPollInFlight || publishTerminalStateHandled) {
+                return;
+            }
+
+            publishStatusPollInFlight = true;
             try {
                 const data = await fetchJson(`${BACKEND_URL}/api/publish/status`, {
                     headers: {
@@ -1793,6 +1813,8 @@
                 }
 
                 if (!running && data.status === "completed") {
+                    publishTerminalStateHandled = true;
+                    stopPublishStatusPolling();
                     setPublishControlsDisabled(false);
                     const filesCount = Number(data.uploaded_files_count || 0);
                     const timestamp = new Date().toLocaleString();
@@ -1811,24 +1833,24 @@
                             { count: filesCount, timestamp }
                         );
                         setPublishStatus(finishedText, false);
-                        showAlertMessage(
-                            tr(
-                                "publish.popup.completedText",
-                                "Publication terminee avec succes ({count} fichiers).",
-                                { count: filesCount }
-                            ),
-                            false
-                        );
                     }
                     setPublishProgress(100, "100%");
                     setPublishFinishMessage("");
-                    window.clearInterval(publishStatusTimer);
-                    publishStatusTimer = null;
+                    await showAlertMessage(
+                        tr(
+                            "publish.popup.completedText",
+                            "Publication terminee avec succes ({count} fichiers).",
+                            { count: filesCount }
+                        ),
+                        false
+                    );
                     await loadActivePublishLogs();
                     return;
                 }
 
                 if (!running && data.status === "error") {
+                    publishTerminalStateHandled = true;
+                    stopPublishStatusPolling();
                     setPublishControlsDisabled(false);
                     const operation = String(data.operation || "publish");
                     const defaultError = operation === "revert" ? tr("publish.revert.error", "Restore failed.") : tr("publish.status.error", "Publication failed.");
@@ -1836,13 +1858,13 @@
                     setPublishStatus(localizeMessageWithKey(errorKey, data.error || defaultError), true);
                     setPublishFinishMessage("");
                     setPublishProgress(100, "100%");
-                    window.clearInterval(publishStatusTimer);
-                    publishStatusTimer = null;
                     await loadActivePublishLogs();
                     return;
                 }
             } catch (_) {
                 // Ignore transient polling errors while publish is running.
+            } finally {
+                publishStatusPollInFlight = false;
             }
         };
 
@@ -2428,9 +2450,7 @@
         if (els.cancelIndexing) {
             els.cancelIndexing.addEventListener("click", requestCancelIndexing);
         }
-        if (els.publishSubmit) {
-            els.publishSubmit.addEventListener("click", onPublishSubmit);
-        }
+        bindPublishSubmitButton();
         bindPublishRefreshButton();
         bindPublishExportButton();
 

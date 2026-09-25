@@ -59,6 +59,7 @@ async function loadModelSelectorOptions() {
             const option = document.createElement('option');
             option.value = model.id || '';
             option.textContent = model.label || model.id || tr('main.models.defaultModel', 'Model');
+            option.dataset.provider = String(model.provider || 'azure');
             modelSelector.appendChild(option);
         });
 
