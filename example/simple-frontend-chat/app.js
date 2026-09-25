@@ -16,6 +16,8 @@ if (typeof marked !== "undefined") {
   marked.setOptions({ renderer });
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function sanitizeMarkdown(mdText) {
   const rendered = typeof marked !== "undefined" ? marked.parse(mdText) : mdText;
   if (typeof DOMPurify !== "undefined") {
@@ -24,6 +26,8 @@ function sanitizeMarkdown(mdText) {
   return rendered;
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function addBubble(role, initialText = "") {
   const row = document.createElement("div");
   row.className = `row ${role}`;
@@ -43,6 +47,8 @@ function addBubble(role, initialText = "") {
   return bubble;
 }
 
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function loadingDotsMarkup() {
   return `
     <div class="loading" aria-label="Generation en cours" role="status">
@@ -53,11 +59,15 @@ function loadingDotsMarkup() {
   `;
 }
 
+// Purpose: Updates UI or local state so downstream interactions stay consistent.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function setLoading(isLoading) {
   input.disabled = isLoading;
   sendBtn.disabled = isLoading;
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function parseSseEvent(rawEvent) {
   const lines = rawEvent.split("\n");
   const dataLines = lines

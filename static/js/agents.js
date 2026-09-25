@@ -11,6 +11,8 @@
 /**
  * Display agent intro
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function displayAgentIntro(agent) {
     const emptyState = document.getElementById('empty-state');
     if (!emptyState) return;
@@ -52,6 +54,8 @@ function displayAgentIntro(agent) {
 /**
  * Render agent components
  */
+// Purpose: Renders computed content into the DOM for the current view state.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function renderAgentComponents(langData) {
     const { componentRegistry } = window.ComponentsModule;
     const { populateSuggestionCards, getCurrentLanguage } = window.ConfigModule;
@@ -85,6 +89,8 @@ function renderAgentComponents(langData) {
 /**
  * Update agent selector labels
  */
+// Purpose: Updates UI or local state so downstream interactions stay consistent.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function updateAgentSelectorLabels() {
     const agentSelector = document.getElementById('agent-selector');
     if (!agentSelector) return;
@@ -267,6 +273,8 @@ async function sendTranslation() {
 /**
  * Check if translation is reversed
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function isTranslationReversed() {
     const { isTranslationReversed } = window.ComponentsModule;
     return isTranslationReversed ? isTranslationReversed() : false;
@@ -275,6 +283,8 @@ function isTranslationReversed() {
 /**
  * Update source language display (swap languages)
  */
+// Purpose: Updates UI or local state so downstream interactions stay consistent.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function updateSourceLanguageDisplay() {
     const { componentRegistry } = window.ComponentsModule || {};
     
@@ -287,6 +297,8 @@ function updateSourceLanguageDisplay() {
 /**
  * Get current agent (for single-agent deployment)
  */
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getCurrentAgent() {
     return 'agent';
 }

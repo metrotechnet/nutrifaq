@@ -20,7 +20,9 @@ static/
 - `js/ui-utils.js`: shared UI helpers, including scroll indicator logic.
 - `js/download-manager.js`: download/index/publish panel behavior, logs tabs, reset, and PDF export.
 - `js/config.js`: language and runtime config plumbing.
-- `js/auth.js`: auth-related UI wiring and token handling.
+- `js/azure-auth.js`: Entra login/token lifecycle and admin token propagation.
+- `js/login-page.js`: dedicated login page flow and Entra bootstrap.
+- `js/main.js`: app bootstrap and cross-module initialization.
 
 ## Publish logs UX (recent behavior)
 
@@ -32,6 +34,12 @@ static/
 - `Export` generates a PDF with a tab-specific title:
   - Questions: `Rapport d'activite : Discussions`
   - Publish: `Rapport d'activite : Publications`
+
+## Frontend auth behavior (current)
+
+- Main app pages use Entra-based auth flows from `js/azure-auth.js`.
+- Backend protection is Entra-first; `/query` additionally supports `X-Client-Key` for compatible clients.
+- The simple demo frontend under `example/simple-frontend-chat/` still uses a direct `X-Client-Key` flow unless upgraded to Entra/MSAL.
 
 ## Styling notes
 

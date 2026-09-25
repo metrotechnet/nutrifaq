@@ -11,10 +11,14 @@
 let isKeyboardVisible = false;
 let previousViewportHeight = window.innerHeight;
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function isElementScrollable(el) {
     return Boolean(el) && el.scrollHeight - el.clientHeight > 4;
 }
 
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getChatScrollContainer() {
     const chatContainer = document.getElementById('chat-container');
     const chatMainLayout = document.getElementById('chat-main-layout');
@@ -40,6 +44,8 @@ function getChatScrollContainer() {
 /**
  * Detect if the device is mobile
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function isMobileDevice() {
     if (window.innerWidth <= 768) return true;
     if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
@@ -51,6 +57,8 @@ function isMobileDevice() {
 /**
  * Focus input box only on desktop browsers
  */
+// Purpose: Handles a user or system event and coordinates the related UI actions.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function handleFocus() {
     const inputBox = document.getElementById('input-box');
     if (inputBox && !isMobileDevice()) {
@@ -65,6 +73,8 @@ function handleFocus() {
 /**
  * Initialize mobile keyboard detection
  */
+// Purpose: Initializes module behavior and wires startup dependencies.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function initKeyboardDetection() {
     // Method 1: Visual Viewport API
     if (window.visualViewport) {
@@ -143,6 +153,8 @@ function initKeyboardDetection() {
 /**
  * Callback when keyboard appears
  */
+// Purpose: Handles a user or system event and coordinates the related UI actions.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function onKeyboardShow() {
     console.log('Mobile keyboard shown');
     document.body.classList.add('keyboard-visible');
@@ -165,6 +177,8 @@ function onKeyboardShow() {
 /**
  * Callback when keyboard disappears
  */
+// Purpose: Handles a user or system event and coordinates the related UI actions.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function onKeyboardHide() {
     console.log('Mobile keyboard hidden');
     document.body.classList.remove('keyboard-visible');
@@ -191,6 +205,8 @@ function onKeyboardHide() {
 /**
  * Create scroll indicator
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function createScrollIndicator() {
     const scrollIndicator = document.createElement('div');
     scrollIndicator.className = 'scroll-indicator';
@@ -225,6 +241,8 @@ function createScrollIndicator() {
 /**
  * Update scroll indicator visibility
  */
+// Purpose: Updates UI or local state so downstream interactions stay consistent.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function updateScrollIndicator() {
     const chatContainer = getChatScrollContainer();
     const scrollIndicator = document.querySelector('.scroll-indicator');
@@ -248,6 +266,8 @@ function updateScrollIndicator() {
 /**
  * Initialize sidebar
  */
+// Purpose: Initializes module behavior and wires startup dependencies.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function initSidebar() {
     const menuToggle = document.getElementById('menu-toggle');
     const sidebar = document.getElementById('sidebar');
@@ -258,10 +278,14 @@ function initSidebar() {
     const footerMenu = document.getElementById('sidebar-footer-menu');
     const desktopMediaQuery = window.matchMedia('(min-width: 769px)');
 
+    // Purpose: Keeps frontend state synchronized with server or shared UI state.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     const syncLayoutMode = () => {
         document.body.classList.toggle('sidebar-collapsed', !(sidebar && sidebar.classList.contains('open')));
     };
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     const setSidebarState = (isOpen) => {
         if (sidebar) sidebar.classList.toggle('open', isOpen);
         if (overlay) overlay.classList.toggle('active', isOpen);
@@ -275,6 +299,8 @@ function initSidebar() {
         }
     };
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     const setFooterMenuState = (isOpen) => {
         if (!footerMenuButton || !footerMenu) return;
         footerMenuButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
@@ -353,6 +379,8 @@ function initSidebar() {
 /**
  * Close sidebar
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function closeSidebarMenu() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('overlay');
@@ -373,6 +401,8 @@ function closeSidebarMenu() {
 /**
  * Check cookie consent
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function checkCookieConsent() {
     const consent = localStorage.getItem('cookieConsent');
     const cookieBanner = document.getElementById('cookie-banner');
@@ -387,6 +417,8 @@ function checkCookieConsent() {
 /**
  * Initialize cookie consent handlers
  */
+// Purpose: Initializes module behavior and wires startup dependencies.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function initCookieConsent() {
     const cookieBanner = document.getElementById('cookie-banner');
     const cookieAccept = document.getElementById('cookie-accept');
@@ -416,6 +448,8 @@ function initCookieConsent() {
 /**
  * Show legal notice popup
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function showLegalNotice() {
     const { t, getMainConfig, getCurrentLanguage } = window.ConfigModule;
     const mainConfig = getMainConfig();
@@ -442,6 +476,8 @@ function showLegalNotice() {
 /**
  * Show privacy policy popup
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function showPrivacyPolicy() {
     const { t, getMainConfig, getCurrentLanguage } = window.ConfigModule;
     const mainConfig = getMainConfig();
@@ -485,6 +521,8 @@ function showPrivacyPolicy() {
 /**
  * Show about popup
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function showAbout() {
     const { t, getMainConfig, getCurrentLanguage } = window.ConfigModule;
     const mainConfig = getMainConfig();
@@ -518,6 +556,8 @@ function showAbout() {
 /**
  * Initialize legal/privacy links
  */
+// Purpose: Initializes module behavior and wires startup dependencies.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function initLegalLinks() {
     const legalLink = document.getElementById('legal-link');
     const privacyLink = document.getElementById('privacy-link');

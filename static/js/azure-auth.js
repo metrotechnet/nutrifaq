@@ -15,6 +15,8 @@
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function tr(key, fallback, params) {
         let template = fallback;
         try {
@@ -64,6 +66,8 @@
         throw new Error(tr("azureAuth.msalUnavailable", "MSAL unavailable: unable to load authentication library."));
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function loadScript(src) {
         return new Promise((resolve, reject) => {
             if (window.msal && window.msal.PublicClientApplication) {
@@ -105,6 +109,8 @@
         });
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function hasAuthUi() {
         return Boolean(
             document.getElementById("azure-auth-panel") ||
@@ -115,6 +121,8 @@
         );
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setStatus(message, isError) {
         if (!statusEl) {
             if (startupStatusEl) {
@@ -131,18 +139,24 @@
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function showLoginGate() {
         if (authGateOverlay) {
             authGateOverlay.style.display = "flex";
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function hideLoginGate() {
         if (authGateOverlay) {
             authGateOverlay.style.display = "none";
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function prettyPrint(el, obj) {
         if (!el) {
             return;
@@ -150,6 +164,8 @@
         el.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setSidebarUserEmail(email) {
         if (!sidebarUserEmailEl) {
             return;
@@ -162,6 +178,8 @@
         sidebarUserEmailEl.title = displayEmail;
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getEmailFromStoredToken() {
         try {
             const token = localStorage.getItem(TOKEN_KEY) || "";
@@ -190,6 +208,8 @@
         return "";
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function decodeJwt(token) {
         try {
             const parts = token.split(".");
@@ -204,6 +224,8 @@
         }
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getAuthority() {
         const tenant = (window.ENTRA_TENANT_ID || "").trim();
         if (!tenant) {
@@ -212,6 +234,8 @@
         return `https://login.microsoftonline.com/${tenant}`;
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getClientId() {
         const clientId = (window.ENTRA_CLIENT_ID || "").trim();
         if (!clientId) {
@@ -220,6 +244,8 @@
         return clientId;
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getAudience() {
         const configured = (window.ENTRA_AUDIENCE || "").trim();
         if (configured) {
@@ -228,6 +254,8 @@
         return `api://${getClientId()}`;
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getRedirectUri() {
         const configured = (window.ENTRA_REDIRECT_URI || "").trim();
         if (configured) {
@@ -236,6 +264,8 @@
         return `${window.location.origin}/`;
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function redirectToLogin() {
         const loginPath = "/";
         if (window.location.pathname !== loginPath) {
@@ -243,6 +273,8 @@
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function buildApiScopeCandidates() {
         const configuredScope = (window.ENTRA_TOKEN_SCOPE || "").trim();
         const audience = getAudience();
@@ -254,6 +286,8 @@
         return Array.from(new Set(candidates));
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getLoginScopes() {
         // For interactive sign-in, never include .default with resource-specific scopes.
         const configuredScope = (window.ENTRA_TOKEN_SCOPE || "").trim();
@@ -264,6 +298,8 @@
         return ["openid", "profile", "email", delegatedScope];
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getPasswordResetUrl() {
         const domain = (window.ENTRA_UPN_DOMAIN || "").trim();
         if (domain) {
@@ -272,6 +308,8 @@
         return "https://passwordreset.microsoftonline.com/";
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getMsalInstance() {
         if (!window.msal || !window.msal.PublicClientApplication) {
             throw new Error(tr("azureAuth.msalLibraryNotFound", "MSAL library not found."));
@@ -346,6 +384,8 @@
         return payload;
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function pushAdminToken(token) {
         localStorage.setItem(TOKEN_KEY, token);
         window.dispatchEvent(new CustomEvent("nutrifaq:admin-token-updated", { detail: { token } }));

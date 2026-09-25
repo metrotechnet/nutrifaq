@@ -12,11 +12,15 @@
     let i18nConfig = null;
     let currentLang = "fr";
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getUrlParameter(name) {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get(name);
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getLoginTranslation(lang) {
         const root = i18nConfig || {};
         const scoped = root[lang] && root[lang].loginPage ? root[lang].loginPage : null;
@@ -24,6 +28,8 @@
         return scoped || fallback || {};
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function tr(key, params) {
         const dict = getLoginTranslation(currentLang);
         const fallbackDict = getLoginTranslation("fr");
@@ -36,6 +42,8 @@
         }, template);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function deepMerge(baseConfig, overrideConfig) {
         const result = { ...(baseConfig || {}) };
         Object.entries(overrideConfig || {}).forEach(([key, value]) => {
@@ -85,6 +93,8 @@
         i18nConfig = Object.fromEntries(localeEntries);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function resolveLanguage() {
         const urlLang = getUrlParameter("lang");
         if (urlLang === "fr" || urlLang === "en") {
@@ -99,6 +109,8 @@
         window.history.replaceState({}, "", url);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function applyLoginTranslations() {
         document.querySelectorAll("[data-i18n]").forEach((element) => {
             const key = element.getAttribute("data-i18n");
@@ -147,6 +159,8 @@
         throw new Error("MSAL indisponible: impossible de charger la bibliothèque d'authentification.");
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function loadScript(src) {
         return new Promise((resolve, reject) => {
             if (window.msal && window.msal.PublicClientApplication) {
@@ -188,6 +202,8 @@
         });
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setStatus(message, isError) {
         if (!statusEl) {
             return;
@@ -196,6 +212,8 @@
         statusEl.classList.toggle("error", Boolean(isError));
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getAuthority() {
         const tenant = (window.ENTRA_TENANT_ID || "").trim();
         if (!tenant) {
@@ -204,6 +222,8 @@
         return `https://login.microsoftonline.com/${tenant}`;
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getClientId() {
         const clientId = (window.ENTRA_CLIENT_ID || "").trim();
         if (!clientId) {
@@ -212,6 +232,8 @@
         return clientId;
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getAudience() {
         const configured = (window.ENTRA_AUDIENCE || "").trim();
         if (configured) {
@@ -220,6 +242,8 @@
         return `api://${getClientId()}`;
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getRedirectUri() {
         const configured = (window.ENTRA_REDIRECT_URI || "").trim();
         if (configured) {
@@ -228,6 +252,8 @@
         return `${window.location.origin}/`;
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getPasswordResetUrl() {
         const domain = (window.ENTRA_UPN_DOMAIN || "").trim();
         if (domain) {
@@ -236,12 +262,16 @@
         return "https://passwordreset.microsoftonline.com/";
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function buildApiScopeCandidates() {
         const audience = getAudience();
         const configuredScope = (window.ENTRA_TOKEN_SCOPE || "").trim();
         return [configuredScope, `${audience}/access_as_user`, `${audience}/.default`].filter(Boolean);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function buildLoginScopes() {
         // For interactive sign-in, never include .default with resource-specific scopes.
         const audience = getAudience();
@@ -252,6 +282,8 @@
         return ["openid", "profile", "email", delegatedScope];
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getMsalInstance() {
         if (!window.msal || !window.msal.PublicClientApplication) {
             throw new Error(tr("msalNotFound"));
@@ -270,6 +302,8 @@
         });
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function formatErrorMessage(error) {
         if (!error) {
             return tr("unknownError");
@@ -302,10 +336,14 @@
         throw new Error(tr("tokenAcquireFailed"));
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function goToApp() {
         window.location.href = "/index.html";
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function clearStaleSessionState() {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_PROFILE_KEY);

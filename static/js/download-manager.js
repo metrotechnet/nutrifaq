@@ -9,6 +9,8 @@
     const LOGS_TAB_PUBLISH = "publish";
     let activePublishLogsTab = LOGS_TAB_QUESTIONS;
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function tr(key, fallback, params) {
         let template = fallback;
         try {
@@ -33,6 +35,8 @@
         }, template);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function currentLanguage() {
         try {
             if (window.ConfigModule && typeof window.ConfigModule.getCurrentLanguage === "function") {
@@ -44,6 +48,8 @@
         return "fr";
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function withContainerQuery(url) {
         const separator = url.includes("?") ? "&" : "?";
         const params = new URLSearchParams({
@@ -87,6 +93,8 @@
         publishExportLogs: document.getElementById("publish-export-logs")
     };
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function hydratePublishElements() {
         els.instructionsSection = document.getElementById("instructions-section");
         els.publishSection = document.getElementById("publish-section");
@@ -104,6 +112,8 @@
         els.publishExportLogs = document.getElementById("publish-export-logs");
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setPublishProgress(value, text) {
         const progressValue = Math.max(0, Math.min(100, Number(value) || 0));
         if (els.publishProgressWrap) {
@@ -117,6 +127,8 @@
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function hidePublishProgress() {
         if (els.publishProgressWrap) {
             els.publishProgressWrap.style.display = "none";
@@ -129,6 +141,8 @@
         }
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setPublishFinishMessage(message) {
         if (!els.publishFinishMessage) {
             return;
@@ -137,6 +151,8 @@
         els.publishFinishMessage.hidden = !message;
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function ensurePublishRefreshControl() {
         if (!els.publishSection) {
             return;
@@ -213,6 +229,8 @@
         applyPublishTranslations();
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function updateLogsActionsVisibility() {
         if (els.publishResetLogs) {
             const isQuestionsTab = activePublishLogsTab === LOGS_TAB_QUESTIONS;
@@ -222,6 +240,8 @@
         }
     }
 
+    // Purpose: Keeps frontend state synchronized with server or shared UI state.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function syncPublishLogsTabButtons() {
         if (!els.publishSection) {
             return;
@@ -248,6 +268,8 @@
         await loadActivePublishLogs();
     }
 
+    // Purpose: Attaches event listeners and links UI controls to their handlers.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindPublishLogsTabButtons() {
         if (!els.publishSection) {
             return;
@@ -277,6 +299,8 @@
         syncPublishLogsTabButtons();
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function applyPublishTranslations() {
         if (!els.publishSection) {
             return;
@@ -332,6 +356,8 @@
         }
     }
 
+    // Purpose: Attaches event listeners and links UI controls to their handlers.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindPublishRefreshButton() {
         if (!els.publishRefreshLogs || els.publishRefreshLogs.dataset.bound === "1") {
             return;
@@ -376,6 +402,8 @@
         }
     }
 
+    // Purpose: Attaches event listeners and links UI controls to their handlers.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindPublishResetButton() {
         if (!els.publishResetLogs || els.publishResetLogs.dataset.bound === "1") {
             return;
@@ -388,6 +416,8 @@
         });
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getCurrentExportTitle() {
         if (activePublishLogsTab === LOGS_TAB_PUBLISH) {
             return tr("publish.logs.exportTitlePublish", "Rapport d'activite : Publications");
@@ -395,6 +425,8 @@
         return tr("publish.logs.exportTitleQuestions", "Rapport d'activite : Discussions");
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function buildPublishLogsExportElement() {
         const title = getCurrentExportTitle();
         const now = new Date().toLocaleString(currentLanguage() === "en" ? "en-CA" : "fr-CA");
@@ -452,6 +484,8 @@
         return exportRoot;
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function slugifyFilePart(value) {
         return String(value || "")
             .trim()
@@ -461,6 +495,8 @@
             || "logs";
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function buildExportFilename() {
         const now = new Date();
         const yyyy = now.getFullYear();
@@ -472,6 +508,8 @@
         return `${titlePart}-${yyyy}${mm}${dd}-${hh}${min}.pdf`;
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function loadHtml2PdfLibrary() {
         if (window.html2pdf) {
             return Promise.resolve();
@@ -496,6 +534,8 @@
         });
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function addPdfFooter(pdf) {
         if (!pdf || !pdf.internal || !pdf.internal.getNumberOfPages) {
             return;
@@ -582,6 +622,8 @@
         }
     }
 
+    // Purpose: Attaches event listeners and links UI controls to their handlers.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindPublishExportButton() {
         if (!els.publishExportLogs || els.publishExportLogs.dataset.bound === "1") {
             return;
@@ -592,6 +634,8 @@
         });
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function ensurePublishSectionMounted() {
         if (document.getElementById("publish-section")) {
             hydratePublishElements();
@@ -697,6 +741,8 @@
         index_chromadb_json: "downloadManager.steps.index_chromadb_json"
     };
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getStepLabel(stepKey) {
         const fallbacks = {
             extract_docx: "Extraction des documents",
@@ -717,6 +763,8 @@
         index_chromadb_json: 92
     };
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function hasSweetAlert() {
         return Boolean(window.Swal && typeof window.Swal.fire === "function");
     }
@@ -737,6 +785,8 @@
         return confirm(text || title);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function showAlertMessage(message, isError) {
         if (hasSweetAlert()) {
             window.Swal.fire({
@@ -752,6 +802,8 @@
         alert(message);
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setIndexingProgress(value, text) {
         const clamped = Math.max(0, Math.min(100, Number(value) || 0));
         if (els.indexingProgressBar) {
@@ -762,11 +814,15 @@
         }
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setResetProgress(value, text) {
         // Use a single shared progress UI in the download panel.
         setIndexingProgress(value, text);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function beginResetProgress() {
         if (els.indexingProgressWrap) {
             els.indexingProgressWrap.classList.add("is-visible");
@@ -784,6 +840,8 @@
         }, 350);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function finishResetProgress(success) {
         if (resetProgressTimer) {
             window.clearInterval(resetProgressTimer);
@@ -807,6 +865,8 @@
         }, success ? 1200 : 1800);
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setDownloadStatusRowDisabled(isDisabled) {
         const row = document.querySelector("#download-section .download-status-row");
         if (!row) {
@@ -818,6 +878,8 @@
         row.setAttribute("aria-disabled", String(disabled));
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function beginIndexingProgress() {
         isIndexingRunning = true;
         setDownloadStatusRowDisabled(true);
@@ -845,6 +907,8 @@
         startRegenerationStatusPolling();
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function finishIndexingProgress(success) {
         isIndexingRunning = false;
         setDownloadStatusRowDisabled(false);
@@ -880,6 +944,8 @@
         }, success ? 1200 : 2000);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function stopRegenerationStatusPolling() {
         if (indexingStatusTimer) {
             window.clearInterval(indexingStatusTimer);
@@ -955,6 +1021,8 @@
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function startRegenerationStatusPolling() {
         stopRegenerationStatusPolling();
         refreshRegenerationStatus();
@@ -987,6 +1055,8 @@
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function hideIntegratedPanels() {
         const downloadPanel = document.getElementById("download-manager-panel");
         const authPanel = document.getElementById("azure-auth-panel");
@@ -998,6 +1068,8 @@
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function localizeMessageWithKey(messageKey, fallbackText, params) {
         if (!messageKey || typeof messageKey !== "string") {
             return tr("publish.status.error", fallbackText, params);
@@ -1005,6 +1077,8 @@
         return tr(messageKey, fallbackText, params);
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setPublishStatus(message, isError) {
         if (!els.publishStatus) {
             return;
@@ -1013,6 +1087,8 @@
         els.publishStatus.classList.toggle("error", Boolean(isError));
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setPublishControlsDisabled(isDisabled) {
         const disabled = Boolean(isDisabled);
         if (!els.publishSection) {
@@ -1033,6 +1109,8 @@
         });
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setSuggestedPanelEmpty(isEmpty) {
         const panel = document.getElementById("suggested-questions-panel");
         if (!panel) {
@@ -1041,6 +1119,8 @@
         panel.classList.toggle("panel-empty", Boolean(isEmpty));
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getDownloadViewSections() {
         const activeDownloadSection = document.getElementById("download-section");
         if (activeDownloadSection) {
@@ -1050,6 +1130,8 @@
         return [];
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function activateInstructionsView() {
         const panel = document.getElementById("download-manager-panel");
         const chatContainer = document.getElementById("chat-container");
@@ -1113,6 +1195,8 @@
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function activateDownloadView() {
         const panel = document.getElementById("download-manager-panel");
         const chatContainer = document.getElementById("chat-container");
@@ -1182,12 +1266,16 @@
         refreshFilesForDownloadView();
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function refreshFilesForDownloadView() {
         loadFiles().catch(() => {
             // Errors are already handled inside loadFiles.
         });
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function activatePublishView() {
         const panel = document.getElementById("download-manager-panel");
         const chatContainer = document.getElementById("chat-container");
@@ -1249,6 +1337,8 @@
         }
     }
 
+    // Purpose: Keeps frontend state synchronized with server or shared UI state.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function syncSuggestedPanelToggleButton() {
         const button = document.getElementById("toggle-suggested-panel-btn");
         const mainPane = document.querySelector(".main-pane");
@@ -1265,6 +1355,8 @@
         button.style.display = "inline-flex";
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function toggleSuggestedQuestionsPanel() {
         const mainPane = document.querySelector(".main-pane");
         if (!mainPane) {
@@ -1274,6 +1366,8 @@
         syncSuggestedPanelToggleButton();
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function refreshSuggestedQuestionsForChatView() {
         const loader = window.ChatModule && window.ChatModule.loadSuggestedQuestions;
         if (typeof loader !== "function") {
@@ -1285,6 +1379,8 @@
         });
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function activateTesterView() {
         const chatContainer = document.getElementById("chat-container");
         const chatMainLayout = document.getElementById("chat-main-layout");
@@ -1332,6 +1428,8 @@
         refreshSuggestedQuestionsForChatView();
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function activateAuthView() {
         const authPanel = document.getElementById("azure-auth-panel");
         const chatContainer = document.getElementById("chat-container");
@@ -1360,6 +1458,8 @@
         }
     }
 
+    // Purpose: Attaches event listeners and links UI controls to their handlers.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindNavigationToggles() {
         const instructionsLink = document.getElementById("instructions-link");
         const downloadLink = document.getElementById("download-link");
@@ -1453,6 +1553,8 @@
         }
     }
 
+    // Purpose: Attaches event listeners and links UI controls to their handlers.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindTokenSync() {
         window.addEventListener("nutrifaq:admin-token-updated", (event) => {
             const token = (event.detail && event.detail.token) || "";
@@ -1462,6 +1564,8 @@
         });
     }
 
+    // Purpose: Initializes module behavior and wires startup dependencies.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function initializeLandingView() {
         const hasAnyExplicitView = window.location.hash && window.location.hash !== "#";
         if (hasAnyExplicitView) {
@@ -1470,6 +1574,8 @@
         activateInstructionsView();
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setStatus(message, isError) {
         if (!els.statusMessage) {
             return;
@@ -1478,6 +1584,8 @@
         els.statusMessage.classList.toggle("error", Boolean(isError));
     }
 
+    // Purpose: Keeps frontend state synchronized with server or shared UI state.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function syncPublishReadyLabelWithTranslations() {
         if (!els.publishStatus) {
             return;
@@ -1488,6 +1596,8 @@
         }
     }
 
+    // Purpose: Attaches event listeners and links UI controls to their handlers.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindConfigLanguageSync() {
         window.addEventListener("nutrifaq:language-updated", () => {
             applyPublishTranslations();
@@ -1495,6 +1605,8 @@
         });
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function ensurePublishDefaults() {
         setPublishStatus(tr("publish.status.ready", "Prêt."), false);
         setPublishControlsDisabled(false);
@@ -1547,11 +1659,15 @@
         }
     }
 
+    // Purpose: Renders computed content into the DOM for the current view state.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function renderQuestionLogs(entries) {
         if (!els.publishLogsList) {
             return;
         }
 
+        // Purpose: Renders computed content into the DOM for the current view state.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         const renderLogMarkdown = (value) => {
             const text = String(value || "").trim();
             if (!text) {
@@ -1642,6 +1758,8 @@
         }
     }
 
+    // Purpose: Renders computed content into the DOM for the current view state.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function renderPublishLogs(logs) {
         if (!els.publishLogsList) {
             return;
@@ -1707,11 +1825,15 @@
 
     let publishStatusTimer = null;
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function startPublishStatusPolling() {
         if (publishStatusTimer) {
             window.clearInterval(publishStatusTimer);
         }
 
+        // Purpose: Implements a focused frontend behavior used by this module.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         const poll = async () => {
             try {
                 const data = await fetchJson(`${BACKEND_URL}/api/publish/status`, {
@@ -1892,10 +2014,14 @@
         }
     }
 
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function getToken() {
         return localStorage.getItem(TOKEN_KEY) || "";
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function authHeaders() {
         const token = getToken();
         if (!token) {
@@ -1916,6 +2042,8 @@
         return payload;
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function formatBytes(size) {
         const value = Number(size || 0);
         if (!Number.isFinite(value) || value < 1024) {
@@ -1931,6 +2059,8 @@
         return `${current.toFixed(1)} ${units[unitIndex]}`;
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function formatDate(value) {
         if (!value) {
             return "-";
@@ -1943,6 +2073,8 @@
         return date.toLocaleString(locale);
     }
 
+    // Purpose: Renders computed content into the DOM for the current view state.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function renderRows(files) {
         if (!els.filesTbody) {
             return;
@@ -1974,6 +2106,8 @@
         els.filesTbody.innerHTML = rows.join("");
     }
 
+    // Purpose: Updates UI or local state so downstream interactions stay consistent.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function setFilesFoundStatus(count) {
         setStatus(tr("downloadManager.status.filesFound", "{count} fichier(s) trouvé(s).", {
             count: Number(count || 0),
@@ -1981,6 +2115,8 @@
         }), false);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function upsertLocalFileEntry(file) {
         if (!file) {
             return;
@@ -2012,6 +2148,8 @@
         }
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function removeLocalFileEntry(blobName) {
         if (!blobName) {
             return false;
@@ -2025,11 +2163,15 @@
         return currentFiles.length < before;
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function refreshLocalFilesTable() {
         renderRows(currentFiles);
         setFilesFoundStatus(currentFiles.length);
     }
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function escapeHtml(value) {
         return String(value)
             .replace(/&/g, "&amp;")
@@ -2167,6 +2309,8 @@
         }
     }
 
+    // Purpose: Attaches event listeners and links UI controls to their handlers.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindDragAndDrop() {
         const zone = els.dropZone;
         const fileInput = els.uploadFile;
@@ -2176,15 +2320,21 @@
             return;
         }
 
+        // Purpose: Updates UI or local state so downstream interactions stay consistent.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         const setDragState = (active) => {
             zone.classList.toggle("is-dragover", Boolean(active));
         };
 
+        // Purpose: Implements a focused frontend behavior used by this module.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         const preventDefaults = (event) => {
             event.preventDefault();
             event.stopPropagation();
         };
 
+        // Purpose: Handles a user or system event and coordinates the related UI actions.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         const handleSelectedFiles = async (files) => {
             const selectedFiles = Array.from(files || []).filter(Boolean);
             if (selectedFiles.length === 0) {
@@ -2229,6 +2379,8 @@
             await handleSelectedFiles(files);
         });
 
+        // Purpose: Implements a focused frontend behavior used by this module.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         const openPicker = () => fileInput.click();
 
         zone.addEventListener("click", openPicker);
@@ -2329,6 +2481,8 @@
         }
     }
 
+    // Purpose: Attaches event listeners and links UI controls to their handlers.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindTableActions() {
         if (!els.filesTbody) {
             return;
@@ -2349,6 +2503,8 @@
         });
     }
 
+    // Purpose: Initializes module behavior and wires startup dependencies.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function init() {
         ensurePublishSectionMounted();
         ensurePublishRefreshControl();

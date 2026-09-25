@@ -12,6 +12,8 @@
  */
 const MODEL_STORAGE_KEY = 'nutrifaq_selected_model';
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function tr(key, fallback) {
     try {
         const translator = window.ConfigModule && typeof window.ConfigModule.t === 'function'
@@ -84,6 +86,8 @@ async function loadModelSelectorOptions() {
     }
 }
 
+// Purpose: Attaches event listeners and links UI controls to their handlers.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function bindModelSelector() {
     const modelSelector = document.getElementById('model-selector');
     if (!modelSelector) {
@@ -100,6 +104,8 @@ function bindModelSelector() {
     });
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function warmupBackend() {
     const overlay = document.getElementById('initial-loading-overlay');
     const minDelayPromise = new Promise((resolve) => setTimeout(resolve, 350));
@@ -308,6 +314,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     const speechMethodIndicator = document.getElementById('speech-method-indicator');
     if (speechMethodIndicator) {
+        // Purpose: Updates UI or local state so downstream interactions stay consistent.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         function updateIndicator() {
             if (useWhisper()) {
                 speechMethodIndicator.textContent = tr('voice.whisperMethod', '🎤 Whisper');

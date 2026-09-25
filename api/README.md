@@ -1,49 +1,45 @@
 # API module overview
 
-This folder contains the backend logic for NutriFAQ.
-The FastAPI app is started from `app.py`, which dynamically loads route modules under `api/routes`.
+This folder contains the FastAPI backend for NutriFAQ (routes, schemas, services, and DB pipeline scripts).
 
-## Current backend layout
+## Folder layout
 
 ```text
 api/
-├── README.md
-├── config/                  # JSON config used by backend logic
-├── db_pipeline/             # indexing / regeneration helpers
-├── routes/                  # API endpoints
-├── schemas/                 # Pydantic schemas
-└── services/                # business logic and integrations
+├── config/         # backend JSON config files (legacy/local helpers)
+├── db_pipeline/    # extraction, transcript/question generation, Chroma indexing
+├── routes/         # HTTP endpoints
+├── schemas/        # Pydantic request/response models
+├── services/       # core business logic and integrations
+└── README.md
 ```
 
-## Routers currently loaded by app.py
+## Authentication and authorization
 
-- `api.routes.users`
-- `api.routes.query`
-- `api.routes.translation`
-- `api.routes.tts`
-- `api.routes.report`
-- `api.routes.config`
-- `api.routes.sessions`
-- `api.routes.blob`
-- `api.routes.database`
-- `api.routes.publish`
+The backend uses Microsoft Entra ID bearer tokens for protected endpoints.
 
-## Endpoint groups (high level)
+Current behavior:
 
-### Config and models
+- `/query` accepts either:
+	- `Authorization: Bearer <entra_token>`
+	- `X-Client-Key` matching `QUERY_ACCESS_KEY`
+- Other protected endpoints require Entra bearer auth and ignore query-key access.
+- `/query_debug` is admin-only.
 
-- `GET /api/get_config`
-- `GET /api/models`
+Role model:
 
-### Query and logs
+- Effective role is resolved from local role assignments when present.
+- If no explicit assignment exists, authenticated Entra users default to `admin`.
 
+## Main route groups
+
+Query and chat:
+
+- `POST /query`
+- `POST /query_debug`
 - `GET /api/generated-questions`
-- `POST /api/add_comment`
-- `POST /api/like_answer`
-- `GET /api/download_log`
-- `POST /api/reset_question_log`
 
-### Publish workflow
+Publish and rollback:
 
 - `POST /api/publish`
 - `POST /api/publish/revert`
@@ -51,55 +47,38 @@ api/
 - `GET /api/publish/log`
 - `POST /api/publish/log/reset`
 
-### Blob and file management
+Blob/file operations:
 
 - `GET /api/blob/files`
-- `GET /api/blob/files/{blob_name:path}/download`
 - `POST /api/blob/files/{blob_name:path}`
 - `DELETE /api/blob/files/{blob_name:path}`
-- `POST /api/blob/copy-container`
+- `GET /api/blob/files/{blob_name:path}/download`
 - `POST /api/blob/debug/reset-local`
 - `POST /api/blob/debug/sync-local-to-blob`
 
-### Database regeneration/indexing
+Database regeneration:
 
 - `GET /api/database/steps`
 - `POST /api/database/run-step`
-- `POST /api/database/extract-docx`
-- `POST /api/database/extract-references`
-- `POST /api/database/generate-transcripts-json`
-- `POST /api/database/generate-questions`
-- `POST /api/database/index-chromadb-json`
 - `POST /api/database/regenerate`
 - `POST /api/database/regenerate/cancel`
 - `GET /api/database/regenerate/status`
 
-### Translation and TTS
+User and roles:
 
-- `GET /api/languages`
-- `POST /api/translate`
-- `POST /api/transcribe_audio`
-- `POST /api/translate_audio`
-- `POST /api/tts`
-
-### Sessions and users
-
-- `POST /api/reset_session`
-- `GET /api/session_info`
 - `GET /api/users/me`
-- `POST /api/users`
 - `GET /api/users`
+- `POST /api/users`
 - `PUT /api/users/{user_object_id}/role`
 - `DELETE /api/users/{user_object_id}/role`
 
-## Service responsibilities
+## Key services
 
-- `services/query_chromadb.py`: retrieval and answer generation over ChromaDB-backed data.
-- `services/logging.py`: question/response logs, votes, and comments.
-- `services/config.py`: runtime config load/merge.
-- `services/refusal_engine.py`: refusal checks before LLM generation.
-- `services/sessions.py`: conversation/session state.
-- `services/startup_sync.py`: syncs blob databases on app startup.
+- `services/query_chromadb.py`: retrieval + prompt building + streaming answer orchestration.
+- `services/llm_service.py`: LLM client wrappers, retries, embeddings, and prompt template helpers.
+- `services/database_regeneration_service.py`: end-to-end regeneration orchestration and progress status.
+- `services/publish_service.py`: publish/revert jobs and operation status tracking.
+- `services/blob_storage_service.py`: Azure Blob access, sync, upload, copy, and delete helpers.
 
 ## Run locally
 

@@ -21,6 +21,8 @@ const MIN_REQUEST_INTERVAL = 2000; // 2 seconds minimum between requests
 const CLIENT_QUERY_KEY = (window.CLIENT_QUERY_KEY || '').trim();
 const ADMIN_BEARER_TOKEN_KEY = 'nutrifaq_admin_bearer_token';
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function tr(key, fallback, params) {
     let template = fallback;
     try {
@@ -48,6 +50,8 @@ function tr(key, fallback, params) {
     });
 }
 
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getAdminBearerToken() {
     try {
         const token = localStorage.getItem(ADMIN_BEARER_TOKEN_KEY);
@@ -57,6 +61,8 @@ function getAdminBearerToken() {
     }
 }
 
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getQueryEndpoint() {
     // Route admin sessions to the debug KB endpoint when a bearer token exists.
     return getAdminBearerToken() ? '/query_debug' : '/query';
@@ -80,6 +86,8 @@ if (typeof marked !== 'undefined') {
 /**
  * Check if text ends with incomplete markdown URL syntax
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function hasIncompleteUrl(text) {
     // Check for incomplete markdown image: ![text](incomplete_url
     // or incomplete markdown link: [text](incomplete_url
@@ -93,6 +101,8 @@ function hasIncompleteUrl(text) {
  * Remove incomplete markdown URLs from text
  * Removes everything from the last occurrence of [text](incomplete_url
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function removeIncompleteUrls(text) {
     // Find the last occurrence of an incomplete markdown image or link
     const lastImageStart = text.lastIndexOf('![');
@@ -124,11 +134,15 @@ function removeIncompleteUrls(text) {
 /**
  * Get selected library from selector
  */
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getSelectedLibrary() {
     const selector = document.getElementById('library-selector');
     return selector ? selector.value : 'all';
 }
 
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getSelectedModel() {
     const selector = document.getElementById('model-selector');
     const value = selector ? String(selector.value || '').trim() : '';
@@ -139,6 +153,8 @@ function getSelectedModel() {
     return savedModel || null;
 }
 
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getSelectedModelLabel() {
     const selector = document.getElementById('model-selector');
     if (!selector) {
@@ -155,6 +171,8 @@ function getSelectedModelLabel() {
     return String(localStorage.getItem('nutrifaq_selected_model') || '').trim();
 }
 
+// Purpose: Updates UI or local state so downstream interactions stay consistent.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function setMessageModelBadge(actionsDiv, modelId, modelLabel) {
     if (!actionsDiv) {
         return;
@@ -182,6 +200,8 @@ function setMessageModelBadge(actionsDiv, modelId, modelLabel) {
     badge.style.display = 'inline-flex';
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function buildApiHeaders() {
     const headers = { 'Content-Type': 'application/json' };
     if (CLIENT_QUERY_KEY) {
@@ -194,6 +214,8 @@ function buildApiHeaders() {
     return headers;
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function truncateTitle(value, maxLength = 72) {
     const text = String(value || '').trim();
     if (!text) {
@@ -205,6 +227,8 @@ function truncateTitle(value, maxLength = 72) {
     return `${text.slice(0, maxLength - 1)}…`;
 }
 
+// Purpose: Updates UI or local state so downstream interactions stay consistent.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function setSuggestedQuestionsState({ metaText, emptyText, isError = false }) {
     const meta = document.getElementById('suggested-questions-meta');
     const list = document.getElementById('suggested-questions-list');
@@ -216,6 +240,8 @@ function setSuggestedQuestionsState({ metaText, emptyText, isError = false }) {
     }
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function collapseSuggestedPanelOnMobileAfterCopy() {
     const isMobile = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 768px)').matches;
     if (!isMobile) {
@@ -233,6 +259,8 @@ function collapseSuggestedPanelOnMobileAfterCopy() {
     }
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function copyQuestionToInput(question, button) {
     const inputBox = document.getElementById('input-box');
     if (!inputBox) {
@@ -279,6 +307,8 @@ function copyQuestionToInput(question, button) {
     }, 1000);
 }
 
+// Purpose: Renders computed content into the DOM for the current view state.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function renderSuggestedQuestions(documents) {
     const list = document.getElementById('suggested-questions-list');
     const meta = document.getElementById('suggested-questions-meta');
@@ -370,6 +400,8 @@ function renderSuggestedQuestions(documents) {
     }
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function normalizeQuestionItems(items) {
     if (!Array.isArray(items)) {
         return [];
@@ -397,7 +429,11 @@ function normalizeQuestionItems(items) {
         .filter(Boolean);
 }
 
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getSuggestedQuestionsAssetUrl() {
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     const currentLanguage = (() => {
         try {
             const { getCurrentLanguage } = window.ConfigModule || {};
@@ -417,9 +453,13 @@ function getSuggestedQuestionsAssetUrl() {
     return `/static/assets/test_questions_${normalizedLanguage}.json`;
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function buildQuestionSections(staticQuestions = {}, generatedDocuments = []) {
     const sections = [];
 
+    // Purpose: Implements a focused frontend behavior used by this module.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     const addSection = (titleKey, fallbackTitle, items) => {
         const cleanItems = normalizeQuestionItems(items);
         if (!cleanItems.length) {
@@ -538,6 +578,8 @@ async function loadSuggestedQuestions() {
 /**
  * Escape HTML to prevent XSS
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -547,6 +589,8 @@ function escapeHtml(text) {
 /**
  * Add message to chat
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function addMessage(text, role) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${role}`;
@@ -567,6 +611,8 @@ function addMessage(text, role) {
 /**
  * Create assistant message with loading state
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function createAssistantMessage() {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message assistant';
@@ -602,6 +648,8 @@ function createAssistantMessage() {
 /**
  * Setup message action buttons
  */
+// Purpose: Updates UI or local state so downstream interactions stay consistent.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function setupMessageActions(messageDiv, contentDiv) {
     const { t, BACKEND_URL } = window.ConfigModule;
     const { speakText, stopTTS, getActiveTtsButton } = window.TTSModule || {};
@@ -804,6 +852,8 @@ function setupMessageActions(messageDiv, contentDiv) {
 /**
  * Position message at bottom of viewport
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function positionMessageAtBottom(chatContainer, userMessageDiv, messageDiv) {
     if (!chatContainer || !userMessageDiv || !messageDiv) return;
     
@@ -839,6 +889,8 @@ function positionMessageAtBottom(chatContainer, userMessageDiv, messageDiv) {
 /**
  * Prepare UI for loading
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function prepareUIForLoading() {
     isLoading = true;
     const sendButton = document.getElementById('send-button');
@@ -856,6 +908,8 @@ function prepareUIForLoading() {
 /**
  * Cancel ongoing message
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function cancelMessage() {
     if (currentAbortController) {
         currentAbortController.abort();
@@ -870,6 +924,8 @@ function cancelMessage() {
 /**
  * Cleanup after message
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function cleanupAfterMessage(messageDiv) {
     isLoading = false;
     currentAbortController = null;
@@ -892,6 +948,8 @@ function cleanupAfterMessage(messageDiv) {
 /**
  * Display links/PMIDs
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function displayLinks(container, links) {
     if (!links || links.length === 0) return;
     
@@ -1177,6 +1235,8 @@ async function sendMessage() {
 /**
  * Get loading state
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function isMessageLoading() {
     return isLoading;
 }

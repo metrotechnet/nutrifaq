@@ -14,6 +14,8 @@ let activeTtsButton = null;
 /**
  * Stop TTS playback
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function stopTTS() {
     if (ttsAudio) {
         ttsAudio.pause();
@@ -130,6 +132,8 @@ async function speakText(text, button = null) {
 /**
  * Get active TTS button
  */
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getActiveTtsButton() {
     return activeTtsButton;
 }

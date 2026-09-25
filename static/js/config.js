@@ -16,6 +16,8 @@ let mainConfig = {};
 let currentLanguage = 'fr';
 const LOCALES_BASE_URL = `${window.location.origin}/static/locales`;
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function deepMerge(baseConfig, overrideConfig) {
     const result = { ...(baseConfig || {}) };
     Object.entries(overrideConfig || {}).forEach(([key, value]) => {
@@ -36,10 +38,14 @@ function deepMerge(baseConfig, overrideConfig) {
     return result;
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function localeConfigUrl(languageCode) {
     return `${LOCALES_BASE_URL}/${languageCode}.json`;
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function emitLanguageUpdated() {
     window.dispatchEvent(new CustomEvent('nutrifaq:language-updated', {
         detail: {
@@ -83,6 +89,8 @@ async function fetchConfigWithRetry(url, options = {}) {
 /**
  * Get URL parameter by name
  */
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getUrlParameter(name) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(name);
@@ -141,6 +149,8 @@ async function loadConfig(agent) {
 /**
  * Apply translations to all elements with data-i18n attributes
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function applyConfig(lang) {
     const langData = mainConfig[lang] || mainConfig['fr'];
     
@@ -213,6 +223,8 @@ function applyConfig(lang) {
 /**
  * Populate suggestion cards dynamically from config
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function populateSuggestionCards(lang) {
     const suggestionsContainer = document.querySelector('.suggestions');
     if (!suggestionsContainer) return;
@@ -283,6 +295,8 @@ function populateSuggestionCards(lang) {
 /**
  * Get nested value from object using dot notation
  */
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getNestedValue(obj, path) {
     return path.split('.').reduce((current, key) => {
         return current && current[key] !== undefined ? current[key] : null;
@@ -292,6 +306,8 @@ function getNestedValue(obj, path) {
 /**
  * Switch language
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function switchLanguage(lang) {
     currentLanguage = lang;
     localStorage.setItem('preferredLanguage', lang);
@@ -315,6 +331,8 @@ function switchLanguage(lang) {
 /**
  * Get translation for a key
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function t(key) {
     const langData = mainConfig[currentLanguage] || mainConfig['fr'];
     return getNestedValue(langData, key) || key;
@@ -323,6 +341,8 @@ function t(key) {
 /**
  * Get current language
  */
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getCurrentLanguage() {
     return currentLanguage;
 }
@@ -330,6 +350,8 @@ function getCurrentLanguage() {
 /**
  * Get main config
  */
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getMainConfig() {
     return mainConfig;
 }

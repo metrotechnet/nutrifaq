@@ -18,6 +18,8 @@ let recordingAnimationInterval = null;
 let maxDurationTimer = null;
 let warningTimer = null;
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function tr(key, fallback) {
     try {
         const translator = window.ConfigModule && typeof window.ConfigModule.t === 'function'
@@ -35,6 +37,8 @@ function tr(key, fallback) {
     return fallback;
 }
 
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function showVoiceAlert(message) {
     if (window.Swal && typeof window.Swal.fire === 'function') {
         window.Swal.fire({
@@ -51,6 +55,8 @@ function showVoiceAlert(message) {
 /**
  * Convert language code to speech recognition locale
  */
+// Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function getRecognitionLocale(langCode) {
     const localeMap = {
         'fr': 'fr-FR', 'en': 'en-US', 'es': 'es-ES', 'de': 'de-DE',
@@ -67,6 +73,8 @@ function getRecognitionLocale(langCode) {
 /**
  * Initialize Web Speech API recognition
  */
+// Purpose: Initializes module behavior and wires startup dependencies.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
@@ -137,6 +145,8 @@ function initSpeechRecognition() {
 /**
  * Start Web Speech API recording
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function startRecording() {
     if (!recognition) return;
     
@@ -165,6 +175,8 @@ function startRecording() {
 /**
  * Stop Web Speech API recording
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function stopRecording() {
     if (recognition && isRecording) {
         isRecording = false;
@@ -328,6 +340,8 @@ async function initWhisperRecording() {
 /**
  * Stop Whisper recording
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function stopWhisperRecording() {
     isRecording = false;
     const voiceButton = document.getElementById('voice-button');
@@ -361,6 +375,8 @@ function stopWhisperRecording() {
 /**
  * Restore input placeholder
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function restorePlaceholder() {
     const inputBox = document.getElementById('input-box');
     if (!inputBox) return;
@@ -480,6 +496,8 @@ async function transcribeWithWhisper(audioBlob) {
 /**
  * Toggle recording
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function toggleRecording() {
     if (useWhisper) {
         if (isRecording) {
@@ -511,6 +529,8 @@ function toggleRecording() {
 /**
  * Toggle recognition method
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function toggleRecognitionMethod() {
     useWhisper = !useWhisper;
     console.log('Recognition method switched to:', useWhisper ? 'Whisper' : 'Web Speech API');

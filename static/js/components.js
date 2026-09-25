@@ -18,6 +18,8 @@ const componentRegistry = {
      * Supports single, pair (source/target), or multi-select modes
      */
     languageSelector: {
+        // Purpose: Renders computed content into the DOM for the current view state.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         render(config) {
             const container = document. getElementById('translate-options');
             if (!container) return;
@@ -47,6 +49,8 @@ const componentRegistry = {
             }
         },
         
+        // Purpose: Implements a focused frontend behavior used by this module.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         hide() {
             const container = document.getElementById('translate-options');
             if (container) {
@@ -54,6 +58,8 @@ const componentRegistry = {
             }
         },
         
+        // Purpose: Implements a focused frontend behavior used by this module.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         populateLanguages(select, languages, defaultValue) {
             if (!select || !languages) return;
             
@@ -70,6 +76,8 @@ const componentRegistry = {
             }
         },
         
+        // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         getValue() {
             const sourceSelect = document.getElementById('source-language');
             const targetSelect = document.getElementById('target-language');
@@ -80,6 +88,8 @@ const componentRegistry = {
             };
         },
         
+        // Purpose: Implements a focused frontend behavior used by this module.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         swap() {
             const sourceSelect = document.getElementById('source-language');
             const targetSelect = document.getElementById('target-language');
@@ -93,6 +103,8 @@ const componentRegistry = {
             }
         },
         
+        // Purpose: Implements a focused frontend behavior used by this module.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         reset() {
             translationReversed = false;
         }
@@ -103,6 +115,8 @@ const componentRegistry = {
      * Manages input area visibility and configuration
      */
     inputArea: {
+        // Purpose: Renders computed content into the DOM for the current view state.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         render(config) {
             const inputArea = document.querySelector('.input-area');
             const inputBox = document.getElementById('input-box');
@@ -121,6 +135,8 @@ const componentRegistry = {
             }
         },
         
+        // Purpose: Implements a focused frontend behavior used by this module.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         show() {
             const inputArea = document.querySelector('.input-area');
             if (inputArea) {
@@ -128,6 +144,8 @@ const componentRegistry = {
             }
         },
         
+        // Purpose: Implements a focused frontend behavior used by this module.
+        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
         hide() {
             const inputArea = document.querySelector('.input-area');
             if (inputArea) {
@@ -140,10 +158,14 @@ const componentRegistry = {
 /**
  * Get/set translation reversed state
  */
+// Purpose: Implements a focused frontend behavior used by this module.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function isTranslationReversed() {
     return translationReversed;
 }
 
+// Purpose: Updates UI or local state so downstream interactions stay consistent.
+// Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function setTranslationReversed(value) {
     translationReversed = value;
 }
