@@ -1,7 +1,7 @@
 # =====================================================
 # Imports - Main application imports
 # =====================================================
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -37,6 +37,37 @@ app = FastAPI(
 )
 APP_VERSION = os.getenv("APP_VERSION", "dev")
 app.state.database_sync_status = "synch"
+
+# Allow disabling CORS validation only for the third-party API routes when needed.
+THIRD_PARTY_API_CORS_BYPASS = True
+THIRD_PARTY_API_CORS_PATHS = {"/query", "/download_page"}
+
+
+def _third_party_api_cors_headers(request: Request) -> dict[str, str]:
+    origin = request.headers.get("origin", "").strip()
+    requested_headers = request.headers.get("access-control-request-headers", "*").strip() or "*"
+
+    headers = {
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": requested_headers,
+        "Access-Control-Allow-Credentials": "true",
+        "Vary": "Origin",
+    }
+    headers["Access-Control-Allow-Origin"] = origin or "*"
+    return headers
+
+
+@app.middleware("http")
+async def third_party_api_cors_bypass(request: Request, call_next):
+    if THIRD_PARTY_API_CORS_BYPASS and request.url.path in THIRD_PARTY_API_CORS_PATHS:
+        if request.method == "OPTIONS":
+            return Response(status_code=204, headers=_third_party_api_cors_headers(request))
+
+        response = await call_next(request)
+        response.headers.update(_third_party_api_cors_headers(request))
+        return response
+
+    return await call_next(request)
 
 # =====================================================
 # Rate Limiting Configuration

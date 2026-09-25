@@ -68,7 +68,6 @@
         dropZone: document.getElementById("dnd-upload-area"),
         browseBtn: document.getElementById("dnd-browse-btn"),
         fileName: document.getElementById("dnd-file-name"),
-        resetDebugFiles: document.getElementById("reset-debug-files"),
         startIndexing: document.getElementById("start-indexing"),
         cancelIndexing: document.getElementById("cancel-indexing"),
         resetProgressWrap: document.getElementById("reset-progress-wrap"),
@@ -81,7 +80,6 @@
         statusMessage: document.getElementById("status-message"),
         publishModelSelector: document.getElementById("publish-model-selector"),
         publishSubmit: document.getElementById("publish-submit"),
-        publishRevert: document.getElementById("publish-revert"),
         publishStatus: document.getElementById("publish-status"),
         publishFinishMessage: document.getElementById("publish-finish-message"),
         publishProgressWrap: document.getElementById("publish-progress-wrap"),
@@ -100,7 +98,6 @@
         els.publishSection = document.getElementById("publish-section");
         els.publishModelSelector = document.getElementById("publish-model-selector");
         els.publishSubmit = document.getElementById("publish-submit");
-        els.publishRevert = document.getElementById("publish-revert");
         els.publishStatus = document.getElementById("publish-status");
         els.publishFinishMessage = document.getElementById("publish-finish-message");
         els.publishProgressWrap = document.getElementById("publish-progress-wrap");
@@ -318,10 +315,6 @@
 
         if (els.publishSubmit) {
             els.publishSubmit.textContent = tr("publish.confirm.action", "Publier");
-        }
-
-        if (els.publishRevert) {
-            els.publishRevert.textContent = tr("publish.revert.action", "Rétablir");
         }
 
         const logsTitle = els.publishSection.querySelector(".publish-logs-header h3");
@@ -670,7 +663,6 @@
                         </select>
                     </div>
                     <div class="download-control-group actions">
-                        <button id="publish-revert" class="dm-btn secondary" type="button">${escapeHtml(tr("publish.revert.action", "Rétablir"))}</button>
                         <button id="publish-submit" class="dm-btn primary" type="button">${escapeHtml(tr("publish.confirm.action", "Publier"))}</button>
                     </div>
                 </div>
@@ -711,9 +703,6 @@
         if (els.publishSubmit) {
             els.publishSubmit.addEventListener("click", onPublishSubmit);
         }
-        if (els.publishRevert) {
-            els.publishRevert.addEventListener("click", onRevertSubmit);
-        }
         ensurePublishRefreshControl();
         bindPublishLogsTabButtons();
         bindPublishRefreshButton();
@@ -725,7 +714,6 @@
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
     let indexingStatusTimer = null;
     let indexingAbortController = null;
-    let resetProgressTimer = null;
     let isIndexingRunning = false;
     let currentStepKey = null;
     let currentStepPercent = 0;
@@ -812,57 +800,6 @@
         if (els.indexingProgressText) {
             els.indexingProgressText.textContent = text || `${clamped}%`;
         }
-    }
-
-    // Purpose: Updates UI or local state so downstream interactions stay consistent.
-    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
-    function setResetProgress(value, text) {
-        // Use a single shared progress UI in the download panel.
-        setIndexingProgress(value, text);
-    }
-
-    // Purpose: Implements a focused frontend behavior used by this module.
-    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
-    function beginResetProgress() {
-        if (els.indexingProgressWrap) {
-            els.indexingProgressWrap.classList.add("is-visible");
-        }
-        if (els.resetDebugFiles) {
-            els.resetDebugFiles.disabled = true;
-            els.resetDebugFiles.textContent = tr("downloadManager.buttons.resetInProgress", "Reset en cours...");
-        }
-
-        let progress = 8;
-        setResetProgress(progress, tr("downloadManager.progress.preparing", "Préparation..."));
-        resetProgressTimer = window.setInterval(() => {
-            progress = Math.min(progress + 6, 90);
-            setResetProgress(progress, tr("downloadManager.progress.syncing", "Synchronisation... {progress}%", { progress }));
-        }, 350);
-    }
-
-    // Purpose: Implements a focused frontend behavior used by this module.
-    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
-    function finishResetProgress(success) {
-        if (resetProgressTimer) {
-            window.clearInterval(resetProgressTimer);
-            resetProgressTimer = null;
-        }
-
-        setResetProgress(100, success
-            ? tr("downloadManager.progress.completed", "Terminé")
-            : tr("downloadManager.progress.interrupted", "Interrompu"));
-
-        if (els.resetDebugFiles) {
-            els.resetDebugFiles.disabled = false;
-            els.resetDebugFiles.textContent = tr("downloadManager.buttons.resetFiles", "Réinitialiser les fichiers");
-        }
-
-        window.setTimeout(() => {
-            if (els.indexingProgressWrap) {
-                els.indexingProgressWrap.classList.remove("is-visible");
-            }
-            setResetProgress(0, "0%");
-        }, success ? 1200 : 1800);
     }
 
     // Purpose: Updates UI or local state so downstream interactions stay consistent.
@@ -2450,37 +2387,6 @@
         }
     }
 
-    async function resetDebugFilesFromBlob() {
-        const confirmed = await confirmAction({
-            title: tr("downloadManager.confirm.resetTitle", "Réinitialiser les fichiers ?"),
-            text: tr("downloadManager.confirm.resetText", "Cette action va rétablir les fichiers précédents."),
-            confirmText: tr("downloadManager.confirm.reset", "Réinitialiser"),
-        });
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            beginResetProgress();
-            setStatus(tr("downloadManager.status.resetInProgress", "Réinitialisation depuis le blob en cours..."), false);
-
-            const result = await fetchJson(withContainerQuery(`${BACKEND_URL}/api/blob/debug/reset-local`), {
-                method: "POST",
-                headers: {
-                    ...authHeaders()
-                }
-            });
-
-            const docsCount = Number(result.documents_count || 0);
-            setStatus(tr("downloadManager.status.resetDone", "Reset terminé. {count} fichier(s) dans documents/.", { count: docsCount }), false);
-            finishResetProgress(true);
-            await loadFiles();
-        } catch (error) {
-            setStatus(tr("downloadManager.status.resetError", "Erreur reset: {error}", { error: error.message }), true);
-            finishResetProgress(false);
-        }
-    }
-
     // Purpose: Attaches event listeners and links UI controls to their handlers.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindTableActions() {
@@ -2518,9 +2424,6 @@
         }
         if (els.startIndexing) {
             els.startIndexing.addEventListener("click", startIndexing);
-        }
-        if (els.resetDebugFiles) {
-            els.resetDebugFiles.addEventListener("click", resetDebugFilesFromBlob);
         }
         if (els.cancelIndexing) {
             els.cancelIndexing.addEventListener("click", requestCancelIndexing);
