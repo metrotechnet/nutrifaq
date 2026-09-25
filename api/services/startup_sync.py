@@ -75,20 +75,27 @@ def sync_blob_databases_on_startup(app: "FastAPI | None" = None) -> None:
 
 
     try:
-        # Sync the main knowledge base from the blob storage to the local project root.
-        sync_blob_prefix_to_local(
-            prefix="",
-            container_name=f"{dbase_main_prefix_base}",
-            local_root=dbase_main_target_root,
-            remove_existing=False
+        # Sync only when the local main KB does not already contain files.
+        local_has_files = dbase_main_target_root.exists() and any(dbase_main_target_root.rglob("*"))
+        if local_has_files:
+            print(
+                f"[Startup] Main KB sync skipped: local folder already contains files ({dbase_main_target_root}).",
+                flush=True,
+            )
+        else:
+            sync_blob_prefix_to_local(
+                prefix="",
+                container_name=f"{dbase_main_prefix_base}",
+                local_root=dbase_main_target_root,
+                remove_existing=False
 
-        )
-        hydrated_targets.append(dbase_main_target_root)
-        print(
-            f"[Startup] Loaded blob main KB into {dbase_main_target_root} "
-            f"(prefix={dbase_main_prefix_base})",
-            flush=True,
-        )
+            )
+            hydrated_targets.append(dbase_main_target_root)
+            print(
+                f"[Startup] Loaded blob main KB into {dbase_main_target_root} "
+                f"(prefix={dbase_main_prefix_base})",
+                flush=True,
+            )
     except Exception as exc:
         print(
             f"[Startup] Main KB hydration skipped: {exc}",
