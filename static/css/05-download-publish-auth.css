@@ -187,6 +187,16 @@
     color: #12453f;
 }
 
+.dm-btn.table-action.icon-only {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+}
+
 .dm-btn.table-action.danger {
     background: #fee2e2;
     color: #991b1b;

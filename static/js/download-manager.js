@@ -2049,14 +2049,20 @@
             const fileName = file.filename || (blobName ? blobName.split("/").pop() : "") || "-";
             const lastModified = formatDate(file.last_modified);
             const size = formatBytes(file.size_bytes ?? file.size);
+            const downloadLabel = tr("downloadManager.table.download", "Indexer");
+            const deleteLabel = tr("downloadManager.table.delete", "Supprimer");
             return `
                 <tr>
                     <td>${escapeHtml(fileName)}</td>
                     <td>${escapeHtml(size)}</td>
                     <td>${escapeHtml(lastModified)}</td>
                     <td>
-                        <button class="dm-btn table-action" data-action="download" data-name="${encodeURIComponent(blobName)}">${escapeHtml(tr("downloadManager.table.download", "Indexer"))}</button>
-                        <button class="dm-btn table-action danger" data-action="delete" data-name="${encodeURIComponent(blobName)}">${escapeHtml(tr("downloadManager.table.delete", "Supprimer"))}</button>
+                        <button class="dm-btn table-action icon-only" data-action="download" data-name="${encodeURIComponent(blobName)}" title="${escapeHtml(downloadLabel)}" aria-label="${escapeHtml(downloadLabel)}">
+                            <i class="bi bi-download" aria-hidden="true"></i>
+                        </button>
+                        <button class="dm-btn table-action danger icon-only" data-action="delete" data-name="${encodeURIComponent(blobName)}" title="${escapeHtml(deleteLabel)}" aria-label="${escapeHtml(deleteLabel)}">
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                        </button>
                     </td>
                 </tr>
             `;
