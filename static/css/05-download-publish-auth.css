@@ -285,6 +285,42 @@
     height: 100%;
 }
 
+.download-files-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1rem 0.75rem;
+    border-bottom: 1px solid #edf3f1;
+    background: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.download-files-header-copy {
+    min-width: 0;
+}
+
+.download-files-header h3 {
+    margin: 0;
+    color: #12453f;
+    font-size: 1rem;
+}
+
+.download-files-header p {
+    margin: 0.25rem 0 0;
+    color: #355a54;
+    font-size: 0.85rem;
+}
+
+.refresh-files-btn {
+    padding: 0.62rem 0.95rem;
+    font-size: 0.82rem;
+    min-width: 0;
+    white-space: nowrap;
+}
+
 .download-section {
     display: flex;
     flex-direction: column;

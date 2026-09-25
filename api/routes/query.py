@@ -10,7 +10,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from api.schemas.models import QueryRequest
-from api.services.entra_auth_service import require_admin, require_client, require_client_or_query_key
+from api.services.entra_auth_service import require_admin, require_client
 from api.services.sessions import get_or_create_session, is_session_rate_limited
 from api.services.logging import save_question_response, contains_medical_disclaimer
 from api.services.generated_questions_loader import load_generated_questions
@@ -219,15 +219,6 @@ def _query_agent_response(
             "Connection": "keep-alive",
         }
     )
-
-
-@router.post("/query", dependencies=[Depends(require_client_or_query_key)])
-# @limiter.limit("10/hour")  # Max 10 questions per hour per IP
-async def query_agent(request: Request, query_request: QueryRequest, chroma_db_path: str | None = None):
-    """
-    Main endpoint to ask questions to the agent and receive streaming responses
-    """
-    return _query_agent_response(request, query_request, debug_mode=False, chroma_db_path=chroma_db_path)
 
 
 @router.post("/query_debug", dependencies=[Depends(require_admin)])

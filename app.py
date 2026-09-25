@@ -90,6 +90,7 @@ app.add_middleware(
 # =====================================================
 ROUTE_MODULES = [
     ("api.routes.users", "users"),
+    ("api.routes.third_party_api", "third_party_api"),
     ("api.routes.query", "query"),
     ("api.routes.translation", "translation"),
     ("api.routes.tts", "tts"),

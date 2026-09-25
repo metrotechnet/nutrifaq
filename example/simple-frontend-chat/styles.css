@@ -48,6 +48,14 @@ body {
   padding: 1rem 1.2rem 0.85rem;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(135deg, #f8fffc 0%, #f9fbff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-header-copy {
+  min-width: 0;
 }
 
 .app-header h1 {
@@ -120,6 +128,47 @@ body {
   gap: 0.6rem;
   background: var(--panel);
   border-top: 1px solid var(--border);
+}
+
+.composer-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.secondary-button {
+  min-width: 118px;
+  padding: 0.82rem 1.25rem;
+  border: 1px solid #0f766e;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+}
+
+.header-button {
+  min-width: 168px;
+}
+
+.header-button {
+  align-self: center;
+  padding-left: 1.35rem;
+  padding-right: 1.35rem;
+}
+
+.secondary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #14b8a6;
+  filter: brightness(1.03);
+  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.24);
+}
+
+.secondary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .composer textarea {
@@ -278,11 +327,29 @@ body {
     font-size: 1.25rem;
   }
 
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-button {
+    width: 100%;
+    min-width: 0;
+  }
+
   .bubble {
     max-width: 90%;
   }
 
   .composer {
     grid-template-columns: 1fr;
+  }
+
+  .composer-actions {
+    justify-content: stretch;
+  }
+
+  .composer-actions button {
+    flex: 1;
   }
 }

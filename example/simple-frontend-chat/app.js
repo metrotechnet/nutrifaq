@@ -5,6 +5,8 @@ const display = document.getElementById("display");
 const form = document.getElementById("composer");
 const input = document.getElementById("questionInput");
 const sendBtn = document.getElementById("sendBtn");
+const downloadBtn = document.getElementById("downloadBtn");
+const fileInput = document.getElementById("fileInput");
 
 if (typeof marked !== "undefined") {
   const renderer = new marked.Renderer();
@@ -64,6 +66,7 @@ function loadingDotsMarkup() {
 function setLoading(isLoading) {
   input.disabled = isLoading;
   sendBtn.disabled = isLoading;
+  downloadBtn.disabled = isLoading;
 }
 
 // Purpose: Implements a focused frontend behavior used by this module.
@@ -155,6 +158,54 @@ async function streamQuery(question, assistantBubble) {
   }
 }
 
+async function uploadSelectedFile(file) {
+  const headers = {
+  };
+
+  if (CLIENT_QUERY_KEY) {
+    headers["X-Client-Key"] = CLIENT_QUERY_KEY;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+
+  const response = await fetch(`${API_BASE}/download_page`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`HTTP ${response.status}: ${body || "Echec du transfert"}`);
+  }
+
+  return response.json();
+}
+
+async function uploadSelectedFiles(files) {
+  const summary = [];
+
+  for (const file of files) {
+    try {
+      const result = await uploadSelectedFile(file);
+      summary.push({
+        ok: true,
+        fileName: file.name,
+        result,
+      });
+    } catch (error) {
+      summary.push({
+        ok: false,
+        fileName: file.name,
+        error,
+      });
+    }
+  }
+
+  return summary;
+}
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const question = input.value.trim();
@@ -183,5 +234,58 @@ input.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     form.requestSubmit();
+  }
+});
+
+downloadBtn.addEventListener("click", () => {
+  fileInput.value = "";
+  fileInput.click();
+});
+
+fileInput.addEventListener("change", async () => {
+  const files = Array.from(fileInput.files || []);
+  if (files.length === 0) {
+    return;
+  }
+
+  const userMessage = files.length === 1
+    ? `Téléchargement du fichier: ${files[0].name}`
+    : `Téléchargement en lot: ${files.length} fichiers (${files.map((file) => file.name).join(", ")})`;
+  addBubble("user", userMessage);
+  const assistantBubble = addBubble("assistant", "");
+  assistantBubble.innerHTML = loadingDotsMarkup();
+  setLoading(true);
+
+  try {
+    const results = await uploadSelectedFiles(files);
+    const successResults = results.filter((item) => item.ok);
+    const failureResults = results.filter((item) => !item.ok);
+
+    const lines = [];
+    lines.push(`Transfert terminé: ${successResults.length}/${results.length} fichier(s) envoyé(s) avec succès.`);
+
+    if (successResults.length > 0) {
+      lines.push("");
+      lines.push("Fichiers transférés:");
+      for (const item of successResults) {
+        lines.push(`- ${item.fileName} → ${item.result.filename}`);
+      }
+    }
+
+    if (failureResults.length > 0) {
+      lines.push("");
+      lines.push("Fichiers en erreur:");
+      for (const item of failureResults) {
+        lines.push(`- ${item.fileName}: ${item.error.message}`);
+      }
+    }
+
+    assistantBubble.innerHTML = sanitizeMarkdown(lines.join("\n"));
+  } catch (error) {
+    assistantBubble.innerHTML = `<span class="error">${error.message}</span>`;
+  } finally {
+    setLoading(false);
+    input.focus();
+    display.scrollTop = display.scrollHeight;
   }
 });
