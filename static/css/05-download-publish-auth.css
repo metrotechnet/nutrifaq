@@ -134,6 +134,10 @@
 }
 
 .dm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
     border: none;
     border-radius: 8px;
     padding: 0.62rem 0.9rem;

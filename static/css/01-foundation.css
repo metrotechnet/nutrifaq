@@ -24,7 +24,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: radial-gradient(circle at 12% 20%, #1e9cc8 0%, #0f3b88 45%, #35a830 100%);
     display: flex;
     align-items: center;
     justify-content: center;
