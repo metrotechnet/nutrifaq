@@ -7,31 +7,47 @@
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
-  <main class="app">
-    <header class="app-header">
-      <div class="app-header-copy">
-        <h1>NutriFAQ Chat Demo</h1>
-        <p>Connecte a l'API deployee</p>
-      </div>
-      <button id="downloadBtn" type="button" class="secondary-button header-button" aria-label="Télécharger un ou plusieurs fichiers" title="Télécharger un ou plusieurs fichiers">
-        Télécharger
-      </button>
-    </header>
+  <main class="app-shell">
+    <section class="app">
+      <header class="app-header">
+        <div class="app-header-copy">
+          <h1>NutriFAQ Chat Demo</h1>
+          <p>Connecte a l'API deployee</p>
+        </div>
+      </header>
 
-    <section id="display" class="display" aria-live="polite"></section>
+      <section id="display" class="display" aria-live="polite"></section>
 
-    <form id="composer" class="composer" autocomplete="off">
-      <textarea id="questionInput" placeholder="Posez votre question..." rows="2" required></textarea>
-      <div class="composer-actions">
-        <button id="sendBtn" type="submit" aria-label="Envoyer" title="Envoyer">
-          <svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 3C6.48 3 2 6.92 2 11.75c0 2.73 1.43 5.17 3.67 6.77v2.98c0 .28.3.46.55.33l3.21-1.71c.84.2 1.7.3 2.57.3 5.52 0 10-3.92 10-8.75S17.52 3 12 3zm-4 8h8v1.5H8V11zm0-3h8v1.5H8V8zm0 6h5v1.5H8V14z"/>
-          </svg>
-        </button>
+      <form id="composer" class="composer" autocomplete="off">
+        <textarea id="questionInput" placeholder="Posez votre question..." rows="2" required></textarea>
+        <div class="composer-actions">
+          <button id="sendBtn" type="submit" aria-label="Envoyer" title="Envoyer">
+            <svg class="send-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 3C6.48 3 2 6.92 2 11.75c0 2.73 1.43 5.17 3.67 6.77v2.98c0 .28.3.46.55.33l3.21-1.71c.84.2 1.7.3 2.57.3 5.52 0 10-3.92 10-8.75S17.52 3 12 3zm-4 8h8v1.5H8V11zm0-3h8v1.5H8V8zm0 6h5v1.5H8V14z"/>
+            </svg>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="files-panel" aria-label="Fichiers distants">
+      <div class="files-panel-header">
+        <h2>Fichiers distants</h2>
+        <div class="files-panel-toolbar">
+          <button id="downloadBtn" type="button" class="secondary-button panel-upload-button" aria-label="Telecharger un ou plusieurs fichiers" title="Telecharger un ou plusieurs fichiers">
+            Telecharger
+          </button>
+          <button id="refreshFilesBtn" type="button" class="panel-button" aria-label="Rafraichir la liste" title="Rafraichir la liste">
+            Rafraichir
+          </button>
+        </div>
       </div>
-    </form>
+      <p id="filesStatus" class="files-status">Cliquez sur Rafraichir pour charger la liste.</p>
+      <ul id="filesList" class="files-list" aria-live="polite"></ul>
+    </aside>
   </main>
 
   <input id="fileInput" class="file-input" type="file" multiple hidden />

@@ -2024,9 +2024,17 @@
         if (!value) {
             return "-";
         }
-        const date = new Date(value);
+
+        // Accept ISO strings, epoch milliseconds, and epoch seconds.
+        let normalizedValue = value;
+        const numericValue = Number(value);
+        if (Number.isFinite(numericValue)) {
+            normalizedValue = numericValue < 1e12 ? numericValue * 1000 : numericValue;
+        }
+
+        const date = new Date(normalizedValue);
         if (Number.isNaN(date.getTime())) {
-            return value;
+            return String(value);
         }
         const locale = currentLanguage() === "en" ? "en-CA" : "fr-CA";
         return date.toLocaleString(locale);

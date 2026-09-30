@@ -7,6 +7,9 @@ const input = document.getElementById("questionInput");
 const sendBtn = document.getElementById("sendBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const fileInput = document.getElementById("fileInput");
+const refreshFilesBtn = document.getElementById("refreshFilesBtn");
+const filesStatus = document.getElementById("filesStatus");
+const filesList = document.getElementById("filesList");
 
 if (typeof marked !== "undefined") {
   const renderer = new marked.Renderer();
@@ -67,6 +70,160 @@ function setLoading(isLoading) {
   input.disabled = isLoading;
   sendBtn.disabled = isLoading;
   downloadBtn.disabled = isLoading;
+}
+
+function fileHeaders() {
+  const headers = {};
+  if (CLIENT_QUERY_KEY) {
+    headers["X-Client-Key"] = CLIENT_QUERY_KEY;
+  }
+  return headers;
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return "-";
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const kb = bytes / 1024;
+  if (kb < 1024) {
+    return `${kb.toFixed(1)} KB`;
+  }
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+function formatTimestamp(unixSeconds) {
+  if (!Number.isFinite(unixSeconds)) {
+    return "date inconnue";
+  }
+  return new Date(unixSeconds * 1000).toLocaleString("fr-FR");
+}
+
+function setFilesStatus(message, isError = false) {
+  filesStatus.textContent = message;
+  filesStatus.classList.toggle("error", Boolean(isError));
+}
+
+async function confirmDeleteFile(filename) {
+  const message = `Supprimer ${filename} ?`;
+
+  if (typeof Swal !== "undefined" && typeof Swal.fire === "function") {
+    const result = await Swal.fire({
+      title: "Confirmer la suppression",
+      text: message,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Supprimer",
+      cancelButtonText: "Annuler",
+      confirmButtonColor: "#dc2626",
+      reverseButtons: true,
+      focusCancel: true,
+    });
+    return Boolean(result.isConfirmed);
+  }
+
+  return window.confirm(message);
+}
+
+function createFileRow(fileItem) {
+  const item = document.createElement("li");
+  item.className = "files-item";
+
+  const nameLine = document.createElement("div");
+  nameLine.className = "files-name-line";
+
+  const meta = document.createElement("div");
+  meta.className = "files-meta";
+  const filename = document.createElement("strong");
+  filename.textContent = fileItem.filename;
+  const detail = document.createElement("span");
+  detail.textContent = `${formatFileSize(fileItem.size)} • ${formatTimestamp(fileItem.last_modified)}`;
+  meta.appendChild(detail);
+
+  const actions = document.createElement("div");
+  actions.className = "files-actions";
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "item-button danger icon-button";
+  deleteBtn.setAttribute("aria-label", `Supprimer ${fileItem.filename}`);
+  deleteBtn.setAttribute("title", `Supprimer ${fileItem.filename}`);
+  deleteBtn.innerHTML = `
+    <svg class="trash-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M9 3h6l1 2h4v2h-1l-1 13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 7H4V5h4l1-2zm1.2 4H7l1 13h8l1-13h-6.2zM10 10h2v8h-2v-8zm4 0h2v8h-2v-8z"/>
+    </svg>
+  `;
+  deleteBtn.addEventListener("click", async () => {
+    const confirmDelete = await confirmDeleteFile(fileItem.filename);
+    if (!confirmDelete) {
+      return;
+    }
+    deleteBtn.disabled = true;
+    try {
+      const response = await fetch(`${API_BASE}/delete_page/${encodeURIComponent(fileItem.filename)}`, {
+        method: "DELETE",
+        headers: fileHeaders(),
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`HTTP ${response.status}: ${body || "Echec suppression"}`);
+      }
+      setFilesStatus(`Fichier supprime: ${fileItem.filename}`);
+      await refreshFilesList();
+    } catch (error) {
+      setFilesStatus(error.message, true);
+      deleteBtn.disabled = false;
+    }
+  });
+
+  actions.appendChild(deleteBtn);
+  nameLine.appendChild(filename);
+  nameLine.appendChild(actions);
+  item.appendChild(nameLine);
+  item.appendChild(meta);
+  return item;
+}
+
+async function fetchFilesList() {
+  const response = await fetch(`${API_BASE}/list_page`, {
+    method: "GET",
+    headers: fileHeaders(),
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`HTTP ${response.status}: ${body || "Echec chargement fichiers"}`);
+  }
+  return response.json();
+}
+
+async function refreshFilesList() {
+  if (!filesList || !filesStatus) {
+    return;
+  }
+  refreshFilesBtn.disabled = true;
+  setFilesStatus("Chargement des fichiers...");
+  filesList.innerHTML = "";
+
+  try {
+    const payload = await fetchFilesList();
+    const files = Array.isArray(payload.files) ? payload.files : [];
+
+    if (files.length === 0) {
+      setFilesStatus("Aucun fichier disponible.");
+      return;
+    }
+
+    for (const fileItem of files) {
+      filesList.appendChild(createFileRow(fileItem));
+    }
+    setFilesStatus(`${files.length} fichier(s) disponible(s).`);
+  } catch (error) {
+    setFilesStatus(error.message, true);
+  } finally {
+    refreshFilesBtn.disabled = false;
+  }
 }
 
 // Purpose: Implements a focused frontend behavior used by this module.
@@ -242,6 +399,10 @@ downloadBtn.addEventListener("click", () => {
   fileInput.click();
 });
 
+refreshFilesBtn.addEventListener("click", () => {
+  refreshFilesList();
+});
+
 fileInput.addEventListener("change", async () => {
   const files = Array.from(fileInput.files || []);
   if (files.length === 0) {
@@ -281,6 +442,7 @@ fileInput.addEventListener("change", async () => {
     }
 
     assistantBubble.innerHTML = sanitizeMarkdown(lines.join("\n"));
+    await refreshFilesList();
   } catch (error) {
     assistantBubble.innerHTML = `<span class="error">${error.message}</span>`;
   } finally {
@@ -289,3 +451,5 @@ fileInput.addEventListener("change", async () => {
     display.scrollTop = display.scrollHeight;
   }
 });
+
+refreshFilesList();

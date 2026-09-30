@@ -40,7 +40,14 @@ app.state.database_sync_status = "synch"
 
 # Allow disabling CORS validation only for the third-party API routes when needed.
 THIRD_PARTY_API_CORS_BYPASS = True
-THIRD_PARTY_API_CORS_PATHS = {"/query", "/download_page"}
+THIRD_PARTY_API_CORS_PATHS = {"/query", "/download_page", "/list_page"}
+THIRD_PARTY_API_CORS_PREFIX_PATHS = ("/delete_page/",)
+
+
+def _is_third_party_cors_path(path: str) -> bool:
+    if path in THIRD_PARTY_API_CORS_PATHS:
+        return True
+    return any(path.startswith(prefix) for prefix in THIRD_PARTY_API_CORS_PREFIX_PATHS)
 
 
 def _third_party_api_cors_headers(request: Request) -> dict[str, str]:
@@ -48,7 +55,7 @@ def _third_party_api_cors_headers(request: Request) -> dict[str, str]:
     requested_headers = request.headers.get("access-control-request-headers", "*").strip() or "*"
 
     headers = {
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": requested_headers,
         "Access-Control-Allow-Credentials": "true",
         "Vary": "Origin",
@@ -59,7 +66,7 @@ def _third_party_api_cors_headers(request: Request) -> dict[str, str]:
 
 @app.middleware("http")
 async def third_party_api_cors_bypass(request: Request, call_next):
-    if THIRD_PARTY_API_CORS_BYPASS and request.url.path in THIRD_PARTY_API_CORS_PATHS:
+    if THIRD_PARTY_API_CORS_BYPASS and _is_third_party_cors_path(request.url.path):
         if request.method == "OPTIONS":
             return Response(status_code=204, headers=_third_party_api_cors_headers(request))
 

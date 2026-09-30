@@ -42,3 +42,42 @@ def save_uploaded_file(filename: str, content: bytes) -> dict[str, str]:
         "filename": final_filename,
         "path": str(destination.relative_to(DBASE_MAIN_TARGET_ROOT.parent)).replace("\\", "/"),
     }
+
+
+def list_uploaded_files() -> dict[str, object]:
+    docs_dir = documents_dir()
+
+    files: list[dict[str, object]] = []
+    for path in sorted(docs_dir.glob("*")):
+        if not path.is_file():
+            continue
+
+        stat = path.stat()
+        files.append(
+            {
+                "filename": path.name,
+                "size": stat.st_size,
+                "last_modified": stat.st_mtime,
+            }
+        )
+
+    return {
+        "status": "ok",
+        "count": len(files),
+        "files": files,
+    }
+
+
+def delete_uploaded_file(filename: str) -> dict[str, str]:
+    docs_dir = documents_dir()
+
+    final_filename = _safe_filename(filename)
+    destination = docs_dir / final_filename
+    if not destination.exists() or not destination.is_file():
+        raise HTTPException(status_code=404, detail="File not found.")
+
+    destination.unlink()
+    return {
+        "status": "deleted",
+        "filename": final_filename,
+    }

@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from api.routes.query import _query_agent_response
 from api.schemas.models import QueryRequest
 from api.services.entra_auth_service import require_client_or_query_key
-from api.services.download_service import require_transfer_key, save_uploaded_file
+from api.services.download_service import (
+    delete_uploaded_file,
+    list_uploaded_files,
+    require_transfer_key,
+    save_uploaded_file,
+)
 
 router = APIRouter()
 
@@ -27,3 +32,17 @@ async def download_page(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Empty file.")
 
     return save_uploaded_file(file.filename, content)
+
+
+@router.get("/list_page", dependencies=[Depends(require_transfer_key)])
+async def list_page():
+    """List files currently available in nutrifaq-dbase-main/documents."""
+    return list_uploaded_files()
+
+
+@router.delete("/delete_page/{filename:path}", dependencies=[Depends(require_transfer_key)])
+async def delete_page(filename: str):
+    """Delete a file from nutrifaq-dbase-main/documents by filename."""
+    if not filename.strip():
+        raise HTTPException(status_code=400, detail="Missing filename.")
+    return delete_uploaded_file(filename)
