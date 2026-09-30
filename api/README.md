@@ -56,6 +56,12 @@ Blob/file operations:
 - `POST /api/blob/debug/reset-local`
 - `POST /api/blob/debug/sync-local-to-blob`
 
+Third-party ingestion helpers:
+
+- `POST /download_page`
+- `GET /list_page`
+- `DELETE /delete_page/{filename:path}`
+
 Database regeneration:
 
 - `GET /api/database/steps`
@@ -79,6 +85,103 @@ User and roles:
 - `services/database_regeneration_service.py`: end-to-end regeneration orchestration and progress status.
 - `services/publish_service.py`: publish/revert jobs and operation status tracking.
 - `services/blob_storage_service.py`: Azure Blob access, sync, upload, copy, and delete helpers.
+
+## Third-party endpoints (X-Client-Key)
+
+These routes are intended for external ingestion clients and are protected with:
+
+- `X-Client-Key: <QUERY_ACCESS_KEY>`
+
+If the key is missing or invalid, API returns `401`.
+If `QUERY_ACCESS_KEY` is not configured server-side, API returns `500`.
+
+### POST /download_page
+
+Upload one file into `nutrifaq-dbase-main/documents`.
+
+Request:
+
+- `multipart/form-data`
+- field: `file`
+
+Validation:
+
+- Missing filename -> `400 Missing filename.`
+- Empty payload -> `400 Empty file.`
+
+Success response example:
+
+```json
+{
+	"status": "saved",
+	"filename": "my-file.pdf",
+	"path": "nutrifaq-dbase-main/documents/my-file.pdf"
+}
+```
+
+### GET /list_page
+
+List files currently present in `nutrifaq-dbase-main/documents`.
+
+Success response example:
+
+```json
+{
+	"status": "ok",
+	"count": 2,
+	"files": [
+		{
+			"filename": "doc-1.pdf",
+			"size": 183245,
+			"last_modified": 1790784000.123
+		},
+		{
+			"filename": "doc-2.docx",
+			"size": 48211,
+			"last_modified": 1790784021.456
+		}
+	]
+}
+```
+
+Notes:
+
+- `last_modified` is a Unix timestamp (seconds).
+- Returned files are direct children of the `documents` folder.
+
+### DELETE /delete_page/{filename:path}
+
+Delete one file by name from `nutrifaq-dbase-main/documents`.
+
+Path parameter:
+
+- `filename`: file name to delete.
+
+Validation:
+
+- Empty filename -> `400 Missing filename.`
+- File not found -> `404 File not found.`
+
+Success response example:
+
+```json
+{
+	"status": "deleted",
+	"filename": "doc-1.pdf"
+}
+```
+
+### cURL examples
+
+```bash
+# List
+curl -X GET "http://127.0.0.1:8080/list_page" \
+	-H "X-Client-Key: YOUR_QUERY_ACCESS_KEY"
+
+# Delete
+curl -X DELETE "http://127.0.0.1:8080/delete_page/doc-1.pdf" \
+	-H "X-Client-Key: YOUR_QUERY_ACCESS_KEY"
+```
 
 ## Run locally
 
