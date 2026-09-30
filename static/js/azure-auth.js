@@ -328,6 +328,36 @@
         });
     }
 
+    // Purpose: Detect popup context to avoid nested popup interactions in MSAL.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
+    function isPopupContext() {
+        try {
+            return window.opener && window.opener !== window;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    // Purpose: Centralize MSAL interactive flow selection (popup vs redirect).
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
+    async function interactiveTokenAcquire(msalApp, req) {
+        if (isPopupContext()) {
+            await msalApp.acquireTokenRedirect(req);
+            return null;
+        }
+
+        try {
+            return await msalApp.acquireTokenPopup(req);
+        } catch (popupErr) {
+            const errorCode = (popupErr && (popupErr.errorCode || popupErr.code) || "").toString();
+            if (errorCode === "block_nested_popups") {
+                await msalApp.acquireTokenRedirect(req);
+                return null;
+            }
+            throw popupErr;
+        }
+    }
+
     async function acquireToken(msalApp, account) {
         const scopeCandidates = buildApiScopeCandidates();
         let lastError = null;
@@ -338,7 +368,11 @@
                 return await msalApp.acquireTokenSilent(req);
             } catch (silentErr) {
                 try {
-                    return await msalApp.acquireTokenPopup(req);
+                    const interactive = await interactiveTokenAcquire(msalApp, req);
+                    if (!interactive) {
+                        return null;
+                    }
+                    return interactive;
                 } catch (popupErr) {
                     lastError = popupErr;
                 }
@@ -411,7 +445,23 @@
     async function loginAndExtract(msalApp) {
         setStatus(tr("azureAuth.statusConnecting", "Signing in with Azure..."), false);
 
-        const loginResponse = await msalApp.loginPopup({ scopes: getLoginScopes() });
+        if (isPopupContext()) {
+            await msalApp.loginRedirect({ scopes: getLoginScopes() });
+            return;
+        }
+
+        let loginResponse;
+        try {
+            loginResponse = await msalApp.loginPopup({ scopes: getLoginScopes() });
+        } catch (popupErr) {
+            const errorCode = (popupErr && (popupErr.errorCode || popupErr.code) || "").toString();
+            if (errorCode === "block_nested_popups") {
+                await msalApp.loginRedirect({ scopes: getLoginScopes() });
+                return;
+            }
+            throw popupErr;
+        }
+
         const account = loginResponse.account;
         if (!account) {
             throw new Error(tr("azureAuth.noAccountAfterLogin", "No account returned after sign-in."));
@@ -419,6 +469,10 @@
 
         msalApp.setActiveAccount(account);
         const tokenResponse = await acquireToken(msalApp, account);
+        if (!tokenResponse) {
+            setStatus(tr("azureAuth.statusRedirecting", "Authentication redirect in progress..."), false);
+            return;
+        }
         const accessToken = tokenResponse.accessToken;
         const claims = decodeJwt(accessToken) || tokenResponse.idTokenClaims || {};
 
@@ -456,6 +510,10 @@
         setStatus(tr("azureAuth.statusRefreshing", "Refreshing token..."), false);
 
         const tokenResponse = await acquireToken(msalApp, account);
+        if (!tokenResponse) {
+            setStatus(tr("azureAuth.statusRedirecting", "Authentication redirect in progress..."), false);
+            return;
+        }
         const accessToken = tokenResponse.accessToken;
         const claims = decodeJwt(accessToken) || tokenResponse.idTokenClaims || {};
 
@@ -487,6 +545,10 @@
         setSidebarUserEmail("");
 
         if (msalApp && account) {
+            if (isPopupContext()) {
+                await msalApp.logoutRedirect({ account });
+                return;
+            }
             await msalApp.logoutPopup({ account });
         }
 
@@ -506,6 +568,17 @@
         try {
             await ensureMsalLoaded();
             msalApp = getMsalInstance();
+            if (typeof msalApp.initialize === "function") {
+                await msalApp.initialize();
+            }
+
+            if (typeof msalApp.handleRedirectPromise === "function") {
+                const redirectResult = await msalApp.handleRedirectPromise();
+                if (redirectResult && redirectResult.account) {
+                    msalApp.setActiveAccount(redirectResult.account);
+                }
+            }
+
             const existingAccount = msalApp.getActiveAccount() || msalApp.getAllAccounts()[0];
             if (existingAccount) {
                 msalApp.setActiveAccount(existingAccount);
