@@ -3,10 +3,13 @@
 # Utilise OpenAI Whisper pour audio et GPT pour texte
 # =====================================================
 
+import logging
 import os
 import json
 import tempfile
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 from openai import OpenAI
 from dotenv import load_dotenv
 from api.services.blob_storage_service import get_container_client
@@ -211,7 +214,7 @@ def transcribe_audio_whisper(audio_bytes: bytes, filename: str = "audio.webm", l
             # Add language parameter if specified
             if language:
                 params["language"] = language
-                print(f"Transcribing with language hint: {SUPPORTED_LANGUAGES.get(language, language)}")
+                logger.info("Transcribing with language hint: %s", SUPPORTED_LANGUAGES.get(language, language))
             
             transcript = client.audio.transcriptions.create(**params)
         return transcript.strip()

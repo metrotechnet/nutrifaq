@@ -1,9 +1,13 @@
+import logging
 import os
 import json
 import re
+import random
 from typing import Any
 from pathlib import Path
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 import chromadb
 from chromadb.config import Settings
 from api.services.refusal_engine import validate_user_query
@@ -42,6 +46,66 @@ ROOT_BLOB_CACHE_ROOT = REPO_ROOT / "nutrifaq-dbase" / "chroma_db"
 _CHROMA_CLIENT_CACHE: dict[str, Any] = {}
 _CHROMA_COLLECTION_CACHE: dict[tuple[str, str], Any] = {}
 _CHROMA_SIGNATURE_CACHE: str | None = None
+
+
+def _follow_up_variants() -> list[str]:
+    return [
+        "Pour aller plus loin, consultez cette ressource :",
+        "Pour aller plus loin, découvrez cette ressource :",
+        "Pour aller plus loin, je vous recommande cette ressource :",
+        "Pour aller plus loin, voici une ressource utile :",
+        "Pour aller plus loin, explorez cette ressource :",
+    ]
+
+
+def _format_follow_up_footer(source_title: str, source_url: str, extra_links: list[tuple[str, str]] | None = None) -> str:
+    links = [(source_title, source_url)]
+    if extra_links:
+        for extra in extra_links:
+            if extra not in links:
+                links.append(extra)
+
+    phrase = random.choice(_follow_up_variants())
+    lines = [phrase]
+    for title, url in links:
+        lines.append(f"[{title}]({url})")
+    return "\n".join(lines)
+
+
+def _merge_follow_up_links(answer: str) -> str:
+    """Collapse repeated follow-up sentences into a single merged sentence."""
+    if not answer:
+        return answer
+
+    pattern = r"Pour aller plus loin, [A-Za-zÀ-ÿ 'éèêàçùûîôâëïüœ]+?:?\s*(?P<links>(?:\[[^\]]+\]\([^\)]+\)\s*(?:\n|, | et )?)+)"
+    matches = list(re.finditer(pattern, answer, flags=re.IGNORECASE))
+    if not matches:
+        return answer
+
+    unique_links: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for match in matches:
+        link_pattern = r"\[(?P<title>[^\]]+)\]\((?P<url>[^\)]+)\)"
+        for link_match in re.finditer(link_pattern, match.group("links")):
+            link = (link_match.group("title"), link_match.group("url"))
+            if link not in seen:
+                seen.add(link)
+                unique_links.append(link)
+
+    if len(unique_links) <= 1:
+        return answer
+
+    answer_without_duplicates = re.sub(pattern, "", answer, flags=re.IGNORECASE)
+    answer_without_duplicates = re.sub(r"\n{3,}", "\n\n", answer_without_duplicates).strip()
+    phrase = random.choice(_follow_up_variants())
+    merged_lines = [phrase]
+    for title, url in unique_links:
+        merged_lines.append(f"[{title}]({url})")
+
+    merged_block = "\n".join(merged_lines)
+    if answer_without_duplicates:
+        answer_without_duplicates = f"{answer_without_duplicates}\n\n"
+    return f"{answer_without_duplicates}{merged_block}"
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -286,6 +350,25 @@ def extract_pmids_from_text(text):
     """Extrait toutes les références PMID d'un texte."""
     return re.findall(r'PMID:\s*\d+', text)
 
+
+def get_best_source_metadata(results):
+    """Return the best available metadata block for a relevant source page."""
+    raw_metadatas = results.get("metadatas") if isinstance(results, dict) else None
+    if not isinstance(raw_metadatas, list):
+        return None, None
+
+    for metadata_group in raw_metadatas:
+        if not isinstance(metadata_group, list):
+            continue
+        for metadata in metadata_group:
+            if isinstance(metadata, dict):
+                title = str(metadata.get("title") or metadata.get("page_title") or "").strip()
+                url = str(metadata.get("url") or metadata.get("source_url") or "").strip()
+                if title or url:
+                    return title or None, url or None
+    return None, None
+
+
 def get_links_from_contexts(contexts, metadatas=None, agent=None):
     """Extract links from contexts and metadata.
     
@@ -306,7 +389,7 @@ def get_links_from_contexts(contexts, metadatas=None, agent=None):
                     link = link.strip()
                     if link:
                         links.add(f"PMID: {link}")
-                        print(f"[Metadata] Found link in metadata: PMID: {link}")
+                        logger.info("[Metadata] Found link in metadata: PMID: %s", link)
     
     # If we found links in metadata, return them immediately
     if links:
@@ -429,7 +512,16 @@ def ask_question_stream(
             session['links'][question_id] = links
 
         # Build prompt using template from JSON
-        prompt = build_prompt_from_template(language, context, question, history_text, agent=agent)
+        source_title, source_url = get_best_source_metadata(results)
+        prompt = build_prompt_from_template(
+            language,
+            context,
+            question,
+            history_text,
+            agent=agent,
+            source_title=source_title,
+            source_url=source_url,
+        )
 
         if not prompt:
             yield "Error: Unable to load prompt template."
@@ -446,7 +538,9 @@ def ask_question_stream(
             prompt=prompt,
             temperature=1.0,
         )
+        answer_parts = []
         first_chunk = True
+        emitted_text = ""
         for chunk in stream:
             if not getattr(chunk, "choices", None):
                 continue
@@ -456,12 +550,32 @@ def ask_question_stream(
             content = getattr(delta, "content", None) if delta is not None else None
 
             if content is not None:
-                # Strip leading whitespace from first chunk only
                 if first_chunk:
                     content = content.lstrip()
                     first_chunk = False
-                if content:
-                    yield content
+                if not content:
+                    continue
+
+                answer_parts.append(content)
+                current_text = "".join(answer_parts)
+                if source_title and source_url:
+                    deduplicated_text = _merge_follow_up_links(current_text)
+                    if deduplicated_text != current_text:
+                        new_content = deduplicated_text[len(emitted_text):]
+                        if new_content:
+                            yield new_content
+                        emitted_text = deduplicated_text
+                        answer_parts = [deduplicated_text]
+                        continue
+
+                new_content = current_text[len(emitted_text):]
+                if new_content:
+                    yield new_content
+                emitted_text = current_text
+
+        final_answer = "".join(answer_parts)
+        footer = f"\n\n{_format_follow_up_footer(source_title, source_url)}"
+        yield footer
 
   
 

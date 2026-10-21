@@ -281,6 +281,13 @@
                                     <h3 data-i18n="downloadManager.table.title">Fichiers</h3>
                                     <p data-i18n="downloadManager.table.subtitle">Liste des fichiers disponibles pour l’indexation.</p>
                                 </div>
+                                <div class="download-files-header-center">
+                                    <div id="files-found-count" class="download-files-count" aria-live="polite">0 fichiers</div>
+                                    <label class="download-files-search-wrap" for="download-file-search">
+                                        <span class="sr-only">Rechercher un fichier</span>
+                                        <input id="download-file-search" class="download-files-search" type="search" placeholder="Rechercher un fichier" aria-label="Rechercher un fichier" />
+                                    </label>
+                                </div>
                                 <button id="refresh-files" class="dm-btn secondary refresh-files-btn" type="button" data-i18n="downloadManager.table.refresh">Refresh</button>
                             </div>
                             <table class="files-table" id="files-table">

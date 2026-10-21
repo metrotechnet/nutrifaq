@@ -6,11 +6,14 @@ Usage:
 """
 
 import json
+import logging
 import os
 import shutil
 import sys
 import time
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 import chromadb
 from chromadb.config import Settings
@@ -87,7 +90,7 @@ def init_chromadb(kb_path):
 
     try:
         chroma_client.delete_collection(name=collection_name)
-        print(f"Deleted existing collection: {collection_name}")
+        logger.info("Deleted existing collection: %s", collection_name)
     except Exception:
         pass
 
@@ -114,6 +117,19 @@ def _is_missing_collections_table_error(exc: Exception) -> bool:
     return "no such table: collections" in message or "error getting collection" in message
 
 
+def _sanitize_chroma_metadata(metadata):
+    """Ensure metadata values are JSON-serializable primitives for Chroma."""
+    sanitized = {}
+    for key, value in (metadata or {}).items():
+        if isinstance(value, (dict, list, tuple)):
+            sanitized[key] = json.dumps(value, ensure_ascii=False)
+        elif isinstance(value, (str, int, float, bool)) or value is None:
+            sanitized[key] = value
+        else:
+            sanitized[key] = str(value)
+    return sanitized
+
+
 def chunk_text(text, chunk_size=1000, overlap=100):
     """Split text into overlapping chunks."""
     chunks = []
@@ -133,42 +149,42 @@ def index_chromadb_json(kb_path):
     json_file = _sync_transcripts_json_from_blob(kb_path)
 
     if not json_file.exists():
-        print(f"File not found: {json_file}")
-        print("Ensure transcripts_chromadb.json was created first")
+        logger.error("File not found: %s", json_file)
+        logger.error("Ensure transcripts_chromadb.json was created first")
         return
 
     embedding_provider = os.getenv("EMBEDDING_PROVIDER", os.getenv("LLM_PROVIDER", "vercel"))
-    print(f"Embedding provider: {embedding_provider}")
-    print(f"Loading JSON from: {json_file}")
+    logger.info("Embedding provider: %s", embedding_provider)
+    logger.info("Loading JSON from: %s", json_file)
 
     if json_file.stat().st_size == 0:
-        print(f"Error: {json_file} is empty.")
-        print("Run generate_transcripts_json first and ensure it produced valid content.")
+        logger.error("Error: %s is empty.", json_file)
+        logger.error("Run generate_transcripts_json first and ensure it produced valid content.")
         return
 
     try:
         with open(json_file, "r", encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as exc:
-        print(f"Error: invalid JSON in {json_file} ({exc}).")
-        print("Run generate_transcripts_json first and ensure it produced valid content.")
+        logger.exception("Error: invalid JSON in %s (%s).", json_file, exc)
+        logger.error("Run generate_transcripts_json first and ensure it produced valid content.")
         return
 
     documents = data.get("documents", [])
     if not documents:
-        print("No documents found in JSON file")
+        logger.warning("No documents found in JSON file")
         return
 
     # Always start from a clean local ChromaDB folder before indexing.
     _reset_chroma_directory(kb_path)
 
-    print(f"Found {len(documents)} documents to index\n")
+    logger.info("Found %s documents to index", len(documents))
 
     try:
         _, collection = init_chromadb(kb_path)
     except Exception as exc:
         if _is_missing_collections_table_error(exc):
-            print("ChromaDB schema is missing or corrupted; recreating local database and retrying...")
+            logger.warning("ChromaDB schema is missing or corrupted; recreating local database and retrying...")
             _reset_chroma_directory(kb_path)
             _, collection = init_chromadb(kb_path)
         else:
@@ -190,10 +206,10 @@ def index_chromadb_json(kb_path):
         text = doc["text"]
         metadata = doc["metadata"]
 
-        print(f"Processing: {doc_id}")
+        logger.info("Processing: %s", doc_id)
 
         chunks = chunk_text(text, chunk_size=1000, overlap=100)
-        print(f"  Created {len(chunks)} chunks")
+        logger.info("  Created %s chunks", len(chunks))
         total_chunks += len(chunks)
 
         chunk_embeddings = get_embeddings(chunks)
@@ -205,7 +221,7 @@ def index_chromadb_json(kb_path):
             all_embeddings.append(chunk_embeddings[i])
 
             chunk_metadata = {
-                **metadata,
+                    **_sanitize_chroma_metadata(metadata),
                 "chunk_index": i,
                 "total_chunks": len(chunks),
             }
@@ -215,10 +231,10 @@ def index_chromadb_json(kb_path):
             progress_value = min(processed_tokens, progress_total)
             _write_progress_snapshot("index_chromadb_json", progress_value, progress_total, "tokens")
 
-        print(f"  Successfully prepared {doc_id}")
+        logger.info("  Successfully prepared %s", doc_id)
         time.sleep(0.05)
 
-    print(f"\nIndexing {total_chunks} chunks into ChromaDB...")
+    logger.info("Indexing %s chunks into ChromaDB...", total_chunks)
 
     batch_size = 1000
     total_batches = (len(all_ids) + batch_size - 1) // batch_size
@@ -232,7 +248,7 @@ def index_chromadb_json(kb_path):
         batch_embeddings = all_embeddings[start_idx:end_idx]
         batch_metadatas = all_metadatas[start_idx:end_idx]
 
-        print(f"   Batch {batch_idx + 1}/{total_batches}: Adding {len(batch_ids)} chunks...")
+        logger.info("   Batch %s/%s: Adding %s chunks...", batch_idx + 1, total_batches, len(batch_ids))
 
         try:
             collection.add(
@@ -243,7 +259,7 @@ def index_chromadb_json(kb_path):
             )
         except Exception as exc:
             if _is_missing_collections_table_error(exc):
-                print("ChromaDB schema error detected during indexing; rebuilding local database and retrying...")
+                logger.warning("ChromaDB schema error detected during indexing; rebuilding local database and retrying...")
                 _reset_chroma_directory(kb_path)
                 _, collection = init_chromadb(kb_path)
                 collection.add(
@@ -258,19 +274,19 @@ def index_chromadb_json(kb_path):
     # Ensure the step status ends exactly at 100% for UI polling.
     _write_progress_snapshot("index_chromadb_json", progress_total, progress_total, "tokens")
 
-    print(f"\nSuccessfully indexed {total_chunks} chunks from {len(documents)} documents")
-    print(f"Collection: {collection.name}")
-    print(f"Total items: {collection.count()}")
+    logger.info("Successfully indexed %s chunks from %s documents", total_chunks, len(documents))
+    logger.info("Collection: %s", collection.name)
+    logger.info("Total items: %s", collection.count())
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python index_chromadb_json.py <knowledge_base_path>")
+        logger.error("Usage: python index_chromadb_json.py <knowledge_base_path>")
         sys.exit(1)
 
     kb_path = Path(sys.argv[1])
-    print(f"Starting ChromaDB indexing for: {kb_path}\n")
-    print("=" * 60)
+    logger.info("Starting ChromaDB indexing for: %s", kb_path)
+    logger.info("%s", "=" * 60)
     index_chromadb_json(kb_path=kb_path)
-    print("=" * 60)
-    print("\nIndexing complete! Knowledge base is ready to be queried.")
+    logger.info("%s", "=" * 60)
+    logger.info("Indexing complete! Knowledge base is ready to be queried.")

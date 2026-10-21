@@ -6,10 +6,13 @@ Usage:
 """
 
 import json
+import logging
 import re
 import sys
 import time
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -209,30 +212,30 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
 # Inputs/Outputs: See signature and return annotation for contract details.
 def main() -> int:
     if len(sys.argv) not in {2, 3}:
-        print("Usage: python generate_questions_json.py <knowledge_base_path> [question_count]")
+        logger.error("Usage: python generate_questions_json.py <knowledge_base_path> [question_count]")
         return 1
 
     kb_root = Path(sys.argv[1])
     if not kb_root.exists():
-        print(f"Directory not found: {kb_root}")
+        logger.error("Directory not found: %s", kb_root)
         return 1
 
     try:
         question_count = int(sys.argv[2]) if len(sys.argv) == 3 else 3
     except ValueError:
-        print("question_count must be an integer.")
+        logger.error("question_count must be an integer.")
         return 1
 
     if question_count < 1:
-        print("question_count must be >= 1")
+        logger.error("question_count must be >= 1")
         return 1
 
     try:
         output_path = generate_questions_json(kb_root=kb_root, question_count=question_count)
-        print(f"Generated questions file: {output_path}")
+        logger.info("Generated questions file: %s", output_path)
         return 0
     except Exception as exc:
-        print(f"Error generating questions: {exc}")
+        logger.exception("Error generating questions: %s", exc)
         return 1
 
 

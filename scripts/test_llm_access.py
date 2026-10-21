@@ -6,11 +6,14 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -31,24 +34,24 @@ def _print_env() -> None:
         "AZURE_OPENAI_CHAT_DEPLOYMENT",
         "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
     ]
-    print("=== Effective env ===")
+    logger.info("=== Effective env ===")
     for k in keys:
         v = os.getenv(k, "")
-        print(f"{k}={v}")
-    print()
+        logger.info("%s=%s", k, v)
+    logger.info("")
 
 
 def _test_embedding_access() -> tuple[bool, list[float] | None]:
-    print("=== Test 1: Azure embedding access ===")
+    logger.info("=== Test 1: Azure embedding access ===")
     try:
         vec = create_embedding(input_text="dimension check", model_name="text-embedding-3-large")
-        print(f"embedding length: {len(vec)}")
-        print("PASS")
-        print()
+        logger.info("embedding length: %s", len(vec))
+        logger.info("PASS")
+        logger.info("")
         return True, vec
     except Exception as exc:
-        print(f"FAIL: {exc}")
-        print()
+        logger.exception("FAIL: %s", exc)
+        logger.info("")
         return False, None
 
 
@@ -68,7 +71,7 @@ def _extract_first_text(stream) -> str:
 
 
 def _test_chat_access() -> bool:
-    print("=== Test 2: Azure chat access ===")
+    logger.info("=== Test 2: Azure chat access ===")
     try:
         client = get_gateway_client()
         stream = create_chat_completion_stream(
@@ -79,21 +82,21 @@ def _test_chat_access() -> bool:
         )
         text = _extract_first_text(stream)
         ok = text.upper() == "OK"
-        print(f"response: {text}")
-        print("PASS" if ok else "FAIL (expected exact OK)")
-        print()
+        logger.info("response: %s", text)
+        logger.info("PASS" if ok else "FAIL (expected exact OK)")
+        logger.info("")
         return ok
     except Exception as exc:
-        print(f"FAIL: {exc}")
-        print()
+        logger.exception("FAIL: %s", exc)
+        logger.info("")
         return False
 
 
 def _test_chroma_compatibility(vec: list[float] | None) -> bool:
-    print("=== Test 3: Chroma query compatibility ===")
+    logger.info("=== Test 3: Chroma query compatibility ===")
     if vec is None:
-        print("SKIP (no embedding vector available)")
-        print()
+        logger.info("SKIP (no embedding vector available)")
+        logger.info("")
         return False
 
     try:
@@ -109,15 +112,15 @@ def _test_chroma_compatibility(vec: list[float] | None) -> bool:
 
         if isinstance(result, dict) and result.get("error"):
             details = result.get("details", "")
-            print(f"FAIL: {details or result['error']}")
-            print()
+            logger.info("FAIL: %s", details or result['error'])
+            logger.info("")
             return False
 
-        print("PASS")
-        print()
+        logger.info("PASS")
+        logger.info("")
         return True
     except Exception as exc:
-        print(f"FAIL: {exc}")
-        print()
+        logger.exception("FAIL: %s", exc)
+        logger.info("")
         return False
 

@@ -6,8 +6,11 @@ This module provides functions for logging questions, responses, comments, and l
 from pathlib import Path
 from datetime import datetime
 import json
+import logging
 import os
 import threading
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = PROJECT_ROOT.parent
@@ -127,14 +130,14 @@ def _upload_log_to_gcs(data):
         from google.cloud import storage
         gcs_path = os.getenv("GCS_BUCKET_NAME")
         if not gcs_path:
-            print("[GCS Upload] GCS_BUCKET_NAME not set, skipping upload", flush=True)
+            logger.warning("[GCS Upload] GCS_BUCKET_NAME not set, skipping upload")
             return
         # Support "bucket/prefix" format in GCS_BUCKET_NAME
         parts = gcs_path.strip().split("/", 1)
         bucket_name = parts[0]
         prefix = parts[1] + "/" if len(parts) > 1 else ""
         blob_path = f"{prefix}{GCS_LOG_BLOB_NAME}"
-        print(f"[GCS Upload] Uploading to gs://{bucket_name}/{blob_path} ({len(data)} entries)", flush=True)
+        logger.info("[GCS Upload] Uploading to gs://%s/%s (%s entries)", bucket_name, blob_path, len(data))
         client = storage.Client()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_path)
@@ -142,7 +145,7 @@ def _upload_log_to_gcs(data):
             json.dumps(data, ensure_ascii=False, indent=2),
             content_type="application/json"
         )
-        print(f"[GCS Upload] Success", flush=True)
+        logger.info("[GCS Upload] Success")
     except Exception as e:
         import logging as std_logging
         std_logging.getLogger(__name__).error(f"Failed to upload log to GCS: {e}")
@@ -162,21 +165,21 @@ def _download_log_from_gcs():
         from google.cloud import storage
         gcs_path = os.getenv("GCS_BUCKET_NAME")
         if not gcs_path:
-            print("[GCS Download] GCS_BUCKET_NAME not set", flush=True)
+            logger.warning("[GCS Download] GCS_BUCKET_NAME not set")
             return []
         parts = gcs_path.strip().split("/", 1)
         bucket_name = parts[0]
         prefix = parts[1] + "/" if len(parts) > 1 else ""
         blob_path = f"{prefix}{GCS_LOG_BLOB_NAME}"
-        print(f"[GCS Download] Downloading gs://{bucket_name}/{blob_path}", flush=True)
+        logger.info("[GCS Download] Downloading gs://%s/%s", bucket_name, blob_path)
         client = storage.Client()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_path)
         if not blob.exists():
-            print("[GCS Download] Blob not found", flush=True)
+            logger.warning("[GCS Download] Blob not found")
             return []
         data = json.loads(blob.download_as_text())
-        print(f"[GCS Download] Success ({len(data)} entries)", flush=True)
+        logger.info("[GCS Download] Success (%s entries)", len(data))
         return data
     except Exception as e:
         import logging as std_logging

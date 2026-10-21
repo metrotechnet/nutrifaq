@@ -1,8 +1,11 @@
+import logging
 import os
 import sys
 from pathlib import Path
 
 from docx import Document
+
+logger = logging.getLogger(__name__)
 
 # Resolve repo and nutrifaq-dbase roots from api/db_pipeline/
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -13,6 +16,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
 
+
+SUPPORTED_SUFFIXES = (".docx", ".md", ".markdown")
 
 
 def resolve_kb_root() -> Path:
@@ -37,8 +42,13 @@ def extract_text_from_docx(docx_path):
     return "\n".join(full_text)
 
 
+def extract_text_from_markdown(markdown_path):
+    """Read a Markdown file as UTF-8 text."""
+    return markdown_path.read_text(encoding="utf-8")
+
+
 def extract_all_documents(folder_path, output_folder=None):
-    """Extract text from all .docx files and save as .txt."""
+    """Extract text from all supported document files and save as .txt."""
     if output_folder is None:
         output_folder = str(Path(folder_path).parent / "transcripts")
     os.makedirs(output_folder, exist_ok=True)
@@ -48,34 +58,44 @@ def extract_all_documents(folder_path, output_folder=None):
         if existing_file.is_file():
             existing_file.unlink(missing_ok=True)
 
-    docx_files = [f for f in os.listdir(folder_path) if f.endswith(".docx") and not f.startswith("~$")]
-    total_files = len(docx_files)
+    supported_files = []
+    for filename in os.listdir(folder_path):
+        if filename.startswith("~$"):
+            continue
+        lower_name = filename.lower()
+        if lower_name.endswith(SUPPORTED_SUFFIXES):
+            supported_files.append(filename)
+
+    total_files = len(supported_files)
     _write_progress_snapshot("extract_docx", 0, total_files, "files")
 
-    print(f"Found {len(docx_files)} documents\n")
+    logger.info("Found %s documents", len(supported_files))
 
     processed_files = 0
-    for filename in docx_files:
-        file_path = os.path.join(folder_path, filename)
-        print(f"Processing: {filename}")
+    for filename in supported_files:
+        file_path = Path(folder_path) / filename
+        logger.info("Processing: %s", filename)
 
         try:
-            text = extract_text_from_docx(file_path)
+            if file_path.suffix.lower() == ".docx":
+                text = extract_text_from_docx(file_path)
+            else:
+                text = extract_text_from_markdown(file_path)
 
             if not text.strip():
-                print("  No text found")
+                logger.info("  No text found")
                 continue
 
-            txt_filename = os.path.splitext(filename)[0] + ".txt"
-            txt_path = os.path.join(output_folder, txt_filename)
+            txt_filename = file_path.stem + ".txt"
+            txt_path = output_dir / txt_filename
 
             with open(txt_path, "w", encoding="utf-8") as f:
                 f.write(text)
 
-            print(f"  Saved to {txt_filename} ({len(text)} characters)")
+            logger.info("  Saved to %s (%s characters)", txt_filename, len(text))
 
         except Exception as e:
-            print(f"  Error: {str(e)}")
+            logger.exception("  Error while processing %s: %s", filename, str(e))
         finally:
             processed_files += 1
             _write_progress_snapshot("extract_docx", processed_files, total_files, "files")
@@ -86,8 +106,8 @@ if __name__ == "__main__":
     transcript_folder = str(kb_root / "documents")
 
     if not os.path.exists(transcript_folder):
-        print(f"Error: Folder '{transcript_folder}' not found")
+        logger.error("Error: Folder '%s' not found", transcript_folder)
     else:
-        print(f"Extracting documents from: {transcript_folder}\n")
+        logger.info("Extracting documents from: %s", transcript_folder)
         extract_all_documents(transcript_folder)
-        print("\nExtraction complete! Check the 'transcripts' folder")
+        logger.info("Extraction complete! Check the 'transcripts' folder")

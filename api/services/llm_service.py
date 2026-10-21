@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import sys
 import time
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from openai import AzureOpenAI, OpenAI
 
@@ -45,9 +48,10 @@ PROMPTS_JSON: dict[str, Any] = {
             "title": "ABSOLUTE RULES (NON-NEGOTIABLE)",
             "rules": [
                 "Answer ONLY questions related to health and nutrition. For any other questions, politely indicate that you cannot answer on this topic",
-                "Generate a short and clear response",
+                "Generate a short and clear response (usually 2-5 sentences or a brief bullet list)",
                 "Use ONLY information present in the provided context",
                 "If information is not in the context, indicate that you cannot answer",
+                "End with one short sentence directing the user to the relevant page on the website when a title and URL are available",
                 "NEVER diagnose",
                 "NEVER provide personalized recommendations",
                 "NEVER recommend medications, supplements, or dosages",
@@ -73,7 +77,7 @@ PROMPTS_JSON: dict[str, Any] = {
                 "Highlight key facts clearly",
             ],
         },
-        "template": "{system_role}\n\nIMPORTANT:\n{important_notice}\n\nLANGUAGE CONSTRAINT:\nYou must respond in {response_language}. If the user language is unknown, default to French (fr).\n\n# {format_constraints_title}\n{format_constraints_content}\n\n# {communication_style_title}\n{communication_style_content}\n\n# {absolute_rules_title}\n{absolute_rules_content}\n\n# {behavioral_constraints_title}\n{behavioral_constraints_content}\n\nAVAILABLE CONTEXT (GENERAL INFORMATION ONLY):\n{context}\n{history}\n\nUSER QUESTION:\n{question}",
+        "template": "{system_role}\n\nIMPORTANT:\n{important_notice}\n\nLANGUAGE CONSTRAINT:\nYou must respond in {response_language}. If the user language is unknown, default to French (fr).\n\n# {format_constraints_title}\n{format_constraints_content}\n\n# {communication_style_title}\n{communication_style_content}\n\n# {absolute_rules_title}\n{absolute_rules_content}\n\n# {behavioral_constraints_title}\n{behavioral_constraints_content}\n\nSOURCE PAGE GUIDANCE:\n{source_page_guidance}\n\nAVAILABLE CONTEXT (GENERAL INFORMATION ONLY):\n{context}\n{history}\n\nUSER QUESTION:\n{question}",
     },
 }
 
@@ -84,7 +88,9 @@ def build_prompt_from_template(
     question: str,
     history_text: str = "",
     agent: str | None = None,
-) -> tuple[str | None, dict[str, str]]:
+    source_title: str | None = None,
+    source_url: str | None = None,
+) -> str | None:
     """Build a prompt from inline JSON configuration.
 
     The agent parameter is accepted for backward compatibility.
@@ -128,6 +134,17 @@ def build_prompt_from_template(
     for rule in format_constraints.get("rules", []):
         format_constraints_content += f"- {rule}\n"
 
+    source_page_guidance = "No relevant webpage title/URL is available for a follow-up link."
+    if source_title and source_url:
+        source_page_guidance = (
+            "Keep the answer brief. Do not add a reference footer or follow-up link at the end of the answer. "
+            "If the user asks for more information, you can mention the relevant topic in the body without adding a final reference line."
+        )
+    elif source_title:
+        source_page_guidance = (
+            "Keep the answer brief. Do not add a reference footer or follow-up link at the end of the answer."
+        )
+
     template = str(template_data.get("template", ""))
     prompt = template.format(
         system_role=template_data.get("system_role", ""),
@@ -141,6 +158,7 @@ def build_prompt_from_template(
         format_constraints_title=format_constraints.get("title", ""),
         format_constraints_content=format_constraints_content,
         response_language=response_language,
+        source_page_guidance=source_page_guidance,
         context=context,
         history=history_text,
         question=question,
@@ -257,10 +275,13 @@ def _log_rate_limit_wait(kind: str, attempt: int, max_retries: int, delay: float
     if os.getenv("LLM_RETRY_VERBOSE", "true").strip().lower() not in {"1", "true", "yes", "on"}:
         return
     suffix = f", batch_size={batch_size}" if batch_size is not None else ""
-    print(
-        f"[rate-limit] {kind} retry {attempt}/{max_retries}, waiting {delay:.1f}s{suffix}",
-        file=sys.stderr,
-        flush=True,
+    logger.warning(
+        "[rate-limit] %s retry %s/%s, waiting %.1fs%s",
+        kind,
+        attempt,
+        max_retries,
+        delay,
+        suffix,
     )
 
 

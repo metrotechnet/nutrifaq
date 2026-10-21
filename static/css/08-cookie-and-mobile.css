@@ -134,8 +134,19 @@
     .download-upload-bar,
     .publish-controls-grid,
     .download-status-row,
-    .azure-auth-grid {
+    .azure-auth-grid,
+    .download-files-header {
         grid-template-columns: 1fr;
+    }
+
+    .download-files-header-center {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.4rem;
+    }
+
+    .download-files-count {
+        text-align: left;
     }
 
     .download-status-row {

@@ -1,6 +1,7 @@
 # =====================================================
 # Imports - Main application imports
 # =====================================================
+import logging
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
@@ -14,6 +15,8 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from api.services.startup_sync import sync_blob_databases_on_startup
+
+logger = logging.getLogger(__name__)
 
 # =====================================================
 # Configuration & Application Setup
@@ -146,7 +149,7 @@ for module_name, tag in ROUTE_MODULES:
         app.include_router(module.router, tags=[tag])
     except Exception as exc:
         # Keep the service alive even if one optional integration fails at startup.
-        print(f"Route '{module_name}' not loaded: {exc}")
+        logger.exception("Route '%s' not loaded: %s", module_name, exc)
 
 # =====================================================
 # Main Routes

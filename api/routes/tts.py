@@ -3,6 +3,7 @@ tts.py
 Text-to-Speech endpoint for the Bibliosense agent API.
 Converts text to speech using OpenAI TTS API and streams audio responses.
 """
+import logging
 from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import Response, JSONResponse
 import openai
@@ -11,6 +12,8 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from openai import OpenAI
 from api.services.entra_auth_service import require_collaborator
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_collaborator)])
 limiter = Limiter(key_func=get_remote_address)
@@ -64,5 +67,5 @@ async def text_to_speech(
             }
         )
     except Exception as e:
-        print(f"TTS error: {e}")
+        logger.exception("TTS error: %s", e)
         return JSONResponse({"error": str(e)}, status_code=500)

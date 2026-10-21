@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
 from api.services.blob_storage_service import download_blob_to_path
+
+logger = logging.getLogger(__name__)
 
 
 def main() -> int:
@@ -21,16 +24,16 @@ def main() -> int:
     for blob_name in candidates:
         try:
             download_blob_to_path(blob_name, destination, container_name=container)
-            print(f"OK blob={blob_name}")
-            print(f"DEST={destination.resolve()}")
-            print(f"SIZE={destination.stat().st_size}")
+            logger.info("OK blob=%s", blob_name)
+            logger.info("DEST=%s", destination.resolve())
+            logger.info("SIZE=%s", destination.stat().st_size)
             return 0
         except Exception as exc:  # pragma: no cover - runtime dependent
             errors.append(f"{blob_name}: {type(exc).__name__}: {exc}")
 
-    print("FAILED all candidates")
+    logger.error("FAILED all candidates")
     for err in errors:
-        print(err)
+        logger.error(err)
     return 1
 
 

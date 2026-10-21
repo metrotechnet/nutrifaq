@@ -2,6 +2,7 @@
 Simple HTTP server for local development that replaces environment variables.
 Serves index.html from templates/ with environment variables replaced.
 """
+import logging
 import http.server
 import socketserver
 import os
@@ -12,6 +13,8 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 PORT = 3000
 BASE_DIR = Path(__file__).parent
@@ -113,13 +116,13 @@ if __name__ == '__main__':
     selected_port = _first_available_port(fallback_ports)
 
     with socketserver.TCPServer(("localhost", selected_port), CustomHandler) as httpd:
-        print("=" * 60)
-        print(f"Frontend server running at: http://localhost:{selected_port}")
-        print(f"Backend should be running at: http://localhost:8080")
-        print("=" * 60)
-        print("\nPress Ctrl+C to stop the server")
-        print("=" * 60)
+        logger.info("%s", "=" * 60)
+        logger.info("Frontend server running at: http://localhost:%s", selected_port)
+        logger.info("Backend should be running at: http://localhost:8080")
+        logger.info("%s", "=" * 60)
+        logger.info("\nPress Ctrl+C to stop the server")
+        logger.info("%s", "=" * 60)
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
-            print("\n\nServer stopped")
+            logger.info("\n\nServer stopped")

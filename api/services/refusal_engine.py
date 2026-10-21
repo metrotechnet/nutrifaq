@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import re
 import json
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, asdict
 from enum import Enum
 from typing import List, Optional, Dict, Any
@@ -129,7 +132,7 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
     - question/history/context are used ONLY for risk detection (not for generating advice).
     - language: "fr" or "en" for response language and pattern matching
     """
-    print(f"[REFUSAL_ENGINE] Analyzing question (lang={language}): {question}...")
+    logger.info("[REFUSAL_ENGINE] Analyzing question (lang=%s): %s...", language, question)
     combined = question.strip()
 
     matched: Dict[str, List[str]] = {}
@@ -145,15 +148,15 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
             matched[category] = hits
     
     if matched:
-        print(f"[REFUSAL_ENGINE] Matched categories: {list(matched.keys())}")
+        logger.info("[REFUSAL_ENGINE] Matched categories: %s", list(matched.keys()))
         for category, patterns_matched in matched.items():
-            print(f"[REFUSAL_ENGINE]   - {category}: {patterns_matched}")
+            logger.info("[REFUSAL_ENGINE]   - %s: %s", category, patterns_matched)
     else:
-        print(f"[REFUSAL_ENGINE] No risk patterns detected")
+        logger.info("[REFUSAL_ENGINE] No risk patterns detected")
 
     # Decision logic (keep it deterministic and auditable)
     if "medication" in matched:
-        print(f"[REFUSAL_ENGINE] ❌ REFUSED - Medication question detected")
+        logger.info("[REFUSAL_ENGINE] ❌ REFUSED - Medication question detected")
         return RefusalResult(
             decision=Decision.REFUSE,
             reasons=["Medication / clinical compatibility question"],
@@ -163,7 +166,7 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
         )
 
     if "minor" in matched and ("personalized_request" in matched or "meal_plan" in matched):
-        print(f"[REFUSAL_ENGINE] ❌ REFUSED - Minor with personalized request")
+        logger.info("[REFUSAL_ENGINE] ❌ REFUSED - Minor with personalized request")
         return RefusalResult(
             decision=Decision.REFUSE,
             reasons=["Minor + weight/plan/personalized request"],
@@ -173,7 +176,7 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
         )
 
     if "possible_emergency" in matched:
-        print(f"[REFUSAL_ENGINE] ❌ REFUSED - Possible emergency detected")
+        logger.info("[REFUSAL_ENGINE] ❌ REFUSED - Possible emergency detected")
         return RefusalResult(
             decision=Decision.REFUSE,
             reasons=["Possible emergency / urgent situation"],
@@ -184,7 +187,7 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
 
     # Clinical conditions (diabetes, renal, etc.) => refuse to avoid clinical advice
     if "clinical_condition" in matched:
-        print(f"[REFUSAL_ENGINE] ❌ REFUSED - Clinical condition mentioned")
+        logger.info("[REFUSAL_ENGINE] ❌ REFUSED - Clinical condition mentioned")
         return RefusalResult(
             decision=Decision.REFUSE,
             reasons=["Clinical condition mentioned"],
@@ -195,7 +198,7 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
 
     # Meal plans or personal targets => refuse
     if "meal_plan" in matched:
-        print(f"[REFUSAL_ENGINE] ❌ REFUSED - Meal plan request")
+        logger.info("[REFUSAL_ENGINE] ❌ REFUSED - Meal plan request")
         return RefusalResult(
             decision=Decision.REFUSE,
             reasons=["Meal plan request"],
@@ -205,7 +208,7 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
         )
 
     if "personalized_request" in matched:
-        print(f"[REFUSAL_ENGINE] ❌ REFUSED - Personalized request")
+        logger.info("[REFUSAL_ENGINE] ❌ REFUSED - Personalized request")
         return RefusalResult(
             decision=Decision.REFUSE,
             reasons=["Personalized recommendation request"],
@@ -217,7 +220,7 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
     # Supplements are tricky: your prompt says never recommend specific supplements/dosages.
     # Here we choose ALLOW_WITH_CONSTRAINTS (let LLM explain general info but avoid recommendation).
     if "supplement" in matched:
-        print(f"[REFUSAL_ENGINE] ⚠️ ALLOWED WITH CONSTRAINTS - Supplement mentioned")
+        logger.info("[REFUSAL_ENGINE] ⚠️ ALLOWED WITH CONSTRAINTS - Supplement mentioned")
         return RefusalResult(
             decision=Decision.ALLOW_WITH_CONSTRAINTS,
             reasons=["Supplement mentioned (allow general info only)"],
@@ -228,7 +231,7 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
 
     # Numeric targets in the user text (optional policy choice)
     if "numeric_targets" in matched:
-        print(f"[REFUSAL_ENGINE] ⚠️ ALLOWED WITH CONSTRAINTS - Numeric targets")
+        logger.info("[REFUSAL_ENGINE] ⚠️ ALLOWED WITH CONSTRAINTS - Numeric targets")
         return RefusalResult(
             decision=Decision.ALLOW_WITH_CONSTRAINTS,
             reasons=["Numeric targets mentioned (avoid numbers in reply)"],
@@ -237,7 +240,7 @@ def refusal_engine(question: str, language: str = "fr") -> RefusalResult:
             metadata={"matched_categories": list(matched.keys())}
         )
 
-    print(f"[REFUSAL_ENGINE] ✅ ALLOWED - No risk detected")
+    logger.info("[REFUSAL_ENGINE] ✅ ALLOWED - No risk detected")
     return RefusalResult(
         decision=Decision.ALLOW,
         reasons=[],

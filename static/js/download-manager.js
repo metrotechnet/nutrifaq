@@ -64,6 +64,8 @@
         downloadSection: document.getElementById("download-section"),
         publishSection: document.getElementById("publish-section"),
         refreshFiles: document.getElementById("refresh-files"),
+        fileSearch: document.getElementById("download-file-search"),
+        filesFoundCount: document.getElementById("files-found-count"),
         uploadFile: document.getElementById("upload-file"),
         dropZone: document.getElementById("dnd-upload-area"),
         browseBtn: document.getElementById("dnd-browse-btn"),
@@ -2081,11 +2083,39 @@
 
     // Purpose: Updates UI or local state so downstream interactions stay consistent.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
+    let fileSearchQuery = "";
+
+    function updateFilesFoundCountLabel(count) {
+        if (!els.filesFoundCount) {
+            return;
+        }
+
+        const total = Number(count || 0);
+        els.filesFoundCount.textContent = tr("downloadManager.table.count", "{count} fichier(s)", {
+            count: total
+        });
+    }
+
+    function getVisibleFiles() {
+        const query = fileSearchQuery.trim().toLowerCase();
+        if (!query) {
+            return [...currentFiles];
+        }
+
+        return currentFiles.filter((file) => {
+            const blobName = file.blob_name || file.name || "";
+            const fileName = file.filename || (blobName ? blobName.split("/").pop() : "") || "";
+            const searchableText = `${blobName} ${fileName}`.toLowerCase();
+            return searchableText.includes(query);
+        });
+    }
+
     function setFilesFoundStatus(count) {
         setStatus(tr("downloadManager.status.filesFound", "{count} fichier(s) trouvé(s).", {
             count: Number(count || 0),
             container: tr("downloadManager.status.defaultContainer", "le conteneur")
         }), false);
+        updateFilesFoundCountLabel(count);
     }
 
     // Purpose: Implements a focused frontend behavior used by this module.
@@ -2139,8 +2169,9 @@
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function refreshLocalFilesTable() {
-        renderRows(currentFiles);
-        setFilesFoundStatus(currentFiles.length);
+        const visibleFiles = getVisibleFiles();
+        renderRows(visibleFiles);
+        setFilesFoundStatus(visibleFiles.length);
     }
 
     // Purpose: Implements a focused frontend behavior used by this module.
@@ -2470,6 +2501,12 @@
 
         bindDragAndDrop();
         bindTableActions();
+        if (els.fileSearch) {
+            els.fileSearch.addEventListener("input", (event) => {
+                fileSearchQuery = event.target && typeof event.target.value === "string" ? event.target.value : "";
+                refreshLocalFilesTable();
+            });
+        }
         ensurePublishDefaults();
         loadFiles();
     }

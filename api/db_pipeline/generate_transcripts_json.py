@@ -6,10 +6,13 @@ Usage:
 """
 
 import json
+import logging
 import re
 import sys
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from tqdm import tqdm
 
@@ -20,10 +23,54 @@ if str(REPO_ROOT) not in sys.path:
 from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
 
 
+def _load_reference_documents(kb_dir: Path, doc_counter: int):
+    """Load reference extraction output and normalize it for indexing."""
+    references_path = kb_dir / "references.json"
+    if not references_path.exists():
+        return [], doc_counter
+
+    try:
+        with references_path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("Could not load references.json: %s", exc)
+        return [], doc_counter
+
+    refs_documents = payload.get("documents", []) if isinstance(payload, dict) else []
+    normalized = []
+
+    for ref_doc in refs_documents:
+        if not isinstance(ref_doc, dict):
+            continue
+
+        text = str(ref_doc.get("text", "") or "")
+        if not text.strip():
+            continue
+
+        metadata = dict(ref_doc.get("metadata") or {})
+        filename = ref_doc.get("filename") or metadata.get("filename") or f"reference_{doc_counter}"
+        metadata.setdefault("filename", filename)
+        metadata.setdefault("source_file", filename)
+        metadata.setdefault("type", "markdown_document")
+
+        references = ref_doc.get("references") or {}
+        markdown_references = references.get("markdown_references") or []
+        metadata["markdown_references"] = markdown_references
+        metadata["reference_count"] = len(markdown_references)
+
+        normalized.append({
+            "id": f"doc_{doc_counter:04d}_{filename}",
+            "text": text,
+            "metadata": metadata,
+        })
+        doc_counter += 1
+
+    return normalized, doc_counter
+
 
 def generate_transcripts_json(kb_dir: Path):
     """Create transcripts_chromadb.json file from transcripts and JSON documents."""
-    print("Generating transcripts_chromadb.json...")
+    logger.info("Generating transcripts_chromadb.json...")
 
     transcripts_dir = kb_dir / "transcripts"
     documents_dir = kb_dir / "documents"
@@ -38,6 +85,9 @@ def generate_transcripts_json(kb_dir: Path):
 
     documents = []
     doc_counter = 0
+    reference_documents, doc_counter = _load_reference_documents(kb_dir, doc_counter)
+    documents.extend(reference_documents)
+
     transcript_files = list(transcripts_dir.glob("*.txt")) if transcripts_dir.exists() else []
     json_files = list(documents_dir.glob("*.json")) if documents_dir.exists() else []
     total_files = len(transcript_files) + len(json_files)
@@ -45,7 +95,7 @@ def generate_transcripts_json(kb_dir: Path):
     _write_progress_snapshot("generate_transcripts_json", 0, total_files, "files")
 
     if transcript_files:
-        print(f"Processing {len(transcript_files)} transcript files...")
+        logger.info("Processing %s transcript files...", len(transcript_files))
 
         for file_path in tqdm(transcript_files, desc="Processing transcripts"):
             try:
@@ -69,17 +119,21 @@ def generate_transcripts_json(kb_dir: Path):
                     day, month, year = date_match.groups()
                     metadata["date"] = f"20{year}-{month}-{day}"
 
-                documents.append({"id": doc_id, "text": text, "metadata": metadata})
+                documents.append({
+                    "id": doc_id,
+                    "text": text,
+                    "metadata": {**metadata, "markdown_references": [], "reference_count": 0},
+                })
 
             except Exception as e:
-                print(f"Error processing {file_path.name}: {e}")
+                logger.exception("Error processing %s: %s", file_path.name, e)
                 continue
             finally:
                 processed_files += 1
                 _write_progress_snapshot("generate_transcripts_json", processed_files, total_files, "files")
 
     if json_files:
-        print(f"Processing {len(json_files)} JSON files...")
+        logger.info("Processing %s JSON files...", len(json_files))
 
         for json_file in tqdm(json_files, desc="Processing JSON files"):
             try:
@@ -91,7 +145,7 @@ def generate_transcripts_json(kb_dir: Path):
                 elif isinstance(json_data, dict):
                     entries = [json_data]
                 else:
-                    print(f"Unsupported JSON structure in {json_file.name}")
+                    logger.warning("Unsupported JSON structure in %s", json_file.name)
                     continue
 
                 for entry in entries:
@@ -148,19 +202,27 @@ def generate_transcripts_json(kb_dir: Path):
                         if key in entry and entry[key]:
                             metadata[key] = entry[key]
 
-                    documents.append({"id": doc_id, "text": text, "metadata": metadata})
+                    markdown_references = entry.get("markdown_references") or []
+                    metadata["markdown_references"] = markdown_references
+                    metadata["reference_count"] = len(markdown_references)
+
+                    documents.append({
+                        "id": doc_id,
+                        "text": text,
+                        "metadata": metadata,
+                    })
 
             except Exception as e:
-                print(f"Error processing {json_file.name}: {e}")
+                logger.exception("Error processing %s: %s", json_file.name, e)
                 continue
             finally:
                 processed_files += 1
                 _write_progress_snapshot("generate_transcripts_json", processed_files, total_files, "files")
 
     if not documents:
-        print("No documents to process")
-        print("Please add .txt files to nutrifaq-dbase/transcripts/")
-        print("or .json files to nutrifaq-dbase/documents/")
+        logger.warning("No documents to process")
+        logger.warning("Please add .txt files to nutrifaq-dbase/transcripts/")
+        logger.warning("or .json files to nutrifaq-dbase/documents/")
         return False
 
     transcripts_data = {
@@ -175,11 +237,11 @@ def generate_transcripts_json(kb_dir: Path):
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(transcripts_data, f, ensure_ascii=False, indent=2)
 
-        print(f"Created transcripts_chromadb.json with {len(documents)} documents")
-        print(f"Saved to: {output_path}")
+        logger.info("Created transcripts_chromadb.json with %s documents", len(documents))
+        logger.info("Saved to: %s", output_path)
         return True
     except Exception as e:
-        print(f"Error saving transcripts_chromadb.json: {e}")
+        logger.exception("Error saving transcripts_chromadb.json: %s", e)
         return False
 
 
@@ -187,13 +249,13 @@ def generate_transcripts_json(kb_dir: Path):
 # Inputs/Outputs: See signature and return annotation for contract details.
 def main() -> int:
     if len(sys.argv) != 2:
-        print("Usage: python generate_transcripts_json.py <path_to_knowledge_base>")
+        logger.error("Usage: python generate_transcripts_json.py <path_to_knowledge_base>")
         return 1
 
     kb_dir = Path(sys.argv[1])
 
     if not kb_dir.exists():
-        print(f"Directory not found: {kb_dir}")
+        logger.error("Directory not found: %s", kb_dir)
         return 1
 
     success = generate_transcripts_json(kb_dir)

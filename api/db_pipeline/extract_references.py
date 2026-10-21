@@ -1,18 +1,23 @@
 """
 Extract references from Nutrifaq documents.
 
-Reads all .docx files in nutrifaq-dbase/documents and extracts:
+Reads all supported document files in nutrifaq-dbase/documents and extracts:
 - Inline PMID references (PMID: 12345678)
 - Numbered reference sections (References)
+- Markdown metadata and cleaned text for .md files
 
 Outputs JSON file: nutrifaq-dbase/references.json
 """
 
 import json
+import logging
 import os
 import re
 import sys
+import unicodedata
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 import docx
 
@@ -24,6 +29,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
 
+SUPPORTED_SUFFIXES = (".docx", ".md", ".markdown")
 
 
 # Purpose: Implement a focused unit of backend behavior used by routes or services.
@@ -45,6 +51,11 @@ def read_docx(path):
     return "\n".join(p.text for p in doc.paragraphs)
 
 
+def read_markdown(path):
+    """Read a Markdown file and return full text."""
+    return Path(path).read_text(encoding="utf-8", errors="replace")
+
+
 def extract_pmids(text):
     """Extract all PMID numbers from text."""
     matches = re.findall(r"PMID:\s*(\d+)", text)
@@ -57,98 +68,251 @@ def extract_pmids(text):
     return unique
 
 
-def extract_bibliography(text):
-    """Extract numbered reference list from a References section."""
-    match = re.search(r"(?im)^r[eé]f[eé]rences?\s*$", text)
-    if not match:
+def parse_markdown_metadata(text):
+    """Extract frontmatter or leading heading metadata from Markdown."""
+    metadata = {}
+
+    front_matter = re.match(r"^---\s*\n(.*?)\n---\s*\n?", text, re.DOTALL)
+    if front_matter:
+        section = front_matter.group(1)
+        for line in section.splitlines():
+            if not line.strip() or ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            key = key.strip().lower().replace("-", "_")
+            value = value.strip().strip('"\'')
+            if key and value:
+                metadata[key] = value
+        text = text[front_matter.end():]
+
+    title_match = re.search(r"^\s*#\s+(.+?)\s*$", text, re.MULTILINE)
+    if title_match and "title" not in metadata:
+        metadata["title"] = title_match.group(1).strip()
+
+    return metadata, text
+
+
+def extract_markdown_references(text):
+    """Extract a markdown References section as numbered citation entries."""
+    ref_section_match = re.search(r"(?im)^(?:#+\s*)?(?:references?|r[eé]f[eé]rences?)\s*:??\s*$", text)
+    if not ref_section_match:
         return []
 
-    ref_text = text[match.end():]
+    section_start = ref_section_match.end()
+    section_text = text[section_start:]
+    lines = section_text.splitlines()
+
     entries = []
-    lines = ref_text.split("\n")
+    current_lines = []
+
+    for line in lines:
+        if re.match(r"^\s*#+\s+", line):
+            break
+
+        if not line.strip():
+            if current_lines:
+                entries.append(" ".join(current_lines).strip())
+                current_lines = []
+            continue
+
+        if re.match(r"^\s*(?:\d+\.?\)|\d+\.|[-*])\s+", line):
+            if current_lines:
+                entries.append(" ".join(current_lines).strip())
+            current_lines = [re.sub(r"^\s*(?:\d+\.?\)|\d+\.|[-*])\s*", "", line).strip()]
+        else:
+            if current_lines:
+                current_lines.append(line.strip())
+            elif line.strip():
+                current_lines = [line.strip()]
+
+    if current_lines:
+        entries.append(" ".join(current_lines).strip())
+
+    references = []
+    for index, citation in enumerate([entry for entry in entries if entry], start=1):
+        references.append({"number": index, "citation": citation})
+
+    return references
+
+
+def cleanup_markdown_text(text):
+    """Remove markdown links and clean remaining markdown formatting from extracted body text."""
+    cleaned = text or ""
+    cleaned = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", cleaned)
+    cleaned = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", cleaned)
+    cleaned = re.sub(r"<https?://[^>\s]+>", "", cleaned)
+    cleaned = re.sub(r"https?://[^\s)]+", "", cleaned)
+    cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"\*(.*?)\*", r"\1", cleaned)
+    cleaned = re.sub(r"__(.*?)__", r"\1", cleaned)
+    cleaned = re.sub(r"_(.*?)_", r"\1", cleaned)
+    cleaned = re.sub(r"`([^`]*)`", r"\1", cleaned)
+    cleaned = re.sub(r"^\s*#{1,6}\s*", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^\s*[-*]\s+", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = re.sub(r"\r\n?", "\n", cleaned)
+    return cleaned.strip()
+
+
+def _normalize_reference_title(value):
+    """Normalize headings like 'Références' to compare them reliably."""
+    normalized = unicodedata.normalize("NFKD", value.lower())
+    normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    normalized = normalized.strip().rstrip(":")
+    return re.sub(r"\s+", " ", normalized)
+
+
+def extract_bibliography(text):
+    """Extract a bibliography list from a References/Références section."""
+    if not text:
+        return []
+
+    lines = text.splitlines()
+    start_index = None
+    for index, line in enumerate(lines):
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        heading = re.sub(r"^#+\s*", "", cleaned)
+        heading = heading.rstrip(":").strip()
+        if _normalize_reference_title(heading) in {"reference", "references"}:
+            start_index = index + 1
+            break
+
+    if start_index is None:
+        return []
+
+    entries = []
     current_number = None
     current_citation = []
 
-    for line in lines:
-        line = line.strip()
-        if not line:
+    def flush_current_entry():
+        nonlocal current_number, current_citation
+        if current_number is not None and current_citation:
+            citation = " ".join(current_citation).strip()
+            if citation:
+                entries.append({"number": current_number, "citation": citation})
+        current_number = None
+        current_citation = []
+
+    for line in lines[start_index:]:
+        stripped = line.strip()
+        if not stripped:
             continue
 
-        num_match = re.match(r"^(\d+)[\.\)]\s+(.*)", line)
-        if num_match:
+        if re.match(r"^#+\s+", line):
+            flush_current_entry()
+            break
+
+        bullet_match = re.match(r"^(?:[-*])\s+(.*)$", stripped)
+        if bullet_match:
             if current_number is not None and current_citation:
-                entries.append(
-                    {
-                        "number": current_number,
-                        "citation": " ".join(current_citation).strip(),
-                    }
-                )
-            current_number = int(num_match.group(1))
-            current_citation = [num_match.group(2)]
-        elif current_number is not None:
-            current_citation.append(line)
+                flush_current_entry()
+            current_number = len(entries) + 1
+            current_citation = [bullet_match.group(1).strip()]
+            continue
 
-    if current_number is not None and current_citation:
-        entries.append(
-            {
-                "number": current_number,
-                "citation": " ".join(current_citation).strip(),
-            }
-        )
+        numbered_match = re.match(r"^(?:\(?)(\d+)(?:\)|\.)\s+(.*)$", stripped)
+        if numbered_match:
+            flush_current_entry()
+            current_number = int(numbered_match.group(1))
+            current_citation = [numbered_match.group(2).strip()]
+            continue
 
+        if current_number is not None:
+            current_citation.append(stripped)
+        elif stripped and stripped[0].isupper():
+            current_number = len(entries) + 1
+            current_citation = [stripped]
+
+    flush_current_entry()
     return entries
 
 
+def extract_markdown_document(file_path: Path):
+    """Process a Markdown document and return text, metadata, and references."""
+    raw_text = read_markdown(file_path)
+    metadata, remaining_text = parse_markdown_metadata(raw_text)
+    cleaned_text = cleanup_markdown_text(remaining_text)
+    pmids = extract_pmids(cleaned_text)
+    markdown_references = extract_markdown_references(remaining_text)
+    bibliography = extract_bibliography(cleaned_text)
+
+    if markdown_references:
+        bibliography = []
+    elif not bibliography:
+        bibliography = []
+
+    return {
+        "filename": file_path.name,
+        "metadata": metadata,
+        "text": cleaned_text,
+        "references": {
+            "pmids": pmids,
+            "bibliography": bibliography,
+            "markdown_references": markdown_references,
+        },
+    }
+
+
 def process_documents(documents_dir: Path):
-    """Process all .docx files and extract references."""
+    """Process supported document files and extract references."""
     if not documents_dir.exists():
-        print(f"Documents directory not found: {documents_dir}")
+        logger.error("Documents directory not found: %s", documents_dir)
         return []
 
     results = []
     files = sorted(
-        f for f in documents_dir.iterdir() if f.suffix.lower() == ".docx" and not f.name.startswith("~$")
+        f for f in documents_dir.iterdir()
+        if f.suffix.lower() in SUPPORTED_SUFFIXES and not f.name.startswith("~$")
     )
     total_files = len(files)
     _write_progress_snapshot("extract_references", 0, total_files, "files")
 
-    print(f"Found {len(files)} .docx files in {documents_dir}\n")
+    logger.info("Found %s supported files in %s", len(files), documents_dir)
 
     if total_files == 0:
-        # Publish a completed snapshot so UI polling can render this step even with no input files.
         _write_progress_snapshot("extract_references", 1, 1, "files")
         return results
 
     processed_files = 0
     for fpath in files:
         try:
-            text = read_docx(str(fpath))
-            pmids = extract_pmids(text)
-            bibliography = extract_bibliography(text)
+            if fpath.suffix.lower() == ".docx":
+                text = read_docx(str(fpath))
+                pmids = extract_pmids(text)
+                bibliography = extract_bibliography(text)
+                doc_entry = {
+                    "filename": fpath.name,
+                    "metadata": {},
+                    "text": text,
+                    "references": {
+                        "pmids": pmids,
+                        "bibliography": bibliography,
+                    },
+                }
+            else:
+                doc_entry = extract_markdown_document(fpath)
+                if doc_entry.get("references", {}).get("markdown_references"):
+                    doc_entry["references"]["bibliography"] = []
 
-            doc_entry = {
-                "filename": fpath.name,
-                "text": text,
-                "references": {
-                    "pmids": pmids,
-                    "bibliography": bibliography,
-                },
-            }
             results.append(doc_entry)
 
-            ref_count = len(pmids) + len(bibliography)
+            ref_count = len(doc_entry.get("references", {}).get("pmids", [])) + len(doc_entry.get("references", {}).get("bibliography", [])) + len(doc_entry.get("references", {}).get("markdown_references", []))
             if ref_count > 0:
                 parts = []
-                if pmids:
-                    parts.append(f"{len(pmids)} PMIDs")
-                if bibliography:
-                    parts.append(f"{len(bibliography)} bibliography entries")
-                print(f"{fpath.name}: {', '.join(parts)}")
+                if doc_entry.get("references", {}).get("pmids"):
+                    parts.append(f"{len(doc_entry['references']['pmids'])} PMIDs")
+                if doc_entry.get("references", {}).get("bibliography"):
+                    parts.append(f"{len(doc_entry['references']['bibliography'])} bibliography entries")
+                if doc_entry.get("references", {}).get("markdown_references"):
+                    parts.append(f"{len(doc_entry['references']['markdown_references'])} markdown references")
+                logger.info("%s: %s", fpath.name, ', '.join(parts))
             else:
-                print(f"{fpath.name}: no references found")
+                logger.info("%s: no references found", fpath.name)
 
         except Exception as e:
-            print(f"Failed to read {fpath.name}: {e}")
+            logger.exception("Failed to read %s: %s", fpath.name, e)
         finally:
             processed_files += 1
             _write_progress_snapshot("extract_references", processed_files, total_files, "files")
@@ -163,7 +327,7 @@ def main() -> None:
     documents_dir = kb_root / "documents"
     output_path = kb_root / "references.json"
 
-    print(f"Scanning documents in: {documents_dir}")
+    logger.info("Scanning documents in: %s", documents_dir)
     results = process_documents(documents_dir)
 
     payload = {
@@ -175,7 +339,7 @@ def main() -> None:
     with output_path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
 
-    print(f"\nSaved references to: {output_path}")
+    logger.info("Saved references to: %s", output_path)
 
 
 if __name__ == "__main__":
