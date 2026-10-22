@@ -15,7 +15,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from api.services.startup_sync import sync_blob_databases_on_startup
+from api.services.logging import configure_logging
 
+configure_logging()
 logger = logging.getLogger(__name__)
 
 # =====================================================

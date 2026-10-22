@@ -1,5 +1,5 @@
 """
-Generate generated_questions.json from transcripts_chromadb.json.
+Generate generated_questions.json from reviewed_documents.json.
 
 Usage:
     python generate_questions_json.py <knowledge_base_path> [question_count]
@@ -7,10 +7,13 @@ Usage:
 
 import json
 import logging
+import os
 import re
 import sys
 import time
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +21,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+load_dotenv(REPO_ROOT / ".env", override=False)
+
+from api.services.logging import configure_logging  # noqa: E402
 from api.services.llm_service import create_chat_completion_text, get_gateway_client  # noqa: E402
 from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
+
+configure_logging()
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -34,20 +42,6 @@ def _sanitize_question_topic(text: str, *, max_words: int = 8) -> str:
     words = source.split()
     short = " ".join(words[:max_words]).strip(" ,;:-")
     return short if short else "ce document"
-
-
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _build_questions_fallback(topic: str, question_count: int) -> list[str]:
-    templates = [
-        "Quels sont les points cles de {topic} ?",
-        "Quelles recommandations pratiques ressortent de {topic} ?",
-        "Quels risques ou limites sont mentionnes dans {topic} ?",
-        "Comment appliquer les informations de {topic} au quotidien ?",
-        "Quels elements sont les plus importants a retenir sur {topic} ?",
-        "Quelles questions restent ouvertes concernant {topic} ?",
-    ]
-    return [templates[idx % len(templates)].format(topic=topic) for idx in range(question_count)]
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -96,44 +90,48 @@ def _build_llm_prompt(text_excerpt: str, topic: str, question_count: int) -> str
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def _load_transcripts_payload(transcripts_path: Path) -> dict:
+def _load_reviewed_payload(reviewed_path: Path) -> dict:
     try:
-        raw = transcripts_path.read_text(encoding="utf-8")
+        raw = reviewed_path.read_text(encoding="utf-8")
     except Exception as exc:
-        raise RuntimeError(f"Unable to read input file: {transcripts_path} ({exc})") from exc
+        raise RuntimeError(f"Unable to read input file: {reviewed_path} ({exc})") from exc
 
     if not raw.strip():
         raise RuntimeError(
-            f"Input file is empty: {transcripts_path}. "
-            "Regenerate transcripts_chromadb.json before running question generation."
+            f"Input file is empty: {reviewed_path}. "
+            "Generate reviewed_documents.json before running question generation."
         )
 
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise RuntimeError(
-            f"Invalid JSON in {transcripts_path}: line {exc.lineno}, column {exc.colno}. "
-            "Regenerate transcripts_chromadb.json and retry."
+            f"Invalid JSON in {reviewed_path}: line {exc.lineno}, column {exc.colno}. "
+            "Generate reviewed_documents.json and retry."
         ) from exc
 
     if not isinstance(payload, dict):
-        raise RuntimeError(f"Invalid JSON root in {transcripts_path}: expected an object.")
+        raise RuntimeError(f"Invalid JSON root in {reviewed_path}: expected an object.")
 
     return payload
 
 
 # Purpose: Implement a focused unit of backend behavior used by routes or services.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
-    transcripts_path = kb_root / "transcripts_chromadb.json"
-    if not transcripts_path.exists():
-        raise FileNotFoundError(f"Missing input file: {transcripts_path}")
+def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: str | None = None) -> Path:
+    reviewed_path = kb_root / "reviewed_documents.json"
+    if not reviewed_path.exists():
+        raise FileNotFoundError(f"Missing input file: {reviewed_path}")
 
-    payload = _load_transcripts_payload(transcripts_path)
+    payload = _load_reviewed_payload(reviewed_path)
 
     documents = payload.get("documents", []) if isinstance(payload, dict) else []
     if not isinstance(documents, list) or not documents:
-        raise RuntimeError("No documents found in transcripts_chromadb.json")
+        raise RuntimeError("No documents found in reviewed_documents.json")
+
+    resolved_model = (llm_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or os.getenv("LLM_MODEL") or "").strip()
+    if not resolved_model:
+        raise RuntimeError("No model was provided by the client for question generation.")
 
     client = get_gateway_client()
     generated_documents = []
@@ -149,7 +147,7 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
 
             doc_id = str(doc.get("id", "unknown"))
             metadata = doc.get("metadata", {}) if isinstance(doc.get("metadata"), dict) else {}
-            source_name = str(metadata.get("source") or metadata.get("reference") or doc_id)
+            source_name = str(metadata.get("title") or doc_id)
             full_text = str(doc.get("text", ""))
             topic = _sanitize_question_topic(full_text)
             text_excerpt = re.sub(r"\s+", " ", full_text).strip()[:2200]
@@ -160,7 +158,7 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
                 prompt = _build_llm_prompt(text_excerpt, topic, question_count)
                 raw_output = create_chat_completion_text(
                     client=client,
-                    model_name=None,
+                    model_name=resolved_model,
                     prompt=prompt,
                     temperature=0.4,
                 )
@@ -169,12 +167,12 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
                 llm_error = str(exc)
 
             if len(llm_questions) < question_count:
-                llm_failures += 1
-                questions = (llm_questions + _build_questions_fallback(topic, question_count))[:question_count]
-                generation_mode = "fallback"
-            else:
-                questions = llm_questions[:question_count]
-                generation_mode = "llm"
+                raise RuntimeError(
+                    f"Model did not return enough questions for {doc_id}: expected {question_count}, got {len(llm_questions)}."
+                )
+
+            questions = llm_questions[:question_count]
+            generation_mode = "llm"
 
             generated_documents.append(
                 {
@@ -195,7 +193,7 @@ def generate_questions_json(kb_root: Path, question_count: int = 3) -> Path:
         "status": "ok",
         "question_count_per_document": question_count,
         "total_documents": len(generated_documents),
-        "generated_from": str(transcripts_path),
+        "generated_from": str(reviewed_path),
         "llm_failures": llm_failures,
         "documents": generated_documents,
     }

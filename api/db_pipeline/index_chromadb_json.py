@@ -1,5 +1,5 @@
 """
-Index ChromaDB from transcripts_chromadb.json.
+Index ChromaDB from reviewed_documents.json.
 
 Usage:
     python index_chromadb_json.py <knowledge_base_path>
@@ -28,8 +28,11 @@ from api.services.blob_storage_service import (  # noqa: E402
     get_blob_container_name,
     get_blob_prefix,
 )
+from api.services.logging import configure_logging  # noqa: E402
 from api.services.llm_service import create_embeddings  # noqa: E402
 from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
+
+configure_logging()
 
 # Get main root directory (where .env is located)
 MAIN_ROOT = Path.cwd()
@@ -48,20 +51,20 @@ AZURE_BLOB_PREFIX = get_blob_prefix()
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def _sync_transcripts_json_from_blob(kb_path: Path) -> Path:
-    local_json = kb_path / "transcripts_chromadb.json"
-    if local_json.exists():
-        return local_json
+def _sync_reviewed_json_from_blob(kb_path: Path) -> Path:
+    reviewed_json = kb_path / "reviewed_documents.json"
+    if reviewed_json.exists():
+        return reviewed_json
 
-    blob_name = f"{AZURE_BLOB_PREFIX}/transcripts_chromadb.json"
+    blob_name = f"{AZURE_BLOB_PREFIX}/reviewed_documents.json"
     kb_path.mkdir(parents=True, exist_ok=True)
     try:
-        download_blob_to_path(blob_name, local_json)
+        download_blob_to_path(blob_name, reviewed_json)
     except Exception as exc:
         raise FileNotFoundError(
-            f"transcripts_chromadb.json not found locally and not available in blob: {blob_name}"
+            f"reviewed_documents.json not found locally and not available in blob: {blob_name}"
         ) from exc
-    return local_json
+    return reviewed_json
 
 
 def get_embeddings(texts):
@@ -144,13 +147,13 @@ def chunk_text(text, chunk_size=1000, overlap=100):
 
 
 def index_chromadb_json(kb_path):
-    """Index ChromaDB-compatible JSON into ChromaDB."""
+    """Index reviewed content into ChromaDB."""
     kb_path = Path(kb_path)
-    json_file = _sync_transcripts_json_from_blob(kb_path)
+    json_file = _sync_reviewed_json_from_blob(kb_path)
 
     if not json_file.exists():
         logger.error("File not found: %s", json_file)
-        logger.error("Ensure transcripts_chromadb.json was created first")
+        logger.error("Ensure reviewed_documents.json exists before indexing.")
         return
 
     embedding_provider = os.getenv("EMBEDDING_PROVIDER", os.getenv("LLM_PROVIDER", "vercel"))
@@ -159,7 +162,7 @@ def index_chromadb_json(kb_path):
 
     if json_file.stat().st_size == 0:
         logger.error("Error: %s is empty.", json_file)
-        logger.error("Run generate_transcripts_json first and ensure it produced valid content.")
+        logger.error("Ensure reviewed_documents.json contains valid content.")
         return
 
     try:
@@ -167,12 +170,45 @@ def index_chromadb_json(kb_path):
             data = json.load(f)
     except json.JSONDecodeError as exc:
         logger.exception("Error: invalid JSON in %s (%s).", json_file, exc)
-        logger.error("Run generate_transcripts_json first and ensure it produced valid content.")
+        logger.error("Ensure the input JSON file contains valid content before indexing.")
         return
 
-    documents = data.get("documents", [])
-    if not documents:
+    source_documents = data.get("documents", [])
+    if not source_documents:
         logger.warning("No documents found in JSON file")
+        return
+
+    documents = source_documents
+    if json_file.name == "reviewed_documents.json":
+        normalized_documents = []
+        for review_doc in source_documents:
+            if not isinstance(review_doc, dict):
+                continue
+            if not bool(review_doc.get("relevant", False)):
+                continue
+            key_points = review_doc.get("key_points") or []
+            text = str(review_doc.get("text") or "").strip()
+            combined_text = "\n".join(str(point).strip() for point in key_points if str(point).strip())
+            if not combined_text and text:
+                combined_text = text
+            if not combined_text:
+                continue
+            metadata = dict(review_doc.get("metadata") or {})
+            metadata.setdefault("filename", review_doc.get("filename") or metadata.get("source_file") or review_doc.get("id") or "reviewed_document")
+            metadata.setdefault("source_file", metadata["filename"])
+            metadata.setdefault("type", "reviewed_document")
+            metadata["relevant"] = True
+            metadata["key_points"] = key_points
+            metadata["review_reason"] = str(review_doc.get("reason") or "")
+            normalized_documents.append({
+                "id": review_doc.get("id") or metadata["filename"],
+                "text": combined_text,
+                "metadata": metadata,
+            })
+        documents = normalized_documents
+
+    if not documents:
+        logger.warning("No relevant reviewed documents found in %s", json_file)
         return
 
     # Always start from a clean local ChromaDB folder before indexing.

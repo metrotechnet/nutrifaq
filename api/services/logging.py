@@ -18,6 +18,43 @@ DEFAULT_DEBUG_KB_ROOT = REPO_ROOT / "nutrifaq-dbase-main"
 QUESTION_LOG_PATH = DEFAULT_DEBUG_KB_ROOT / "question_log.json"
 question_log_lock = threading.Lock()
 
+
+def configure_logging() -> Path:
+    """Configure a single file log sink for the application and scripts."""
+    configured_path = os.getenv("LOG_FILE_PATH", "logs/nutrifaq.log").strip()
+    if not configured_path:
+        configured_path = "logs/nutrifaq.log"
+
+    log_path = Path(configured_path)
+    if not log_path.is_absolute():
+        log_path = (REPO_ROOT / log_path).resolve()
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
+    file_handler_exists = any(
+        isinstance(handler, logging.FileHandler) and getattr(handler, "baseFilename", None) == str(log_path)
+        for handler in root_logger.handlers
+    )
+    if not file_handler_exists:
+        file_handler = logging.FileHandler(log_path, encoding="utf-8")
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        root_logger.addHandler(file_handler)
+
+    stream_handler_exists = any(
+        isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler)
+        for handler in root_logger.handlers
+    )
+    if not stream_handler_exists:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        root_logger.addHandler(stream_handler)
+
+    return log_path
+
 GCS_LOG_BLOB_NAME = "question_log.json"
 
 

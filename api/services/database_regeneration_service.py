@@ -18,6 +18,10 @@ import sys
 import threading
 import time
 
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+
 from api.services.blob_storage_service import (
     get_blob_container_name,
     get_blob_prefix,
@@ -37,10 +41,13 @@ CHROMA_DB_ROOT = KB_ROOT / "chroma_db"
 LOCAL_SERVER_SQLITE_COPY = DEBUG_KB_ROOT / "chroma.sqlite3"
 REGEN_PROGRESS_PATH = DEBUG_KB_ROOT / "regeneration_progress.json"
 
+DEFAULT_QUESTION_COUNT = max(1, int(os.getenv("DEFAULT_QUESTION_COUNT", "1")))
+
+
 STEP_ORDER: list[str] = [
     "extract_docx",
     "extract_references",
-    "generate_transcripts_json",
+    "review_document_text",
     "index_chromadb_json",
     "generate_questions",
 ]
@@ -48,7 +55,7 @@ STEP_ORDER: list[str] = [
 STEP_LABELS: dict[str, str] = {
     "extract_docx": "Extraction des documents",
     "extract_references": "Extraction des references",
-    "generate_transcripts_json": "Generation des transcripts",
+    "review_document_text": "Validation du contenu pertinent",
     "generate_questions": "Generation des questions",
     "index_chromadb_json": "Indexation ChromaDB",
 }
@@ -130,13 +137,14 @@ def _build_llm_prompt_for_questions(text_excerpt: str, topic: str, question_coun
 
 def generate_questions_from_transcripts_json(
     *,
-    question_count: int = 3,
+    question_count: int = DEFAULT_QUESTION_COUNT,
     source_root_folder: str | None = None,
     target_container_name: str | None = None,
     target_root_folder: str | None = None,
     output_filename: str = "generated_questions.json",
+    llm_model: str | None = None,
 ) -> Dict[str, object]:
-    """Generate N questions per document from transcripts_chromadb.json to local JSON."""
+    """Generate N questions per document from reviewed documents to local JSON."""
     if question_count < 1:
         return {"status": "error", "message": "question_count must be >= 1."}
 
@@ -156,55 +164,90 @@ def generate_questions_from_transcripts_json(
         str(question_count),
     ]
 
-    process = subprocess.run(
+    process_env = os.environ.copy()
+    selected_model = (llm_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or os.getenv("LLM_MODEL") or "").strip()
+    if selected_model:
+        process_env["VERCEL_CHAT_DEPLOYMENT"] = selected_model
+        process_env["CHAT_MODEL"] = selected_model
+        process_env["LLM_MODEL"] = selected_model
+
+    process = subprocess.Popen(
         command,
         cwd=str(local_kb_root),
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
         encoding="utf-8",
         errors="replace",
+        env=process_env,
     )
+    _set_active_process(process)
 
-    if process.returncode != 0:
-        return {
-            "status": "error",
-            "message": "Question generation script failed.",
-            "command": " ".join(command),
-            "stdout": process.stdout,
-            "stderr": process.stderr,
-            "return_code": process.returncode,
-        }
-
-    output_path = local_kb_root / output_filename
-    if not output_path.exists():
-        return {
-            "status": "error",
-            "message": f"Generated file not found: {output_path}",
-            "command": " ".join(command),
-            "stdout": process.stdout,
-            "stderr": process.stderr,
-        }
-
-    total_documents = None
-    llm_failures = None
     try:
-        with open(output_path, "r", encoding="utf-8") as handle:
-            output_data = json.load(handle)
-        total_documents = output_data.get("total_documents")
-        llm_failures = output_data.get("llm_failures")
-    except Exception:
-        pass
+        while process.poll() is None:
+            if _is_cancel_requested():
+                try:
+                    process.terminate()
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                except Exception:
+                    pass
+                stdout, stderr = process.communicate()
+                return {
+                    "status": "cancelled",
+                    "message": "Question generation cancelled by user.",
+                    "command": " ".join(command),
+                    "cwd": str(local_kb_root),
+                    "return_code": process.returncode,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                }
+            time.sleep(0.25)
 
-    return {
-        "status": "ok",
-        "message": "Questions generated successfully.",
-        "question_count_per_document": question_count,
-        "total_documents": total_documents,
-        "llm_failures": llm_failures,
-        "local_output_path": str(output_path),
-        "stdout": process.stdout,
-        "stderr": process.stderr,
-    }
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            return {
+                "status": "error",
+                "message": "Question generation script failed.",
+                "command": " ".join(command),
+                "stdout": stdout,
+                "stderr": stderr,
+                "return_code": process.returncode,
+            }
+
+        output_path = local_kb_root / output_filename
+        if not output_path.exists():
+            return {
+                "status": "error",
+                "message": f"Generated file not found: {output_path}",
+                "command": " ".join(command),
+                "stdout": stdout,
+                "stderr": stderr,
+            }
+
+        total_documents = None
+        llm_failures = None
+        try:
+            with open(output_path, "r", encoding="utf-8") as handle:
+                output_data = json.load(handle)
+            total_documents = output_data.get("total_documents")
+            llm_failures = output_data.get("llm_failures")
+        except Exception:
+            pass
+
+        return {
+            "status": "ok",
+            "message": "Questions generated successfully.",
+            "question_count_per_document": question_count,
+            "total_documents": total_documents,
+            "llm_failures": llm_failures,
+            "local_output_path": str(output_path),
+            "stdout": stdout,
+            "stderr": stderr,
+        }
+    finally:
+        _set_active_process(None)
 
 
 _regen_state_lock = threading.Lock()
@@ -410,23 +453,23 @@ def _step_definitions() -> Dict[str, StepDefinition]:
             cwd=KB_ROOT,
             args=[],
         ),
-        "generate_transcripts_json": StepDefinition(
-            key="generate_transcripts_json",
-            description="Build transcripts_chromadb.json from transcripts/documents.",
-            script_name="generate_transcripts_json.py",
+        "review_document_text": StepDefinition(
+            key="review_document_text",
+            description="Filter extracted text to keep only relevant nutrition content and generate key points for embedding.",
+            script_name="review_document_text.py",
             cwd=KB_ROOT,
             args=[str(KB_ROOT)],
         ),
         "generate_questions": StepDefinition(
             key="generate_questions",
-            description="Generate per-document questions from transcripts_chromadb.json.",
+            description="Generate per-document questions from the reviewed/indexed knowledge base.",
             script_name="generate_questions_json.py",
             cwd=KB_ROOT,
             args=[str(KB_ROOT), "3"],
         ),
         "index_chromadb_json": StepDefinition(
             key="index_chromadb_json",
-            description="Index transcripts_chromadb.json into nutrifaq-dbase/chroma_db.",
+            description="Index reviewed documents into nutrifaq-dbase/chroma_db.",
             script_name="index_chromadb_json.py",
             cwd=KB_ROOT,
             args=[str(KB_ROOT)],
@@ -553,22 +596,23 @@ def run_extract_references_step() -> Dict[str, object]:
     return _run_step("extract_references")
 
 
-def run_generate_transcripts_json_step() -> Dict[str, object]:
-    """Generate transcripts_chromadb.json."""
-    return _run_step("generate_transcripts_json")
+def run_review_document_text_step() -> Dict[str, object]:
+    """Review extracted document text and keep only relevant nutrition content."""
+    return _run_step("review_document_text")
 
 
 def run_index_chromadb_json_step() -> Dict[str, object]:
-    """Index transcripts_chromadb.json into ChromaDB."""
+    """Index reviewed or transcript data into ChromaDB."""
     return _run_step("index_chromadb_json")
 
 
 def run_generate_questions_step(
     *,
-    question_count: int = 3,
+    question_count: int = 1,
     source_root_folder: str | None = None,
     target_container_name: str | None = None,
     target_root_folder: str | None = None,
+    llm_model: str | None = None,
 ) -> Dict[str, object]:
     """Generate per-document questions JSON and sync it to blob."""
     started = time.time()
@@ -577,13 +621,14 @@ def run_generate_questions_step(
         source_root_folder=source_root_folder,
         target_container_name=target_container_name,
         target_root_folder=target_root_folder,
+        llm_model=llm_model,
     )
     duration_seconds = round(time.time() - started, 2)
 
     return {
-        "status": "ok" if result.get("status") == "ok" else "error",
+        "status": "cancelled" if result.get("status") == "cancelled" else ("ok" if result.get("status") == "ok" else "error"),
         "step": "generate_questions",
-        "description": "Generate per-document questions from transcripts and upload JSON to blob.",
+        "description": "Generate per-document questions from reviewed content and upload JSON to blob.",
         "duration_seconds": duration_seconds,
         "details": result,
     }
@@ -595,7 +640,7 @@ def run_regeneration_step(step_key: str) -> Dict[str, object]:
     step_services = {
         "extract_docx": run_extract_docx_step,
         "extract_references": run_extract_references_step,
-        "generate_transcripts_json": run_generate_transcripts_json_step,
+        "review_document_text": run_review_document_text_step,
         "generate_questions": lambda: run_generate_questions_step(),
         "index_chromadb_json": run_index_chromadb_json_step,
     }
@@ -666,7 +711,7 @@ def _save_chromadb_to_blob_and_local_copy(
 
         artifact_files = [
             "generated_questions.json",
-            "transcripts_chromadb.json",
+            "reviewed_documents.json",
             "references.json",
         ]
         artifact_uploads: list[dict[str, object]] = []
@@ -746,11 +791,13 @@ def run_full_regeneration(
     include_extract_references: bool = False,
     root_folder: str | None = None,
     container_name: str | None = None,
+    llm_model: str | None = None,
+    question_count: int = DEFAULT_QUESTION_COUNT,
 ) -> Dict[str, object]:
     """Run the end-to-end regeneration sequence.
 
     The core sequence mirrors build-database.bat with question generation:
-    1) generate_transcripts_json
+    1) review_document_text
     2) index_chromadb_json
     3) generate_questions
 
@@ -786,8 +833,14 @@ def run_full_regeneration(
                 },
             }
 
-        pipeline: List[str] = ["extract_docx","extract_references","generate_transcripts_json", "index_chromadb_json", "generate_questions"]
- 
+        pipeline: List[str] = [
+            "extract_docx",
+            "extract_references",
+            "review_document_text",
+            "index_chromadb_json",
+            "generate_questions",
+        ]
+
         if not include_extract_docx:
             pipeline.remove("extract_docx")
         if not include_extract_references:
@@ -799,6 +852,9 @@ def run_full_regeneration(
             "AZURE_STORAGE_CONTAINER": resolved_container_name,
             "AZURE_KB_BLOB_CONTAINER": resolved_container_name,
             "NUTRIFAQ_KB_ROOT": str(resolved_local_kb_root),
+            "CHAT_MODEL": llm_model or os.getenv("CHAT_MODEL", ""),
+            "VERCEL_CHAT_DEPLOYMENT": llm_model or os.getenv("VERCEL_CHAT_DEPLOYMENT", ""),
+            "LLM_MODEL": llm_model or os.getenv("LLM_MODEL", ""),
         }
 
         step_services = {
@@ -814,23 +870,24 @@ def run_full_regeneration(
                 step_args_override=[str(resolved_local_kb_root)],
                 cwd_override=resolved_local_kb_root,
             ),
-            "generate_transcripts_json": lambda: _run_step_with_env(
-                "generate_transcripts_json",
+            "review_document_text": lambda: _run_step_with_env(
+                "review_document_text",
                 env_overrides=regen_env,
-                step_args_override=[str(resolved_local_kb_root)],
+                step_args_override=[str(resolved_local_kb_root), str(llm_model or os.getenv("CHAT_MODEL") or os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("LLM_MODEL") or "")],
                 cwd_override=resolved_local_kb_root,
-            ),
-            "generate_questions": lambda: run_generate_questions_step(
-                question_count=3,
-                source_root_folder=resolved_root_folder,
-                target_container_name=resolved_container_name,
-                target_root_folder=resolved_root_folder,
             ),
             "index_chromadb_json": lambda: _run_step_with_env(
                 "index_chromadb_json",
                 env_overrides=regen_env,
                 step_args_override=[str(resolved_local_kb_root)],
                 cwd_override=resolved_local_kb_root,
+            ),
+            "generate_questions": lambda: run_generate_questions_step(
+                question_count=question_count,
+                source_root_folder=resolved_root_folder,
+                target_container_name=resolved_container_name,
+                target_root_folder=resolved_root_folder,
+                llm_model=llm_model,
             ),
         }
 

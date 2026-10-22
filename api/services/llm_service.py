@@ -190,8 +190,24 @@ def _embedding_provider(provider_override: str | None = None) -> str:
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _normalize_model_name(model_name: str) -> str:
-    # Vercel gateway model IDs often include provider prefixes like "openai/".
-    return model_name.split("/", 1)[1] if "/" in model_name else model_name
+    """Strip provider prefixes such as "openai/" or "anthropic/" when supported by the gateway."""
+    cleaned = (model_name or "").strip()
+    if not cleaned:
+        return ""
+    return cleaned.split("/", 1)[1] if "/" in cleaned else cleaned
+
+
+def _safe_gateway_model_name(model_name: str | None) -> str:
+    return _normalize_model_name(model_name or "")
+
+
+def _is_model_not_found_error(exc: Exception) -> bool:
+    status_code = _status_code_from_error(exc)
+    if status_code == 404:
+        return True
+
+    message = str(exc).lower()
+    return "model" in message and "not found" in message
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -349,16 +365,16 @@ def create_chat_completion_stream(
 ):
     provider = _llm_provider(provider_override)
     requested_model = (model_name or "").strip()
+    env_model = (os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or "").strip()
 
     if provider == "azure":
-        resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or "gpt-4o-mini"
-    elif provider == "vercel":
-        fallback = _normalize_model_name(requested_model) if requested_model else "gpt-4o-mini"
-        resolved_model = requested_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or fallback
+        resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or ""
     else:
-        fallback = _normalize_model_name(requested_model) if requested_model else "gpt-4o-mini"
-        resolved_model = requested_model or fallback
-        
+        resolved_model = _safe_gateway_model_name(requested_model or env_model)
+
+    if not resolved_model:
+        raise RuntimeError("No model was provided for chat generation. Pass llm_model or set the configured model environment variable.")
+
     max_retries = max(0, int(os.getenv("CHAT_MAX_RETRIES", "3")))
     base_delay = max(0.1, float(os.getenv("CHAT_RETRY_BASE_DELAY", "1.5")))
     max_delay = max(base_delay, float(os.getenv("CHAT_RETRY_MAX_DELAY", "20")))
@@ -403,15 +419,15 @@ def create_chat_completion_text(
     """Create a non-streaming chat completion and return plain text content."""
     provider = _llm_provider(provider_override)
     requested_model = (model_name or "").strip()
+    env_model = (os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or "").strip()
 
     if provider == "azure":
-        resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or "gpt-4o-mini"
-    elif provider == "vercel":
-        fallback = _normalize_model_name(requested_model) if requested_model else "gpt-4o-mini"
-        resolved_model = requested_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or fallback
+        resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or ""
     else:
-        fallback = _normalize_model_name(requested_model) if requested_model else "gpt-4o-mini"
-        resolved_model = requested_model or fallback
+        resolved_model = _safe_gateway_model_name(requested_model or env_model)
+
+    if not resolved_model:
+        raise RuntimeError("No model was provided for chat generation. Pass llm_model or set the configured model environment variable.")
 
     max_retries = max(0, int(os.getenv("CHAT_MAX_RETRIES", "3")))
     base_delay = max(0.1, float(os.getenv("CHAT_RETRY_BASE_DELAY", "1.5")))

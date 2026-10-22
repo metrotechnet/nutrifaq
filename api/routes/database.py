@@ -6,12 +6,13 @@ using scripts under api/db_pipeline.
 
 import os
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 
 from api.services.entra_auth_service import require_admin
 
 from api.services.database_regeneration_service import (
+    DEFAULT_QUESTION_COUNT,
     generate_questions_from_transcripts_json,
     get_regeneration_status,
     list_regeneration_steps,
@@ -19,7 +20,7 @@ from api.services.database_regeneration_service import (
     run_full_regeneration,
     run_extract_docx_step,
     run_extract_references_step,
-    run_generate_transcripts_json_step,
+    run_review_document_text_step,
     run_index_chromadb_json_step,
     run_regeneration_step,
 )
@@ -36,7 +37,7 @@ def get_database_regeneration_steps():
 
 @router.post("/api/database/run-step")
 def run_database_step(
-    step: str = Query(..., description="Step key to run, e.g. generate_transcripts_json."),
+    step: str = Query(..., description="Step key to run, e.g. index_chromadb_json."),
 ):
     """Run one regeneration step by key."""
     result = run_regeneration_step(step)
@@ -60,10 +61,10 @@ def run_extract_references():
     return JSONResponse(status_code=status_code, content=result)
 
 
-@router.post("/api/database/generate-transcripts-json")
-def run_generate_transcripts_json():
-    """Run transcripts_chromadb.json generation step."""
-    result = run_generate_transcripts_json_step()
+@router.post("/api/database/review-document-text")
+def run_review_document_text():
+    """Review extracted document text and keep only relevant nutrition content."""
+    result = run_review_document_text_step()
     status_code = 200 if result.get("status") == "ok" else 500
     return JSONResponse(status_code=status_code, content=result)
 
@@ -78,10 +79,10 @@ def run_index_chromadb_json():
 
 @router.post("/api/database/generate-questions")
 def generate_questions(
-    question_count: int = Query(default=3, ge=1, le=20, description="Number of questions to generate per document."),
+    question_count: int = Query(default=DEFAULT_QUESTION_COUNT, ge=1, le=20, description="Number of questions to generate per document."),
     source_root_folder: str | None = Query(
         default=None,
-        description="Optional local KB folder to read transcripts_chromadb.json from.",
+        description="Optional local KB folder to read reviewed_documents.json from.",
     ),
     debug_container: str | None = Query(
         default=None,
@@ -91,13 +92,18 @@ def generate_questions(
         default=None,
         description="Optional debug blob root folder (prefix) override for output upload.",
     ),
+    llm_model: str | None = Query(
+        default=None,
+        description="Optional model override for question generation.",
+    ),
 ):
-    """Generate per-document questions from transcripts JSON and upload the result to debug blob storage."""
+    """Generate per-document questions from reviewed content and upload the result to debug blob storage."""
     result = generate_questions_from_transcripts_json(
         question_count=question_count,
         source_root_folder=source_root_folder,
         target_container_name=debug_container,
         target_root_folder=debug_root_folder,
+        llm_model=llm_model,
     )
     status_code = 200 if result.get("status") == "ok" else 500
     return JSONResponse(status_code=status_code, content=result)
@@ -105,6 +111,7 @@ def generate_questions(
 
 @router.post("/api/database/regenerate")
 def regenerate_database(
+    request: Request,
     root_folder: str | None = Query(
         default=None,
         description="Optional blob root folder (prefix). If omitted, debug prefix is used.",
@@ -113,18 +120,26 @@ def regenerate_database(
         default=None,
         description="Optional blob container name. If omitted, debug container is used.",
     ),
+    llm_model: str | None = Query(
+        default=None,
+        description="Optional model override for LLM-based review/content generation steps.",
+    ),
+    question_count: int = Query(default=DEFAULT_QUESTION_COUNT, ge=1, le=20, description="Number of questions to generate per document."),
 ):
     """Run the full regeneration pipeline.
 
     Core steps mirror build-database.bat:
-    - generate_transcripts_json
+    - review_document_text
     - index_chromadb_json
     """
+    selected_model = (llm_model or request.headers.get("x-selected-model") or "").strip() or None
     result = run_full_regeneration(
         include_extract_docx=True,
         include_extract_references=True,
         root_folder=root_folder,
         container_name=container,
+        llm_model=selected_model,
+        question_count=question_count,
     )
 
     result["provider"] = {

@@ -260,7 +260,6 @@
     "steps": {
       "extract_docx": "Document extraction",
       "extract_references": "References extraction",
-      "generate_transcripts_json": "Transcript generation",
       "generate_questions": "Question generation",
       "index_chromadb_json": "ChromaDB indexing"
     },

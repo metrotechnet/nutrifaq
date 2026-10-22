@@ -732,7 +732,6 @@
     const STEP_LABELS = {
         extract_docx: "downloadManager.steps.extract_docx",
         extract_references: "downloadManager.steps.extract_references",
-        generate_transcripts_json: "downloadManager.steps.generate_transcripts_json",
         generate_questions: "downloadManager.steps.generate_questions",
         index_chromadb_json: "downloadManager.steps.index_chromadb_json"
     };
@@ -743,7 +742,6 @@
         const fallbacks = {
             extract_docx: "Extraction des documents",
             extract_references: "Extraction des references",
-            generate_transcripts_json: "Generation des transcripts",
             generate_questions: "Generation des questions",
             index_chromadb_json: "Indexation ChromaDB"
         };
@@ -754,7 +752,6 @@
     const STEP_PROGRESS = {
         extract_docx: 18,
         extract_references: 34,
-        generate_transcripts_json: 52,
         generate_questions: 74,
         index_chromadb_json: 92
     };
@@ -2423,10 +2420,12 @@
             beginIndexingProgress();
             indexingAbortController = new AbortController();
             setStatus(tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."), false);
+            const selectedModel = String(localStorage.getItem('nutrifaq_selected_model') || '').trim();
             const result = await fetchJson(`${BACKEND_URL}/api/database/regenerate`, {
                 method: "POST",
                 headers: {
-                    ...authHeaders()
+                    ...authHeaders(),
+                    ...(selectedModel ? { 'X-Selected-Model': selectedModel } : {})
                 },
                 signal: indexingAbortController.signal
             });
