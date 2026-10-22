@@ -50,12 +50,31 @@ _CHROMA_SIGNATURE_CACHE: str | None = None
 
 def _follow_up_variants() -> list[str]:
     return [
-        "Pour aller plus loin, consultez cette ressource :",
-        "Pour aller plus loin, découvrez cette ressource :",
-        "Pour aller plus loin, je vous recommande cette ressource :",
-        "Pour aller plus loin, voici une ressource utile :",
-        "Pour aller plus loin, explorez cette ressource :",
+        "Pour aller plus loin, consultez cette page :",
+        "Pour aller plus loin, découvrez cette page :",
+        "Pour aller plus loin, je vous recommande cette page :",
+        "Pour aller plus loin, voici une page utile :",
+        "Pour aller plus loin, explorez cette page :",
     ]
+
+
+def _strip_inline_reference(answer: str) -> str:
+    """Remove the model's own source-reference sentence before the backend footer is appended."""
+    if not answer:
+        return answer
+
+    patterns = [
+        r"\s*Pour aller plus loin,.*?(?:consultez|découvrez|explorez|voici|je vous recommande).*?(?:\.|$)",
+        r"\s*Pour en savoir plus,.*?(?:consultez|découvrez|explorez|voici|je vous recommande).*?(?:\.|$)",
+        r"\s*(?:\*\*)?Pour en savoir plus.*?(?:\.|$)",
+        r"\s*(?:\*\*)?Pour aller plus loin.*?(?:\.|$)",
+        r"\s*(?:\*\*)?[^\n]*\|\s*NutriFAQ\s*\*\*?\.?\s*",
+    ]
+    cleaned = answer
+    for pattern in patterns:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    return cleaned
 
 
 def _format_follow_up_footer(source_title: str, source_url: str, extra_links: list[tuple[str, str]] | None = None) -> str:
@@ -540,7 +559,6 @@ def ask_question_stream(
         )
         answer_parts = []
         first_chunk = True
-        emitted_text = ""
         for chunk in stream:
             if not getattr(chunk, "choices", None):
                 continue
@@ -557,25 +575,27 @@ def ask_question_stream(
                     continue
 
                 answer_parts.append(content)
-                current_text = "".join(answer_parts)
-                if source_title and source_url:
-                    deduplicated_text = _merge_follow_up_links(current_text)
-                    if deduplicated_text != current_text:
-                        new_content = deduplicated_text[len(emitted_text):]
-                        if new_content:
-                            yield new_content
-                        emitted_text = deduplicated_text
-                        answer_parts = [deduplicated_text]
-                        continue
+                yield content
 
-                new_content = current_text[len(emitted_text):]
-                if new_content:
-                    yield new_content
-                emitted_text = current_text
-
-        final_answer = "".join(answer_parts)
-        footer = f"\n\n{_format_follow_up_footer(source_title, source_url)}"
-        yield footer
+        final_answer = _strip_inline_reference("".join(answer_parts))
+        if source_title and source_url:
+            has_follow_up_link = (
+                "Pour aller plus loin" in final_answer.lower()
+                or "Pour en savoir plus" in final_answer.lower()
+                or source_url in final_answer
+                or f"[{source_title}]({source_url})" in final_answer
+            )
+            if not has_follow_up_link:
+                footer = f"\n\n{_format_follow_up_footer(source_title, source_url)}"
+                yield footer
+            else:
+                # The model may inject a website reference inline; remove it and replace with the backend footer.
+                footer = f"\n\n{_format_follow_up_footer(source_title, source_url)}"
+                yield footer
+        elif final_answer:
+            yield final_answer
+        elif source_title:
+            yield final_answer
 
   
 

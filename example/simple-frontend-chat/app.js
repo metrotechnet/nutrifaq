@@ -267,10 +267,21 @@ async function streamQuery(question, assistantBubble) {
   const decoder = new TextDecoder();
   let buffer = "";
   let fullText = "";
+  let renderTimer = null;
+
+  const flushRender = () => {
+    assistantBubble.innerHTML = sanitizeMarkdown(fullText);
+    display.scrollTop = display.scrollHeight;
+  };
 
   while (true) {
     const { value, done } = await reader.read();
     if (done) {
+      if (renderTimer) {
+        clearTimeout(renderTimer);
+        renderTimer = null;
+      }
+      flushRender();
       break;
     }
 
@@ -288,6 +299,11 @@ async function streamQuery(question, assistantBubble) {
       }
 
       if (data === "[DONE]") {
+        if (renderTimer) {
+          clearTimeout(renderTimer);
+          renderTimer = null;
+        }
+        flushRender();
         return;
       }
 
@@ -295,8 +311,13 @@ async function streamQuery(question, assistantBubble) {
         const payload = JSON.parse(data);
         if (payload.chunk) {
           fullText += payload.chunk;
-          assistantBubble.innerHTML = sanitizeMarkdown(fullText);
-          display.scrollTop = display.scrollHeight;
+          if (renderTimer) {
+            clearTimeout(renderTimer);
+          }
+          renderTimer = setTimeout(() => {
+            flushRender();
+            renderTimer = null;
+          }, 35);
         }
         if (payload.error) {
           throw new Error(payload.error);
@@ -304,7 +325,13 @@ async function streamQuery(question, assistantBubble) {
       } catch (err) {
         if (err instanceof SyntaxError) {
           fullText += data;
-          assistantBubble.innerHTML = sanitizeMarkdown(fullText);
+          if (renderTimer) {
+            clearTimeout(renderTimer);
+          }
+          renderTimer = setTimeout(() => {
+            flushRender();
+            renderTimer = null;
+          }, 35);
         } else {
           throw err;
         }

@@ -1040,7 +1040,17 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
     let questionId = null;
     let fullText = '';
     let linksReceived = null;
-    let textToDisplay='';
+    let textToDisplay = '';
+    let renderTimer = null;
+
+    const renderBufferedText = () => {
+        const cleanText = removeIncompleteUrls(textToDisplay);
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+            contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(cleanText), { ADD_ATTR: ['target'] });
+        } else {
+            contentDiv.textContent = cleanText;
+        }
+    };
   
     while (true) {
         const { done, value } = await reader.read();
@@ -1132,21 +1142,27 @@ async function handleStreamingResponse(question, contentDiv, actionsDiv) {
                     }
 
                     if (data.chunk) {
+                        const now = Date.now();
+                        // console.log('[Frontend][stream chunk]', {
+                        //     ts: now,
+                        //     length: data.chunk.length,
+                        //     preview: JSON.stringify(data.chunk.slice(0, 80)),
+                        //     full: JSON.stringify(data.chunk)
+                        // });
                         textToDisplay += data.chunk;
-                        fullText = textToDisplay; // Keep fullText synchronized
-                        // Remove incomplete URLs before displaying
-                        const cleanText = removeIncompleteUrls(textToDisplay);
-                        // console.log('Full text so far:', cleanText);
+                        fullText = textToDisplay;
 
-                        // Only parse markdown if we don't have an incomplete URL
-                        // This prevents showing broken image/link URLs during streaming
-                        if (!hasIncompleteUrl(cleanText)) {
-                            if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
-                                contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(cleanText), { ADD_ATTR: ['target'] });
-                            } else {
-                                contentDiv.textContent = cleanText;
+                        if (renderTimer) {
+                            clearTimeout(renderTimer);
+                        }
+
+                        renderTimer = setTimeout(() => {
+                            if (hasIncompleteUrl(removeIncompleteUrls(textToDisplay))) {
+                                return;
                             }
-                        } 
+                            renderBufferedText();
+                            renderTimer = null;
+                        }, 35);
                     }
                   
                     if (updateScrollIndicator) updateScrollIndicator();

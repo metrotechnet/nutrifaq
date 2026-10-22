@@ -16,7 +16,7 @@ from openai import AzureOpenAI, OpenAI
 
 PROMPTS_JSON: dict[str, Any] = {
     "default": {
-        "system_role": "You are IMX, a virtual assistant based on artificial intelligence.",
+        "system_role": "You are NutriFAQ-chat, an AI assistant that provides general health and nutrition information for educational purposes.",
         "important_notice": "You are NOT a health professional and you do NOT provide professional services.",
         "language_constraint": {
             "default_language": "fr",
@@ -51,7 +51,7 @@ PROMPTS_JSON: dict[str, Any] = {
                 "Generate a short and clear response (usually 2-5 sentences or a brief bullet list)",
                 "Use ONLY information present in the provided context",
                 "If information is not in the context, indicate that you cannot answer",
-                "End with one short sentence directing the user to the relevant page on the website when a title and URL are available",
+                "Do NOT add website, source, or page references by default. Only include them if the user explicitly asks for them",
                 "NEVER diagnose",
                 "NEVER provide personalized recommendations",
                 "NEVER recommend medications, supplements, or dosages",
@@ -75,9 +75,17 @@ PROMPTS_JSON: dict[str, Any] = {
                 "Use short sections with explicit headings when useful",
                 "Use bullet points for lists or key takeaways",
                 "Highlight key facts clearly",
+                "Do not include a section titled 'À retenir', 'À retenir :', or any summary/recap box.",
             ],
         },
-        "template": "{system_role}\n\nIMPORTANT:\n{important_notice}\n\nLANGUAGE CONSTRAINT:\nYou must respond in {response_language}. If the user language is unknown, default to French (fr).\n\n# {format_constraints_title}\n{format_constraints_content}\n\n# {communication_style_title}\n{communication_style_content}\n\n# {absolute_rules_title}\n{absolute_rules_content}\n\n# {behavioral_constraints_title}\n{behavioral_constraints_content}\n\nSOURCE PAGE GUIDANCE:\n{source_page_guidance}\n\nAVAILABLE CONTEXT (GENERAL INFORMATION ONLY):\n{context}\n{history}\n\nUSER QUESTION:\n{question}",
+        "source_policy": {
+            "title": "SOURCE POLICY",
+            "rules": [
+                "Do not add website, source, or page references by default.",
+                "Only include them if the user explicitly asks for them.",
+            ],
+        },
+        "template": "{system_role}\n\nIMPORTANT:\n{important_notice}\n\nLANGUAGE CONSTRAINT:\nYou must respond in {response_language}. If the user language is unknown, default to French (fr).\n\n# {format_constraints_title}\n{format_constraints_content}\n\n# {communication_style_title}\n{communication_style_content}\n\n# {absolute_rules_title}\n{absolute_rules_content}\n\n# {behavioral_constraints_title}\n{behavioral_constraints_content}\n\n# {source_policy_title}\n{source_policy_content}\n\nAVAILABLE CONTEXT (GENERAL INFORMATION ONLY):\n{context}\n{history}\n\nUSER QUESTION:\n{question}",
     },
 }
 
@@ -134,16 +142,10 @@ def build_prompt_from_template(
     for rule in format_constraints.get("rules", []):
         format_constraints_content += f"- {rule}\n"
 
-    source_page_guidance = "No relevant webpage title/URL is available for a follow-up link."
-    if source_title and source_url:
-        source_page_guidance = (
-            "Keep the answer brief. Do not add a reference footer or follow-up link at the end of the answer. "
-            "If the user asks for more information, you can mention the relevant topic in the body without adding a final reference line."
-        )
-    elif source_title:
-        source_page_guidance = (
-            "Keep the answer brief. Do not add a reference footer or follow-up link at the end of the answer."
-        )
+    source_policy = template_data.get("source_policy", {})
+    source_policy_content = ""
+    for rule in source_policy.get("rules", []):
+        source_policy_content += f"- {rule}\n"
 
     template = str(template_data.get("template", ""))
     prompt = template.format(
@@ -157,8 +159,9 @@ def build_prompt_from_template(
         behavioral_constraints_content=constraints_content,
         format_constraints_title=format_constraints.get("title", ""),
         format_constraints_content=format_constraints_content,
+        source_policy_title=source_policy.get("title", ""),
+        source_policy_content=source_policy_content,
         response_language=response_language,
-        source_page_guidance=source_page_guidance,
         context=context,
         history=history_text,
         question=question,
