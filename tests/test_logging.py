@@ -25,6 +25,26 @@ def test_reset_question_log_clears_file(tmp_path, monkeypatch):
     assert json.loads(log_path.read_text(encoding="utf-8")) == []
 
 
+def test_reset_question_log_syncs_to_azure_blob(tmp_path, monkeypatch):
+    log_path = tmp_path / "question_log.json"
+    monkeypatch.setattr(logging_service, "QUESTION_LOG_PATH", log_path)
+    monkeypatch.setattr(logging_service, "_azure_sync_is_enabled", lambda: True)
+    monkeypatch.setattr(logging_service, "has_blob_storage_config", lambda: True)
+
+    calls = []
+
+    def fake_upload(blob_name, source_path, overwrite=True, container_name=None):
+        calls.append((blob_name, str(source_path), container_name))
+
+    monkeypatch.setattr(logging_service, "upload_file_to_blob", fake_upload)
+
+    result = logging_service.reset_question_log()
+
+    assert result == []
+    assert calls and calls[0][0] == "question_log.json"
+    assert calls[0][2] == "nutrifaq-config"
+
+
 def test_schedule_publish_executes_debug_to_main_sync_and_indexing(tmp_path, monkeypatch):
     debug_root = tmp_path / "nutrifaq-dbase-main"
     main_root = tmp_path / "nutrifaq-dbase"

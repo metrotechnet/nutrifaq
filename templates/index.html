@@ -52,7 +52,7 @@
                         return false;
                     }
                     var now = Math.floor(Date.now() / 1000);
-                    return exp > (now + 30);
+                    return exp > (now + 3600);
                 } catch (_) {
                     return false;
                 }
@@ -181,6 +181,12 @@
                             </svg>
                             <span data-i18n="sidebar.legal">Avertissements</span>
                         </a>
+            <a href="#" class="sidebar-link sidebar-footer-link" id="log-viewer-link" onclick="var token=localStorage.getItem('nutrifaq_admin_bearer_token'); if(!token){alert('Not authenticated. Please log in.');return false;} var backendUrl=(window.BACKEND_URL || 'http://localhost:8080'); window.open(backendUrl + '/log_report?token=' + encodeURIComponent(token), '_blank', 'noopener,noreferrer'); return false;">
+                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5 3h10l6 6v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm8 1.5V9h5.5L13 4.5zM7 13h10v2H7v-2zm0 4h7v2H7v-2z"/>
+                </svg>
+                <span>Journal de logs</span>
+            </a>
                         <a href="/privacy.html" target="_blank" class="sidebar-link sidebar-footer-link" id="privacy-link">
                             <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>

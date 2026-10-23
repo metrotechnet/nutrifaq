@@ -47,11 +47,16 @@ def extract_text_from_docx(docx_path):
 
 def extract_text_from_markdown(markdown_path):
     """Read a Markdown file as UTF-8 text."""
-    return markdown_path.read_text(encoding="utf-8")
+    try:
+        return markdown_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return markdown_path.read_text(encoding="latin-1")
 
 
 def extract_all_documents(folder_path, output_folder=None):
     """Extract text from all supported document files and save as .txt."""
+    logger.info("Extracting documents from: %s", folder_path)
+    
     if output_folder is None:
         output_folder = str(Path(folder_path).parent / "transcripts")
     os.makedirs(output_folder, exist_ok=True)
@@ -77,7 +82,6 @@ def extract_all_documents(folder_path, output_folder=None):
     processed_files = 0
     for filename in supported_files:
         file_path = Path(folder_path) / filename
-        logger.info("Processing: %s", filename)
 
         try:
             if file_path.suffix.lower() == ".docx":
@@ -86,23 +90,21 @@ def extract_all_documents(folder_path, output_folder=None):
                 text = extract_text_from_markdown(file_path)
 
             if not text.strip():
-                logger.info("  No text found")
                 continue
 
             txt_filename = file_path.stem + ".txt"
             txt_path = output_dir / txt_filename
-
             with open(txt_path, "w", encoding="utf-8") as f:
                 f.write(text)
 
             logger.info("  Saved to %s (%s characters)", txt_filename, len(text))
 
         except Exception as e:
-            logger.exception("  Error while processing %s: %s", filename, str(e))
+            logger.exception("  Error processing %s: %s", filename, e)
         finally:
             processed_files += 1
             _write_progress_snapshot("extract_docx", processed_files, total_files, "files")
-
+            
 
 if __name__ == "__main__":
     kb_root = resolve_kb_root()
@@ -111,6 +113,6 @@ if __name__ == "__main__":
     if not os.path.exists(transcript_folder):
         logger.error("Error: Folder '%s' not found", transcript_folder)
     else:
-        logger.info("Extracting documents from: %s", transcript_folder)
+        logger.info("Starting extraction from: %s", transcript_folder)
         extract_all_documents(transcript_folder)
-        logger.info("Extraction complete! Check the 'transcripts' folder")
+        logger.info("Extraction complete!")

@@ -143,12 +143,14 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
     for doc in documents:
         try:
             if not isinstance(doc, dict):
+                logger.info("Skipping invalid question-generation entry %s/%s", processed_documents + 1, total_documents)
                 continue
 
             doc_id = str(doc.get("id", "unknown"))
             metadata = doc.get("metadata", {}) if isinstance(doc.get("metadata"), dict) else {}
             source_name = str(metadata.get("title") or doc_id)
             full_text = str(doc.get("text", ""))
+            logger.info("Generating questions for document %s/%s: %s", processed_documents + 1, total_documents, source_name)
             topic = _sanitize_question_topic(full_text)
             text_excerpt = re.sub(r"\s+", " ", full_text).strip()[:2200]
 
@@ -184,6 +186,7 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
                     "llm_error": llm_error,
                 }
             )
+            logger.info("Generated %d questions for %s", len(questions), source_name)
             time.sleep(0.05)
         finally:
             processed_documents += 1

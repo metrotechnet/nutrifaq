@@ -34,7 +34,7 @@ from api.services.query_chromadb import get_debug_local_kb_root_folder
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-KB_ROOT = REPO_ROOT / "nutrifaq-dbase"
+KB_ROOT = REPO_ROOT / os.getenv("AZURE_KB_DEBUG_LOCAL_ROOT", "nutrifaq-dbase-main").strip("/")
 DEBUG_KB_ROOT = REPO_ROOT / get_debug_local_kb_root_folder()
 SCRIPTS_DIR = REPO_ROOT / "api" / "db_pipeline"
 CHROMA_DB_ROOT = KB_ROOT / "chroma_db"
@@ -186,13 +186,7 @@ def generate_questions_from_transcripts_json(
     try:
         while process.poll() is None:
             if _is_cancel_requested():
-                try:
-                    process.terminate()
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                except Exception:
-                    pass
+                _terminate_active_process(process)
                 stdout, stderr = process.communicate()
                 return {
                     "status": "cancelled",
@@ -329,6 +323,37 @@ def _set_active_process(process: subprocess.Popen[str] | None) -> None:
         _regen_state["active_process"] = process
 
 
+def _terminate_active_process(process: subprocess.Popen[str] | None = None) -> None:
+    """Terminate the currently active subprocess and clear it from state."""
+    target = process
+    if target is None:
+        with _regen_state_lock:
+            target = _regen_state.get("active_process")
+
+    if not isinstance(target, subprocess.Popen):
+        return
+
+    if target.poll() is not None:
+        _set_active_process(None)
+        return
+
+    try:
+        target.terminate()
+    except Exception:
+        pass
+
+    try:
+        target.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            target.kill()
+            target.wait(timeout=5)
+        except Exception:
+            pass
+    finally:
+        _set_active_process(None)
+
+
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _is_cancel_requested() -> bool:
@@ -350,11 +375,7 @@ def request_regeneration_cancel() -> Dict[str, object]:
         process = _regen_state.get("active_process")
         step = _regen_state.get("current_step")
 
-    if isinstance(process, subprocess.Popen) and process.poll() is None:
-        try:
-            process.terminate()
-        except Exception:
-            pass
+    _terminate_active_process(process)
 
     return {
         "status": "cancelling",
@@ -366,6 +387,9 @@ def request_regeneration_cancel() -> Dict[str, object]:
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _write_progress_snapshot(step_key: str, value: int, total: int, kind: str) -> None:
+    import time as time_module
+    write_start = time_module.time()
+    
     target_path = REGEN_PROGRESS_PATH
     target_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -373,10 +397,19 @@ def _write_progress_snapshot(step_key: str, value: int, total: int, kind: str) -
         "kind": kind,
         "value": int(value),
         "total": int(total),
-        "updated_at": time.time(),
+        "updated_at": time_module.time(),
     }
-    with target_path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False)
+    try:
+        with target_path.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False)
+        write_duration = time_module.time() - write_start
+        if write_duration > 0.1:  # Log if write takes more than 100ms
+            logger = logging.getLogger(__name__)
+            logger.warning("[progress_snapshot] Slow write detected: %.3f seconds for %s (%.1f%%)", 
+                         write_duration, step_key, 100 * value / max(1, total))
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.warning("[progress_snapshot] Error writing progress snapshot: %s", str(e))
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -444,14 +477,14 @@ def _step_definitions() -> Dict[str, StepDefinition]:
             description="Extract text from DOCX files into nutrifaq-dbase/transcripts.",
             script_name="extract_docx.py",
             cwd=KB_ROOT,
-            args=[],
+            args=[str(KB_ROOT)],  # Pass KB_ROOT as first arg to subprocess
         ),
         "extract_references": StepDefinition(
             key="extract_references",
             description="Extract bibliography and PMID references into nutrifaq-dbase/references.json.",
             script_name="extract_references.py",
             cwd=KB_ROOT,
-            args=[],
+            args=[str(KB_ROOT)],  # Pass KB_ROOT as first arg
         ),
         "review_document_text": StepDefinition(
             key="review_document_text",
@@ -502,6 +535,9 @@ def _run_step_with_env(
     step_args_override: List[str] | None = None,
     cwd_override: Path | None = None,
 ) -> Dict[str, object]:
+    import logging
+    logger = logging.getLogger(__name__)
+    
     steps = _step_definitions()
     if step_key not in steps:
         return {
@@ -520,69 +556,82 @@ def _run_step_with_env(
             "message": f"Missing script: {script_path}",
         }
 
+    logger.info("Running step: %s", step.description)
+    
     command_args = step_args_override if step_args_override is not None else step.args
     command = [_python_executable(), str(script_path), *command_args]
+    
     started = time.time()
     process_env = os.environ.copy()
     if env_overrides:
         process_env.update({k: str(v) for k, v in env_overrides.items() if v is not None})
 
-    process = subprocess.Popen(
-        command,
-        cwd=str(cwd_override or step.cwd),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        env=process_env,
-    )
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=str(cwd_override or step.cwd),
+            env=process_env,
+        )
+        logger.info("Process started with PID: %d", process.pid)
+    except Exception as exc:
+        logger.exception("Failed to start subprocess: %s", exc)
+        _set_active_process(None)
+        return {
+            "status": "error",
+            "step": step.key,
+            "message": f"Failed to start subprocess: {exc}",
+            "duration_seconds": round(time.time() - started, 2),
+        }
+    
     _set_current_step(step.key)
     _set_active_process(process)
 
     was_cancelled = False
+    last_progress_log = started
     while process.poll() is None:
+        elapsed = time.time() - started
+        # Log progress every 30 seconds
+        if elapsed - (last_progress_log - started) >= 30:
+            logger.info("Step '%s' still running... (%d seconds elapsed)", step_key, int(elapsed))
+            last_progress_log = time.time()
+        
         if _is_cancel_requested():
             was_cancelled = True
-            try:
-                process.terminate()
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
-            except Exception:
-                pass
+            _terminate_active_process(process)
             break
         time.sleep(0.25)
 
-    stdout, stderr = process.communicate()
+    return_code = process.returncode if process.returncode is not None else process.poll()
     _set_active_process(None)
 
     duration_seconds = round(time.time() - started, 2)
-
+    
     if was_cancelled:
+        logger.info("Step '%s' cancelled after %.2f seconds", step_key, duration_seconds)
         return {
             "status": "cancelled",
             "step": step.key,
             "description": step.description,
             "command": " ".join(command),
             "cwd": str(cwd_override or step.cwd),
-            "return_code": process.returncode,
+            "return_code": return_code,
             "duration_seconds": duration_seconds,
-            "stdout": stdout,
-            "stderr": stderr,
             "message": "Cancelled by user.",
         }
 
+    if return_code == 0:
+        logger.info("Step '%s' completed successfully in %.2f seconds", step_key, duration_seconds)
+    else:
+        logger.error("Step '%s' failed with return code %d after %.2f seconds", step_key, return_code, duration_seconds)
+    
     return {
-        "status": "ok" if process.returncode == 0 else "error",
+        "status": "ok" if return_code == 0 else "error",
         "step": step.key,
         "description": step.description,
         "command": " ".join(command),
         "cwd": str(cwd_override or step.cwd),
-        "return_code": process.returncode,
+        "return_code": return_code,
         "duration_seconds": duration_seconds,
-        "stdout": stdout,
-        "stderr": stderr,
     }
 
 

@@ -131,13 +131,16 @@ def review_document_text(kb_dir: Path, llm_model: str | None = None):
     for index, doc in enumerate(docs, start=1):
         try:
             if not isinstance(doc, dict):
+                logger.info("Skipping invalid document entry %s/%s", index, total_documents)
                 continue
 
             metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
             original_text = str(doc.get("text", "") or "")
             filename = str(doc.get("filename") or metadata.get("filename") or metadata.get("source_file") or f"doc_{index}")
+            logger.info("Reviewing document %s/%s: %s", index, total_documents, filename)
 
             if not original_text.strip():
+                logger.info("Document %s is empty; marking as not relevant.", filename)
                 reviewed_documents.append(
                     {
                         "filename": filename,
@@ -174,16 +177,17 @@ def review_document_text(kb_dir: Path, llm_model: str | None = None):
                     "metadata": metadata,
                 }
             )
+            logger.info("Reviewed document %s/%s: %s (%s)", index, total_documents, filename, "relevant" if relevant else "not relevant")
         except Exception as exc:
-            logger.exception("Failed to review document %s: %s", doc.get("filename", "unknown"), exc)
+            logger.exception("Failed to review document %s: %s", doc.get("filename", "unknown") if isinstance(doc, dict) else f"doc_{index}", exc)
             reviewed_documents.append(
                 {
-                    "filename": str(doc.get("filename") or f"doc_{index}"),
+                    "filename": str(doc.get("filename") or f"doc_{index}") if isinstance(doc, dict) else f"doc_{index}",
                     "relevant": False,
                     "reason": f"Erreur de review: {exc}",
                     "key_points": [],
                     "text": "",
-                    "metadata": doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {},
+                    "metadata": doc.get("metadata") if isinstance(doc, dict) and isinstance(doc.get("metadata"), dict) else {},
                 }
             )
         finally:

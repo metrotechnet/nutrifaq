@@ -10,6 +10,8 @@ import logging
 import os
 import threading
 
+from api.services.blob_storage_service import has_blob_storage_config, upload_file_to_blob
+
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -17,6 +19,65 @@ REPO_ROOT = PROJECT_ROOT.parent
 DEFAULT_DEBUG_KB_ROOT = REPO_ROOT / "nutrifaq-dbase-main"
 QUESTION_LOG_PATH = DEFAULT_DEBUG_KB_ROOT / "question_log.json"
 question_log_lock = threading.Lock()
+
+
+def _azure_sync_is_enabled() -> bool:
+    """Return True only when Azure sync is explicitly enabled for this environment."""
+    for env_name in (
+        "NUTRIFAQ_ENABLE_AZURE_SYNC",
+        "ENABLE_LOCAL_DEBUG_AZURE_SYNC",
+        "ENABLE_AZURE_SYNC",
+    ):
+        raw_value = (os.getenv(env_name) or "").strip().lower()
+        if not raw_value:
+            continue
+        if raw_value in {"1", "true", "yes", "on"}:
+            return True
+        if raw_value in {"0", "false", "no", "off"}:
+            return False
+    return False
+
+
+def _config_blob_container_name() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_CONTAINER", "nutrifaq-config").strip()
+
+
+def _config_blob_prefix() -> str:
+    return os.getenv("AZURE_CONFIG_BLOB_PREFIX", "").strip("/")
+
+
+def _build_blob_path(relative_path: str) -> str:
+    prefix = _config_blob_prefix()
+    return f"{prefix}/{relative_path}" if prefix and relative_path else relative_path
+
+
+def _sync_local_file_to_azure(local_path: Path, blob_name: str) -> None:
+    if not _azure_sync_is_enabled() or not has_blob_storage_config():
+        return
+    if not local_path.exists():
+        return
+    try:
+        upload_file_to_blob(
+            _build_blob_path(blob_name),
+            local_path,
+            overwrite=True,
+            container_name=_config_blob_container_name(),
+        )
+    except Exception as exc:
+        logger.warning("[Azure Sync] Failed to sync %s to %s: %s", local_path, blob_name, exc)
+
+
+class AzureSyncFileHandler(logging.FileHandler):
+    """File handler that mirrors the file content to Azure Blob storage when enabled."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        super().emit(record)
+        try:
+            log_path = Path(self.baseFilename)
+            rel_blob_name = "logs/" + log_path.name if log_path.name != "question_log.json" else "question_log.json"
+            _sync_local_file_to_azure(log_path, rel_blob_name)
+        except Exception as exc:  # pragma: no cover - defensive logging guard
+            logger.warning("[Azure Sync] Log file sync hook failed for %s: %s", self.baseFilename, exc)
 
 
 def configure_logging() -> Path:
@@ -31,14 +92,35 @@ def configure_logging() -> Path:
 
     log_path.parent.mkdir(parents=True, exist_ok=True)
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    log_level_name = os.getenv("LOG_LEVEL", "INFO").strip().upper()
+    try:
+        effective_root_level = getattr(logging, log_level_name)
+    except AttributeError:
+        effective_root_level = logging.INFO
+    root_logger.setLevel(effective_root_level)
 
+    # Azure SDK and HTTP clients are very noisy at INFO; keep them quiet unless explicitly configured.
+    for noisy_logger_name in (
+        "azure",
+        "azure.core",
+        "azure.core.pipeline",
+        "azure.core.pipeline.policies",
+        "azure.core.pipeline.policies.http_logging_policy",
+        "azure.storage",
+        "urllib3",
+        "requests",
+    ):
+        logging.getLogger(noisy_logger_name).setLevel(logging.WARNING)
+
+    logging.getLogger("api").setLevel(logging.INFO)
+    logging.getLogger("app").setLevel(logging.INFO)
+    
     file_handler_exists = any(
         isinstance(handler, logging.FileHandler) and getattr(handler, "baseFilename", None) == str(log_path)
         for handler in root_logger.handlers
     )
     if not file_handler_exists:
-        file_handler = logging.FileHandler(log_path, encoding="utf-8")
+        file_handler = AzureSyncFileHandler(log_path, encoding="utf-8")
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
         root_logger.addHandler(file_handler)
@@ -162,6 +244,7 @@ def _upload_log_to_gcs(data):
         QUESTION_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(QUESTION_LOG_PATH, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+        _sync_local_file_to_azure(QUESTION_LOG_PATH, "question_log.json")
         return
     try:
         from google.cloud import storage

@@ -4,13 +4,14 @@ Report API Routes
 This module defines endpoints for logging user feedback (comments, likes) and serving log files in the Nutrifaq Agent backend.
 """
 from fastapi import APIRouter, Body, Depends, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import os
 
 from api.services.entra_auth_service import EntraUser, require_admin, require_collaborator
 from api.services.logging import add_comment_to_question, add_like_to_question, _download_log_from_gcs, reset_question_log
+from api.services.log_viewer_service import clear_log_file, get_log_metadata, read_log_text, resolve_log_path
 
 router = APIRouter()
 
@@ -91,16 +92,46 @@ def download_question_log(_: EntraUser = Depends(require_admin), key: str = Quer
 
 
 
+@router.get("/api/logs/view")
+def get_log_view(_: EntraUser = Depends(require_admin)):
+    """Return the current log file content for the admin log viewer."""
+    payload = {
+        "status": "ok",
+        "content": read_log_text(),
+        "metadata": get_log_metadata(),
+    }
+    return payload
+
+
+@router.post("/api/logs/clear")
+def clear_log_view(_: EntraUser = Depends(require_admin)):
+    """Clear the runtime log file and return the empty view."""
+    clear_log_file()
+    return {
+        "status": "success",
+        "content": "",
+        "metadata": get_log_metadata(),
+    }
+
+
+@router.get("/api/logs/download")
+def download_log_text(_: EntraUser = Depends(require_admin)):
+    """Download the current log file as plain text."""
+    content = read_log_text()
+    file_name = resolve_log_path().name
+    return Response(
+        content=content,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={file_name}"},
+    )
+
+
 @router.get("/log_report", response_class=HTMLResponse)
-def serve_log_report(request: Request, _: EntraUser = Depends(require_admin), key: str = Query(None)):
+def serve_log_report(request: Request):
     """
-    Serve the HTML log report page (admin access).
-
-    Args:
-        request (Request): FastAPI request object.
-        key (str): Admin key for authorization.
-
-    Returns:
-        HTMLResponse: The rendered log report page or unauthorized message.
+    Serve the HTML log report page.
+    
+    The page itself is public, but all API calls from the page require a valid bearer token.
+    The token is passed via URL query parameter and must be included in fetch Authorization headers.
     """
     return templates.TemplateResponse("log_report.html", {"request": request})

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nutrifaq Log Viewer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-alt: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #38bdf8;
+      --danger: #f87171;
+      --success: #34d399;
+      --border: rgba(148, 163, 184, 0.2);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #020817 0%, #0f172a 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 0 20px 60px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(180deg, #0f172a 0%, rgba(15, 23, 42, 0.95) 100%);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 2vw, 2.4rem);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--panel-alt);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #062033;
+      border-color: transparent;
+      font-weight: 700;
+    }
+
+    button.danger {
+      background: rgba(248, 113, 113, 0.14);
+      border-color: rgba(248, 113, 113, 0.35);
+      color: #fecaca;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin: 20px 0 16px 0;
+      flex-wrap: wrap;
+    }
+
+    .meta strong {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .view {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      max-height: calc(100vh - 250px);
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    .view pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      color: #d1d5db;
+      font-family: 'Courier New', monospace;
+    }
+
+    .view pre.empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .status {
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(148, 163, 184, 0.1);
+    }
+
+    @media (max-width: 520px) {
+      .topbar, .meta {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      
+      .view {
+        max-height: calc(100vh - 300px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>Nutrifaq Log Viewer</h1>
+      <div class="actions">
+        <button id="refreshBtn" class="primary" type="button">Refresh</button>
+        <button id="clearBtn" class="danger" type="button">Clear log</button>
+        <button id="downloadBtn" type="button">Download .txt</button>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div><strong>Path:</strong> <span id="logPath">loading...</span></div>
+      <div><strong>Status:</strong> <span id="logStatus" class="status">loading...</span></div>
+    </div>
+
+    <div class="view">
+      <pre id="logOutput" class="empty">Loading log...</pre>
+    </div>
+  </div>
+
+  <script>
+    // Extract token from URL query parameter or localStorage
+    function getToken() {
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+      if (urlToken) {
+        console.log('[Auth] Token found in URL, storing in localStorage');
+        localStorage.setItem('nutrifaq_admin_bearer_token', urlToken);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return urlToken;
+      }
+      const storedToken = localStorage.getItem('nutrifaq_admin_bearer_token') || '';
+      if (storedToken) {
+        console.log('[Auth] Token found in localStorage');
+      }
+      return storedToken;
+    }
+
+    let authToken = getToken();
+    console.log('[Auth] Current token (first 30 chars):', authToken.substring(0, 30));
+
+    const output = document.getElementById('logOutput');
+    const logPath = document.getElementById('logPath');
+    const logStatus = document.getElementById('logStatus');
+    const logView = document.querySelector('.view');
+
+    function scrollLogToBottom() {
+      if (!logView) return;
+      requestAnimationFrame(() => {
+        logView.scrollTop = logView.scrollHeight;
+      });
+    }
+
+    async function fetchLog() {
+      try {
+        if (!authToken) {
+          output.textContent = 'Error: Not authenticated. Please log in first.';
+          logStatus.textContent = 'Not authenticated';
+          logStatus.style.color = '#f87171';
+          return;
+        }
+
+        console.log('[Fetch] Starting /api/logs/view request');
+        console.log('[Fetch] Token length:', authToken.length);
+        
+        const headers = {
+          'Authorization': `Bearer ${authToken}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        };
+        
+        console.log('[Fetch] Headers:', {
+          Authorization: headers.Authorization.substring(0, 50) + '...',
+          Accept: headers.Accept,
+          ContentType: headers['Content-Type']
+        });
+
+        const response = await fetch('/api/logs/view', {
+          method: 'GET',
+          headers: headers,
+          credentials: 'include'
+        });
+        
+        console.log('[Fetch] Response status:', response.status);
+        console.log('[Fetch] Response OK:', response.ok);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.log('[Fetch] Error response:', errorData);
+          throw new Error(errorData.detail || `HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        console.log('[Fetch] Payload status:', payload.status);
+
+        if (payload.status !== 'ok') {
+          throw new Error(payload.message || 'Unable to load log.');
+        }
+
+        const content = payload.content || '';
+        const metadata = payload.metadata || {};
+        output.textContent = content || 'Log is empty.';
+        output.classList.toggle('empty', !content);
+        logPath.textContent = metadata.path || 'unknown';
+        logStatus.textContent = content ? 'Loaded' : 'Empty';
+        logStatus.style.color = content ? '#34d399' : '#9ca3af';
+        scrollLogToBottom();
+        console.log('[Fetch] Success! Loaded', content.length, 'bytes');
+      } catch (error) {
+        console.error('[Fetch] Error:', error);
+        output.textContent = `Error loading log: ${error.message}`;
+        output.classList.remove('empty');
+        logStatus.textContent = 'Error';
+        logStatus.style.color = '#f87171';
+      }
+    }
+
+    async function clearLog() {
+      const confirmed = window.confirm('Clear the current log file?');
+      if (!confirmed) return;
+
+      try {
+        if (!authToken) {
+          throw new Error('Not authenticated.');
+        }
+
+        console.log('[Clear] Starting /api/logs/clear request');
+
+        const response = await fetch('/api/logs/clear', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        
+        console.log('[Clear] Response status:', response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || `HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        if (payload.status !== 'success') {
+          throw new Error(payload.message || 'Unable to clear the log.');
+        }
+
+        output.textContent = 'Log cleared.';
+        output.classList.add('empty');
+        logStatus.textContent = 'Cleared';
+        logStatus.style.color = '#fbbf24';
+        scrollLogToBottom();
+        console.log('[Clear] Success!');
+      } catch (error) {
+        console.error('[Clear] Error:', error);
+        output.textContent = `Error clearing log: ${error.message}`;
+        output.classList.remove('empty');
+        logStatus.textContent = 'Error';
+        logStatus.style.color = '#f87171';
+      }
+    }
+
+    async function downloadLog() {
+      if (!authToken) {
+        alert('Not authenticated. Please log in first.');
+        return;
+      }
+
+      try {
+        console.log('[Download] Starting /api/logs/download request');
+
+        const response = await fetch('/api/logs/download', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          },
+          credentials: 'include'
+        });
+
+        console.log('[Download] Response status:', response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || `HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'nutrifaq.log';
+        a.click();
+        console.log('[Download] Success!');
+      } catch (err) {
+        console.error('[Download] Error:', err);
+        alert('Download failed: ' + err.message);
+      }
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', fetchLog);
+    document.getElementById('clearBtn').addEventListener('click', clearLog);
+    document.getElementById('downloadBtn').addEventListener('click', downloadLog);
+
+    // Load log on page load
+    window.addEventListener('load', () => {
+      console.log('[Init] Page loaded, fetching initial log');
+      fetchLog();
+    });
+  </script>
+</body>
+</html>
