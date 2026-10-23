@@ -729,6 +729,7 @@
     let currentStepPercent = 0;
     let isStepTransitioning = false;
     let stepSwitchTimer = null;
+    let hasReceivedValidStep = false;
     let currentFiles = [];
 
     const STEP_LABELS = {
@@ -826,6 +827,7 @@
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function beginIndexingProgress() {
         isIndexingRunning = true;
+        hasReceivedValidStep = false;
         setDownloadStatusRowDisabled(true);
         currentStepKey = null;
         currentStepPercent = 0;
@@ -833,6 +835,17 @@
         if (stepSwitchTimer) {
             window.clearTimeout(stepSwitchTimer);
             stepSwitchTimer = null;
+        }
+
+        const preparingText = tr("downloadManager.progress.preparing", "Préparation...");
+        if (els.indexingProgressBar) {
+            els.indexingProgressBar.style.width = "0%";
+        }
+        if (els.indexingProgressText) {
+            els.indexingProgressText.textContent = preparingText;
+        }
+        if (els.indexingProgressWrap) {
+            els.indexingProgressWrap.classList.remove("is-visible");
         }
         if (els.startIndexing) {
             els.startIndexing.disabled = true;
@@ -842,11 +855,8 @@
             els.cancelIndexing.style.display = "inline-flex";
             els.cancelIndexing.disabled = false;
         }
-        if (els.indexingProgressWrap) {
-            els.indexingProgressWrap.classList.add("is-visible");
-        }
 
-        setIndexingProgress(0, tr("downloadManager.progress.preparing", "Préparation..."));
+        setIndexingProgress(0, preparingText);
 
         startRegenerationStatusPolling();
     }
@@ -855,6 +865,7 @@
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function finishIndexingProgress(success) {
         isIndexingRunning = false;
+        hasReceivedValidStep = false;
         setDownloadStatusRowDisabled(false);
         currentStepKey = null;
         currentStepPercent = 0;
@@ -927,6 +938,10 @@
                 return;
             }
 
+            if (!regen.current_step || !regen.step_index || !regen.total_steps) {
+                return;
+            }
+
             const label = regen.current_step_label || getStepLabel(stepKey);
             const stepIndex = Number(regen.step_index || 0);
             const totalSteps = Number(regen.total_steps || 0);
@@ -945,6 +960,27 @@
                 return;
             }
 
+            if (!Number.isFinite(stepIndex) || stepIndex < 1) {
+                if (els.indexingProgressWrap) {
+                    els.indexingProgressWrap.classList.add("is-visible");
+                }
+                setIndexingProgress(0, tr("downloadManager.progress.preparing", "Préparation..."));
+                return;
+            }
+            if (stepIndex !== 1 && !hasReceivedValidStep) {
+                if (els.indexingProgressWrap) {
+                    els.indexingProgressWrap.classList.add("is-visible");
+                }
+                setIndexingProgress(0, tr("downloadManager.progress.preparing", "Préparation..."));
+                return;
+            }
+            if (stepIndex === 1) {
+                hasReceivedValidStep = true;
+                if (els.indexingProgressWrap) {
+                    els.indexingProgressWrap.classList.add("is-visible");
+                }
+            }
+
             currentStepKey = stepKey;
             if (liveProgressPercent !== null) {
                 currentStepPercent = Math.max(0, Math.min(100, liveProgressPercent));
@@ -960,6 +996,7 @@
             const metricText = liveProgressTotal && liveProgressValue !== null
                 ? ` (${Math.round(liveProgressValue)}/${Math.round(liveProgressTotal)} ${liveProgressKind === "tokens" ? "tokens" : "questions"})`
                 : "";
+            console.log(`Step: ${countText}, Label: ${label}, Metric: ${metricText}, Progress: ${currentStepPercent}%`);
             setIndexingProgress(
                 currentStepPercent,
                 tr(
@@ -984,8 +1021,8 @@
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function startRegenerationStatusPolling() {
         stopRegenerationStatusPolling();
-        refreshRegenerationStatus();
         indexingStatusTimer = window.setInterval(refreshRegenerationStatus, REGENERATION_STATUS_POLL_MS);
+        refreshRegenerationStatus();
     }
 
     async function requestCancelIndexing() {
@@ -994,8 +1031,6 @@
         }
 
         try {
-            isIndexingRunning = false;
-            stopRegenerationStatusPolling();
             if (els.cancelIndexing) {
                 els.cancelIndexing.disabled = true;
             }

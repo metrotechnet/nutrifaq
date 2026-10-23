@@ -362,6 +362,7 @@ def create_chat_completion_stream(
     provider_override: str | None = None,
     prompt: str,
     temperature: float = 1.0,
+    timeout_seconds: float | None = None,
 ):
     provider = _llm_provider(provider_override)
     requested_model = (model_name or "").strip()
@@ -374,20 +375,33 @@ def create_chat_completion_stream(
 
     if not resolved_model:
         raise RuntimeError("No model was provided for chat generation. Pass llm_model or set the configured model environment variable.")
+    if prompt is None or not str(prompt).strip():
+        raise RuntimeError("Prompt is empty; skipping LLM chat completion request.")
 
     max_retries = max(0, int(os.getenv("CHAT_MAX_RETRIES", "3")))
     base_delay = max(0.1, float(os.getenv("CHAT_RETRY_BASE_DELAY", "1.5")))
     max_delay = max(base_delay, float(os.getenv("CHAT_RETRY_MAX_DELAY", "20")))
+    request_timeout = float(timeout_seconds if timeout_seconds is not None else os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "60"))
 
     last_error: Exception | None = None
 
     for attempt in range(max_retries + 1):
         try:
+            logger.info(
+                "[llm.trace] Starting streaming chat completion: model=%s provider=%s attempt=%s prompt_chars=%s temperature=%s timeout=%ss",
+                resolved_model,
+                provider,
+                attempt + 1,
+                len(prompt or ""),
+                temperature,
+                request_timeout,
+            )
             return client.chat.completions.create(
                 model=resolved_model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
                 stream=True,
+                timeout=request_timeout,
             )
         except Exception as exc:
             last_error = exc
@@ -415,6 +429,7 @@ def create_chat_completion_text(
     provider_override: str | None = None,
     prompt: str,
     temperature: float = 0.4,
+    timeout_seconds: float | None = None,
 ) -> str:
     """Create a non-streaming chat completion and return plain text content."""
     provider = _llm_provider(provider_override)
@@ -428,26 +443,41 @@ def create_chat_completion_text(
 
     if not resolved_model:
         raise RuntimeError("No model was provided for chat generation. Pass llm_model or set the configured model environment variable.")
+    if prompt is None or not str(prompt).strip():
+        raise RuntimeError("Prompt is empty; skipping LLM chat completion request.")
 
     max_retries = max(0, int(os.getenv("CHAT_MAX_RETRIES", "3")))
     base_delay = max(0.1, float(os.getenv("CHAT_RETRY_BASE_DELAY", "1.5")))
     max_delay = max(base_delay, float(os.getenv("CHAT_RETRY_MAX_DELAY", "20")))
+    request_timeout = float(timeout_seconds if timeout_seconds is not None else os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "60"))
 
     last_error: Exception | None = None
 
     for attempt in range(max_retries + 1):
         try:
+            logger.info(
+                "[llm.trace] Starting non-streaming chat completion: model=%s provider=%s attempt=%s prompt_chars=%s temperature=%s timeout=%ss",
+                resolved_model,
+                provider,
+                attempt + 1,
+                len(prompt or ""),
+                temperature,
+                request_timeout,
+            )
             response = client.chat.completions.create(
                 model=resolved_model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
                 stream=False,
+                timeout=request_timeout,
             )
             choices = getattr(response, "choices", None) or []
             if not choices:
                 raise RuntimeError("Chat completion returned no choices.")
             message = getattr(choices[0], "message", None)
             content = getattr(message, "content", None)
+            logger.info("[llm.trace] Received content : %s", content)
+
             if not content:
                 raise RuntimeError("Chat completion returned empty content.")
             return str(content)
@@ -477,6 +507,7 @@ def create_embedding(
     input_text: str,
     model_name: str = "text-embedding-3-large",
     provider_override: str | None = None,
+    timeout_seconds: float | None = None,
 ) -> list[float]:
     provider = _embedding_provider(provider_override)
     resolved_model = model_name
@@ -494,11 +525,12 @@ def create_embedding(
     max_retries = max(0, int(os.getenv("EMBEDDING_MAX_RETRIES", "5")))
     base_delay = max(0.1, float(os.getenv("EMBEDDING_RETRY_BASE_DELAY", "2")))
     max_delay = max(base_delay, float(os.getenv("EMBEDDING_RETRY_MAX_DELAY", "90")))
+    request_timeout = float(timeout_seconds if timeout_seconds is not None else os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "60"))
 
     last_error: Exception | None = None
     for attempt in range(max_retries + 1):
         try:
-            response = embedding_client.embeddings.create(model=resolved_model, input=input_text)
+            response = embedding_client.embeddings.create(model=resolved_model, input=input_text, timeout=request_timeout)
             if not getattr(response, "data", None):
                 raise RuntimeError("Embedding API returned no data.")
             return response.data[0].embedding
@@ -525,6 +557,7 @@ def create_embeddings(
     input_texts: list[str],
     model_name: str = "text-embedding-3-large",
     provider_override: str | None = None,
+    timeout_seconds: float | None = None,
 ) -> list[list[float]]:
     if not input_texts:
         return []
@@ -546,6 +579,7 @@ def create_embeddings(
     base_delay = max(0.1, float(os.getenv("EMBEDDING_RETRY_BASE_DELAY", "2")))
     max_delay = max(base_delay, float(os.getenv("EMBEDDING_RETRY_MAX_DELAY", "90")))
     split_after = max(0, int(os.getenv("EMBEDDING_SPLIT_AFTER_RETRIES", "2")))
+    request_timeout = float(timeout_seconds if timeout_seconds is not None else os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "60"))
 
     # Purpose: Internal helper used to keep the main workflow readable and maintainable.
     # Inputs/Outputs: See signature and return annotation for contract details.
@@ -553,7 +587,7 @@ def create_embeddings(
         last_error: Exception | None = None
         for attempt in range(max_retries + 1):
             try:
-                response = embedding_client.embeddings.create(model=resolved_model, input=texts)
+                response = embedding_client.embeddings.create(model=resolved_model, input=texts, timeout=request_timeout)
                 if not getattr(response, "data", None):
                     raise RuntimeError("Embedding API returned no data.")
                 return [item.embedding for item in response.data]

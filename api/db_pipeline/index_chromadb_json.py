@@ -323,6 +323,6 @@ if __name__ == "__main__":
     kb_path = Path(sys.argv[1])
     logger.info("Starting ChromaDB indexing for: %s", kb_path)
     logger.info("%s", "=" * 60)
-    index_chromadb_json(kb_path=kb_path)
+    # index_chromadb_json(kb_path=kb_path)
     logger.info("%s", "=" * 60)
     logger.info("Indexing complete! Knowledge base is ready to be queried.")

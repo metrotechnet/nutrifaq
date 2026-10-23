@@ -77,24 +77,47 @@ def _extract_json_array_from_text(text: str) -> list[str]:
     if not text:
         return []
 
-    stripped = text.strip()
-    fence_match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", stripped, flags=re.DOTALL | re.IGNORECASE)
-    candidate = fence_match.group(1) if fence_match else stripped
+    stripped = (text or "").strip()
+    candidates = []
 
-    if not fence_match:
-        bracket_match = re.search(r"\[.*\]", candidate, flags=re.DOTALL)
-        if bracket_match:
-            candidate = bracket_match.group(0)
+    for pattern in (
+        r"```(?:json)?\s*(\[[\s\S]*?\])\s*```",
+        r'"questions"\s*:\s*(\[[\s\S]*?\])',
+        r"(\[[\s\S]*?\])",
+    ):
+        match = re.search(pattern, stripped, flags=re.IGNORECASE | re.DOTALL)
+        if match:
+            candidates.append(match.group(1))
 
-    try:
-        payload = json.loads(candidate)
-    except Exception:
+    if not candidates:
         return []
 
-    if not isinstance(payload, list):
-        return []
+    for candidate in candidates:
+        normalized = candidate.strip()
+        if not normalized.startswith("["):
+            continue
+        if not normalized.endswith("]"):
+            end_index = normalized.rfind("]")
+            if end_index > normalized.find("["):
+                normalized = normalized[: end_index + 1]
 
-    return [str(item).strip() for item in payload if isinstance(item, (str, int, float)) and str(item).strip()]
+        try:
+            payload = json.loads(normalized)
+        except Exception:
+            continue
+
+        if not isinstance(payload, list):
+            continue
+
+        result = [
+            str(item).strip()
+            for item in payload
+            if isinstance(item, (str, int, float)) and str(item).strip()
+        ]
+        if result:
+            return result
+
+    return []
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -186,28 +209,62 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
             metadata = doc.get("metadata", {}) if isinstance(doc.get("metadata"), dict) else {}
             source_name = str(metadata.get("title") or doc_id)
             full_text = str(doc.get("text", ""))
-            logger.info("Generating questions for document %s/%s: %s", processed_documents + 1, total_documents, source_name)
+            if not full_text or not full_text.strip():
+                logger.warning("Skipping document %s/%s (%s): empty text payload", processed_documents + 1, total_documents, source_name)
+                continue
+
+            logger.info("\n\nGenerating questions for document %s/%s: %s", processed_documents + 1, total_documents, source_name)
             topic = _sanitize_question_topic(full_text)
             text_excerpt = re.sub(r"\s+", " ", full_text).strip()[:2200]
 
             llm_questions = []
             llm_error = None
+            doc_started_at = time.monotonic()
             try:
+                logger.info(
+                    "[llm.trace] Starting non-streaming chat completion for document %s/%s: model=%s prompt_chars=%s",
+                    processed_documents + 1,
+                    total_documents,
+                    resolved_model,
+                    len(text_excerpt),
+                )
                 prompt = _build_llm_prompt(text_excerpt, topic, question_count)
                 raw_output = create_chat_completion_text(
                     client=client,
                     model_name=resolved_model,
                     prompt=prompt,
                     temperature=0.4,
+                    timeout_seconds=float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "10")),
+                )
+                logger.info(
+                    "[llm.trace] LLM response received for document %s/%s: output_chars=%s elapsed=%.2fs",
+                    processed_documents + 1,
+                    total_documents,
+                    len(raw_output or ""),
+                    time.monotonic() - doc_started_at,
                 )
                 llm_questions = _extract_json_array_from_text(raw_output)
+                logger.info(
+                    "[llm.trace] Parsed %s questions from LLM for document %s/%s after %.2fs",
+                    len(llm_questions),
+                    processed_documents + 1,
+                    total_documents,
+                    time.monotonic() - doc_started_at,
+                )
             except Exception as exc:
-                llm_error = str(exc)
+                llm_error = f"{type(exc).__name__}: {exc}"
+                logger.exception("LLM question generation failed for %s (%s)", source_name, doc_id)
+                llm_failures += 1
 
             if len(llm_questions) < question_count:
-                raise RuntimeError(
-                    f"Model did not return enough questions for {doc_id}: expected {question_count}, got {len(llm_questions)}."
+                logger.warning(
+                    "Model did not return enough questions for %s: expected %s, got %s.",
+                    doc_id,
+                    question_count,
+                    len(llm_questions),
                 )
+                llm_failures += 1
+                continue
 
             questions = llm_questions[:question_count]
             generation_mode = "llm"
@@ -222,7 +279,14 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
                     "llm_error": llm_error,
                 }
             )
-            logger.info("Generated %d questions for %s", len(questions), source_name)
+            logger.info(
+                "Generated %d questions for %s in %.2fs (document %s/%s)",
+                len(questions),
+                source_name,
+                time.monotonic() - doc_started_at,
+                processed_documents + 1,
+                total_documents,
+            )
             time.sleep(0.05)
         finally:
             processed_documents += 1

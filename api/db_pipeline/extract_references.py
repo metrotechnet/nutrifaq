@@ -296,6 +296,19 @@ def extract_markdown_document(file_path: Path):
     }
 
 
+def _save_references_payload(kb_root: Path, results: list[dict]) -> Path:
+    output_path = kb_root / "references.json"
+    payload = {
+        "total_documents": len(results),
+        "documents": results,
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+    logger.info("Saved references to: %s", output_path)
+    return output_path
+
+
 def process_documents(documents_dir: Path):
     """Process supported document files and extract references."""
     if not documents_dir.exists():
@@ -315,7 +328,8 @@ def process_documents(documents_dir: Path):
 
     if total_files == 0:
         _write_progress_snapshot("extract_references", 1, 1, "files")
-        return results if 'results' in locals() else []
+        _save_references_payload(documents_dir.parent, [])
+        return []
 
     results = []
     processed_files = 0
@@ -365,6 +379,7 @@ def process_documents(documents_dir: Path):
     if _new_file_only_enabled():
         _save_pipeline_state(documents_dir.parent, processed_map)
 
+    _save_references_payload(documents_dir.parent, results)
     return results
 
 
@@ -373,21 +388,9 @@ def process_documents(documents_dir: Path):
 def main() -> None:
     kb_root = resolve_kb_path()
     documents_dir = kb_root / "documents"
-    output_path = kb_root / "references.json"
 
     logger.info("Scanning documents in: %s", documents_dir)
-    results = process_documents(documents_dir)
-
-    payload = {
-        "total_documents": len(results),
-        "documents": results,
-    }
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2)
-
-    logger.info("Saved references to: %s", output_path)
+    # process_documents(documents_dir)
 
 
 if __name__ == "__main__":

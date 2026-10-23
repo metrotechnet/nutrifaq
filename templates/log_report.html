@@ -66,25 +66,6 @@
       align-items: center;
     }
 
-    .checkbox-wrap {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: rgba(15, 23, 42, 0.72);
-      color: var(--text);
-      font-size: 0.9rem;
-    }
-
-    .checkbox-wrap input {
-      accent-color: var(--accent);
-      width: 16px;
-      height: 16px;
-      cursor: pointer;
-    }
-
     button {
       border: 1px solid var(--border);
       background: var(--panel-alt);
@@ -121,10 +102,35 @@
       display: none;
       animation: spin 0.75s linear infinite;
       vertical-align: middle;
+      flex-shrink: 0;
     }
 
     button.loading .spinner {
       display: inline-block;
+    }
+
+    .checkbox-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 8px;
+      padding: 4px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.5);
+      color: var(--text);
+      font-size: 0.8rem;
+      line-height: 1;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .checkbox-wrap input {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+      margin: 0;
     }
 
     @keyframes spin {
@@ -211,13 +217,13 @@
     <div class="topbar">
       <h1>Nutrifaq Log Viewer</h1>
       <div class="actions">
-        <label class="checkbox-wrap" for="autoRefreshToggle">
-          <input id="autoRefreshToggle" type="checkbox" />
-          <span>Auto-refresh</span>
-        </label>
         <button id="refreshBtn" class="primary action-button" type="button">
           <span class="spinner" aria-hidden="true"></span>
           <span class="button-label">Refresh</span>
+          <label class="checkbox-wrap" for="autoRefreshToggle" aria-label="Toggle auto refresh">
+            <input id="autoRefreshToggle" type="checkbox" />
+            <span>Auto</span>
+          </label>
         </button>
         <button id="clearBtn" class="danger" type="button">Clear log</button>
         <button id="downloadBtn" type="button">Download .txt</button>

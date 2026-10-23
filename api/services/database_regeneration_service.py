@@ -301,13 +301,15 @@ def _start_regeneration() -> bool:
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _finish_regeneration() -> None:
     with _regen_state_lock:
+        cancel_requested = bool(_regen_state.get("cancel_requested"))
         _regen_state["running"] = False
-        _regen_state["cancel_requested"] = False
         _regen_state["current_step"] = None
         _regen_state["active_process"] = None
         _regen_state["progress_value"] = None
         _regen_state["progress_total"] = None
         _regen_state["progress_kind"] = None
+        if not cancel_requested:
+            _regen_state["cancel_requested"] = False
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
