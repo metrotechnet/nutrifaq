@@ -252,7 +252,7 @@ def review_document_text(kb_dir: Path, llm_model: str | None = None):
 def main() -> None:
     kb_dir = Path(sys.argv[1]).resolve() if len(sys.argv) >= 2 and sys.argv[1].strip() else Path(__file__).resolve().parents[2] / "nutrifaq-dbase"
     llm_model = sys.argv[2].strip() if len(sys.argv) >= 3 and sys.argv[2].strip() else None
-    # review_document_text(kb_dir, llm_model=llm_model)
+    review_document_text(kb_dir, llm_model=llm_model)
 
 
 if __name__ == "__main__":

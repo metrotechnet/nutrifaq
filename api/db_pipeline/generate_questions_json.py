@@ -168,6 +168,103 @@ def _load_reviewed_payload(reviewed_path: Path) -> dict:
 
 # Purpose: Implement a focused unit of backend behavior used by routes or services.
 # Inputs/Outputs: See signature and return annotation for contract details.
+def _generate_questions_for_document(
+    doc: object,
+    *,
+    question_count: int,
+    total_documents: int,
+    document_index: int,
+    client: object,
+    model_name: str,
+) -> tuple[dict | None, int]:
+    """Generate the question list for a single reviewed document."""
+    if not isinstance(doc, dict):
+        logger.info("Skipping invalid question-generation entry %s/%s", document_index, total_documents)
+        return None, 0
+
+    doc_id = str(doc.get("id", "unknown"))
+    metadata = doc.get("metadata", {}) if isinstance(doc.get("metadata"), dict) else {}
+    source_name = str(metadata.get("title") or doc_id)
+    full_text = str(doc.get("text", ""))
+    if not full_text or not full_text.strip():
+        logger.warning("Skipping document %s/%s (%s): empty text payload", document_index, total_documents, source_name)
+        return None, 0
+
+    logger.info("\n\nGenerating questions for document %s/%s: %s", document_index, total_documents, source_name)
+    topic = _sanitize_question_topic(full_text)
+    text_excerpt = re.sub(r"\s+", " ", full_text).strip()[:2200]
+
+    llm_questions = []
+    llm_error = None
+    doc_started_at = time.monotonic()
+    try:
+        logger.info(
+            "[llm.trace] Starting non-streaming chat completion for document %s/%s: model=%s prompt_chars=%s",
+            document_index,
+            total_documents,
+            model_name,
+            len(text_excerpt),
+        )
+        prompt = _build_llm_prompt(text_excerpt, topic, question_count)
+        raw_output = create_chat_completion_text(
+            client=client,
+            model_name=model_name,
+            prompt=prompt,
+            temperature=0.4,
+            timeout_seconds=float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "10")),
+        )
+        logger.info(
+            "[llm.trace] LLM response received for document %s/%s: output_chars=%s elapsed=%.2fs",
+            document_index,
+            total_documents,
+            len(raw_output or ""),
+            time.monotonic() - doc_started_at,
+        )
+        llm_questions = _extract_json_array_from_text(raw_output)
+        logger.info(
+            "[llm.trace] Parsed %s questions from LLM for document %s/%s after %.2fs",
+            len(llm_questions),
+            document_index,
+            total_documents,
+            time.monotonic() - doc_started_at,
+        )
+    except Exception as exc:
+        llm_error = f"{type(exc).__name__}: {exc}"
+        logger.exception("LLM question generation failed for %s (%s)", source_name, doc_id)
+        return None, 1
+
+    if len(llm_questions) < question_count:
+        logger.warning(
+            "Model did not return enough questions for %s: expected %s, got %s.",
+            doc_id,
+            question_count,
+            len(llm_questions),
+        )
+        return None, 1
+
+    questions = llm_questions[:question_count]
+    generated_document = {
+        "document_id": doc_id,
+        "source": source_name,
+        "topic": topic,
+        "questions": questions,
+        "generation_mode": "llm",
+        "llm_error": llm_error,
+    }
+    logger.info(
+        "Generated %d questions for %s in %.2fs (document %s/%s)",
+        len(questions),
+        source_name,
+        time.monotonic() - doc_started_at,
+        document_index,
+        total_documents,
+    )
+    time.sleep(0.05)
+    return generated_document, 0
+
+
+# Purpose: Implement a focused unit of backend behavior used by routes or services.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: str | None = None) -> Path:
     reviewed_path = kb_root / "reviewed_documents.json"
     if not reviewed_path.exists():
@@ -200,94 +297,19 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
 
     processed_documents = 0
     for doc in documents:
+        document_index = processed_documents + 1
         try:
-            if not isinstance(doc, dict):
-                logger.info("Skipping invalid question-generation entry %s/%s", processed_documents + 1, total_documents)
-                continue
-
-            doc_id = str(doc.get("id", "unknown"))
-            metadata = doc.get("metadata", {}) if isinstance(doc.get("metadata"), dict) else {}
-            source_name = str(metadata.get("title") or doc_id)
-            full_text = str(doc.get("text", ""))
-            if not full_text or not full_text.strip():
-                logger.warning("Skipping document %s/%s (%s): empty text payload", processed_documents + 1, total_documents, source_name)
-                continue
-
-            logger.info("\n\nGenerating questions for document %s/%s: %s", processed_documents + 1, total_documents, source_name)
-            topic = _sanitize_question_topic(full_text)
-            text_excerpt = re.sub(r"\s+", " ", full_text).strip()[:2200]
-
-            llm_questions = []
-            llm_error = None
-            doc_started_at = time.monotonic()
-            try:
-                logger.info(
-                    "[llm.trace] Starting non-streaming chat completion for document %s/%s: model=%s prompt_chars=%s",
-                    processed_documents + 1,
-                    total_documents,
-                    resolved_model,
-                    len(text_excerpt),
-                )
-                prompt = _build_llm_prompt(text_excerpt, topic, question_count)
-                raw_output = create_chat_completion_text(
-                    client=client,
-                    model_name=resolved_model,
-                    prompt=prompt,
-                    temperature=0.4,
-                    timeout_seconds=float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "10")),
-                )
-                logger.info(
-                    "[llm.trace] LLM response received for document %s/%s: output_chars=%s elapsed=%.2fs",
-                    processed_documents + 1,
-                    total_documents,
-                    len(raw_output or ""),
-                    time.monotonic() - doc_started_at,
-                )
-                llm_questions = _extract_json_array_from_text(raw_output)
-                logger.info(
-                    "[llm.trace] Parsed %s questions from LLM for document %s/%s after %.2fs",
-                    len(llm_questions),
-                    processed_documents + 1,
-                    total_documents,
-                    time.monotonic() - doc_started_at,
-                )
-            except Exception as exc:
-                llm_error = f"{type(exc).__name__}: {exc}"
-                logger.exception("LLM question generation failed for %s (%s)", source_name, doc_id)
-                llm_failures += 1
-
-            if len(llm_questions) < question_count:
-                logger.warning(
-                    "Model did not return enough questions for %s: expected %s, got %s.",
-                    doc_id,
-                    question_count,
-                    len(llm_questions),
-                )
-                llm_failures += 1
-                continue
-
-            questions = llm_questions[:question_count]
-            generation_mode = "llm"
-
-            generated_documents.append(
-                {
-                    "document_id": doc_id,
-                    "source": source_name,
-                    "topic": topic,
-                    "questions": questions,
-                    "generation_mode": generation_mode,
-                    "llm_error": llm_error,
-                }
+            generated_document, documented_failures = _generate_questions_for_document(
+                doc,
+                question_count=question_count,
+                total_documents=total_documents,
+                document_index=document_index,
+                client=client,
+                model_name=resolved_model,
             )
-            logger.info(
-                "Generated %d questions for %s in %.2fs (document %s/%s)",
-                len(questions),
-                source_name,
-                time.monotonic() - doc_started_at,
-                processed_documents + 1,
-                total_documents,
-            )
-            time.sleep(0.05)
+            if generated_document is not None:
+                generated_documents.append(generated_document)
+            llm_failures += documented_failures
         finally:
             processed_documents += 1
             _write_progress_snapshot("generate_questions", processed_documents, total_documents, "files")

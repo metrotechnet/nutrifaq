@@ -174,5 +174,5 @@ if __name__ == "__main__":
         logger.error("Error: Folder '%s' not found", transcript_folder)
     else:
         logger.info("Starting extraction from: %s", transcript_folder)
-        # extract_all_documents(transcript_folder)
+        extract_all_documents(transcript_folder)
         logger.info("Extraction complete!")

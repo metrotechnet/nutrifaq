@@ -390,7 +390,7 @@ def main() -> None:
     documents_dir = kb_root / "documents"
 
     logger.info("Scanning documents in: %s", documents_dir)
-    # process_documents(documents_dir)
+    process_documents(documents_dir)
 
 
 if __name__ == "__main__":

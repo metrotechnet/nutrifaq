@@ -87,6 +87,16 @@ def _expected_audience() -> str | list[str]:
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
+def _jwt_leeway_seconds() -> int:
+    raw = os.getenv("ENTRA_TOKEN_LEEWAY_SECONDS", "10800").strip()
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 10800
+
+
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _token_roles(claims: dict[str, Any]) -> list[str]:
     raw_roles = claims.get("roles")
     if isinstance(raw_roles, list):
@@ -131,6 +141,7 @@ def _decode_access_token(token: str) -> dict[str, Any]:
         signing_key.key,
         algorithms=["RS256"],
         audience=audience,
+        leeway=_jwt_leeway_seconds(),
         options={"require": ["exp", "iat", "iss", "aud"], "verify_iss": False},
     )
     if not isinstance(claims, dict):
