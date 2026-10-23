@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, IO, List
 import json
 import logging
 import os
@@ -172,6 +172,21 @@ def generate_questions_from_transcripts_json(
         process_env["CHAT_MODEL"] = selected_model
         process_env["LLM_MODEL"] = selected_model
 
+    stdout_chunks: List[str] = []
+    stderr_chunks: List[str] = []
+
+    def _drain_stream(stream: IO[str] | None, sink: List[str]) -> None:
+        if stream is None:
+            return
+        try:
+            for line in iter(stream.readline, ""):
+                sink.append(line)
+        finally:
+            try:
+                stream.close()
+            except Exception:
+                pass
+
     process = subprocess.Popen(
         command,
         cwd=str(local_kb_root),
@@ -182,25 +197,41 @@ def generate_questions_from_transcripts_json(
         errors="replace",
         env=process_env,
     )
+    stdout_thread = threading.Thread(target=_drain_stream, args=(process.stdout, stdout_chunks), daemon=True)
+    stderr_thread = threading.Thread(target=_drain_stream, args=(process.stderr, stderr_chunks), daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
     _set_active_process(process)
 
     try:
         while process.poll() is None:
             if _is_cancel_requested():
                 _terminate_active_process(process)
-                stdout, stderr = process.communicate()
-                return {
-                    "status": "cancelled",
-                    "message": "Question generation cancelled by user.",
-                    "command": " ".join(command),
-                    "cwd": str(local_kb_root),
-                    "return_code": process.returncode,
-                    "stdout": stdout,
-                    "stderr": stderr,
-                }
+                break
             time.sleep(0.25)
 
-        stdout, stderr = process.communicate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            _terminate_active_process(process)
+            process.wait(timeout=10)
+
+        stdout = "".join(stdout_chunks)
+        stderr = "".join(stderr_chunks)
+        stdout_thread.join(timeout=2)
+        stderr_thread.join(timeout=2)
+
+        if _is_cancel_requested():
+            return {
+                "status": "cancelled",
+                "message": "Question generation cancelled by user.",
+                "command": " ".join(command),
+                "cwd": str(local_kb_root),
+                "return_code": process.returncode,
+                "stdout": stdout,
+                "stderr": stderr,
+            }
+
         if process.returncode != 0:
             return {
                 "status": "error",

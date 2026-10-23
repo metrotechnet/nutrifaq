@@ -996,7 +996,7 @@
             const metricText = liveProgressTotal && liveProgressValue !== null
                 ? ` (${Math.round(liveProgressValue)}/${Math.round(liveProgressTotal)} ${liveProgressKind === "tokens" ? "tokens" : "questions"})`
                 : "";
-            console.log(`Step: ${countText}, Label: ${label}, Metric: ${metricText}, Progress: ${currentStepPercent}%`);
+            // console.log(`Step: ${countText}, Label: ${label}, Metric: ${metricText}, Progress: ${currentStepPercent}%`);
             setIndexingProgress(
                 currentStepPercent,
                 tr(
