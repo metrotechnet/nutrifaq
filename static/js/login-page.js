@@ -9,6 +9,8 @@
     const USER_PROFILE_KEY = "nutrifaq_user_profile";
     const USER_ASSIGNMENTS_KEY = "nutrifaq_user_assignments";
     const AUTO_RELOGIN_ONCE_KEY = "nutrifaq_auto_relogin_once";
+    const LOGIN_REDIRECT_GUARD_KEY = "nutrifaq_login_redirect_in_progress";
+    const LOGIN_LOOP_GUARD_KEY = "nutrifaq_login_redirect_loop_guard";
     let i18nConfig = null;
     let currentLang = "fr";
 
@@ -339,7 +341,12 @@
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function goToApp() {
-        window.location.href = "/index.html";
+        try {
+            sessionStorage.setItem(LOGIN_LOOP_GUARD_KEY, "1");
+        } catch (_) {
+            // Ignore storage write failures.
+        }
+        window.location.replace("/index.html");
     }
 
     // Purpose: Implements a focused frontend behavior used by this module.
@@ -418,13 +425,35 @@
         return payload;
     }
 
+    function hasLoginRedirectGuard() {
+        try {
+            return sessionStorage.getItem(LOGIN_REDIRECT_GUARD_KEY) === "1";
+        } catch (_) {
+            return false;
+        }
+    }
+
     async function signIn(msalApp) {
+        if (hasLoginRedirectGuard()) {
+            setStatus(tr("statusRedirectIdentity"), false);
+            return;
+        }
+
         setStatus(tr("statusRedirectIdentity"), false);
-        await msalApp.loginRedirect({ scopes: buildLoginScopes() });
+        try {
+            sessionStorage.setItem(LOGIN_REDIRECT_GUARD_KEY, "1");
+            await msalApp.loginRedirect({ scopes: buildLoginScopes() });
+        } catch (error) {
+            sessionStorage.removeItem(LOGIN_REDIRECT_GUARD_KEY);
+            throw error;
+        }
     }
 
     async function init() {
         try {
+            if (sessionStorage.getItem(LOGIN_LOOP_GUARD_KEY) === "1") {
+                sessionStorage.removeItem(LOGIN_LOOP_GUARD_KEY);
+            }
             resolveLanguage();
             await loadI18nConfig();
             applyLoginTranslations();
@@ -442,6 +471,7 @@
 
             if (typeof msalApp.handleRedirectPromise === "function") {
                 const redirectResult = await msalApp.handleRedirectPromise();
+                sessionStorage.removeItem(LOGIN_REDIRECT_GUARD_KEY);
                 if (redirectResult && redirectResult.account) {
                     msalApp.setActiveAccount(redirectResult.account);
                 }
@@ -469,12 +499,13 @@
                 clearStaleSessionState();
 
                 // Retry once with interactive sign-in to recover from stale cached sessions.
-                if (!sessionStorage.getItem(AUTO_RELOGIN_ONCE_KEY)) {
+                if (!sessionStorage.getItem(AUTO_RELOGIN_ONCE_KEY) && !hasLoginRedirectGuard()) {
                     sessionStorage.setItem(AUTO_RELOGIN_ONCE_KEY, "1");
                     try {
                         await signIn(msalApp);
                         return;
                     } catch (retryError) {
+                        sessionStorage.removeItem(LOGIN_REDIRECT_GUARD_KEY);
                         setStatus(tr("statusLoginFailed", { error: formatErrorMessage(retryError) }), true);
                     }
                 }

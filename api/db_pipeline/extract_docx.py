@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -21,6 +22,53 @@ configure_logging()
 
 
 SUPPORTED_SUFFIXES = (".docx", ".md", ".markdown")
+
+
+def _new_file_only_enabled() -> bool:
+    return os.getenv("NUTRIFAQ_PROCESS_ONLY_NEW_FILES", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _pipeline_state_path(kb_root: Path) -> Path:
+    return kb_root / ".pipeline_new_files_state.json"
+
+
+def _load_pipeline_state(kb_root: Path) -> dict:
+    state_path = _pipeline_state_path(kb_root)
+    if not state_path.exists():
+        return {}
+    try:
+        with state_path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception:
+        logger.exception("Failed to load pipeline state from %s", state_path)
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _save_pipeline_state(kb_root: Path, payload: dict) -> None:
+    state_path = _pipeline_state_path(kb_root)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    with state_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+
+
+def _filter_new_files(kb_root: Path, candidates: list[Path], step_name: str) -> list[Path]:
+    if not _new_file_only_enabled():
+        return candidates
+
+    state = _load_pipeline_state(kb_root)
+    processed = state.get(step_name, {})
+    if not isinstance(processed, dict):
+        return candidates
+
+    filtered = []
+    for file_path in candidates:
+        relative_name = file_path.name
+        previous_mtime = processed.get(relative_name)
+        current_mtime = file_path.stat().st_mtime_ns if file_path.exists() else None
+        if previous_mtime is None or current_mtime is None or current_mtime > previous_mtime:
+            filtered.append(file_path)
+    return filtered
 
 
 def resolve_kb_root() -> Path:
@@ -50,21 +98,28 @@ def extract_text_from_markdown(markdown_path):
     try:
         return markdown_path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
-        return markdown_path.read_text(encoding="latin-1")
+        logger.exception("UTF-8 decode failed for %s; retrying with latin-1", markdown_path)
+        try:
+            return markdown_path.read_text(encoding="latin-1")
+        except Exception:
+            logger.exception("Failed to read markdown file %s using fallback encoding", markdown_path)
+            raise
 
 
 def extract_all_documents(folder_path, output_folder=None):
     """Extract text from all supported document files and save as .txt."""
     logger.info("Extracting documents from: %s", folder_path)
-    
+    folder_path = Path(folder_path)
+
     if output_folder is None:
-        output_folder = str(Path(folder_path).parent / "transcripts")
+        output_folder = str(folder_path.parent / "transcripts")
     os.makedirs(output_folder, exist_ok=True)
 
     output_dir = Path(output_folder)
-    for existing_file in output_dir.iterdir():
-        if existing_file.is_file():
-            existing_file.unlink(missing_ok=True)
+    if not _new_file_only_enabled():
+        for existing_file in output_dir.iterdir():
+            if existing_file.is_file():
+                existing_file.unlink(missing_ok=True)
 
     supported_files = []
     for filename in os.listdir(folder_path):
@@ -72,16 +127,18 @@ def extract_all_documents(folder_path, output_folder=None):
             continue
         lower_name = filename.lower()
         if lower_name.endswith(SUPPORTED_SUFFIXES):
-            supported_files.append(filename)
+            supported_files.append(Path(folder_path) / filename)
 
+    supported_files = _filter_new_files(folder_path, supported_files, "extract_docx") if _new_file_only_enabled() else supported_files
     total_files = len(supported_files)
     _write_progress_snapshot("extract_docx", 0, total_files, "files")
 
     logger.info("Found %s documents", len(supported_files))
 
     processed_files = 0
-    for filename in supported_files:
-        file_path = Path(folder_path) / filename
+    processed_map = _load_pipeline_state(folder_path)
+    for file_path in supported_files:
+        filename = file_path.name
 
         try:
             if file_path.suffix.lower() == ".docx":
@@ -103,8 +160,11 @@ def extract_all_documents(folder_path, output_folder=None):
             logger.exception("  Error processing %s: %s", filename, e)
         finally:
             processed_files += 1
+            processed_map.setdefault("extract_docx", {})[filename] = file_path.stat().st_mtime_ns
             _write_progress_snapshot("extract_docx", processed_files, total_files, "files")
-            
+
+    if _new_file_only_enabled():
+        _save_pipeline_state(folder_path, processed_map)
 
 if __name__ == "__main__":
     kb_root = resolve_kb_root()

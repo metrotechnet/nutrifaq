@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -131,3 +133,29 @@ def test_regeneration_progress_uses_question_and_token_totals(monkeypatch):
     assert status["progress_kind"] == "tokens"
     assert status["progress_total"] == 5000
     assert status["progress_percent"] == 50.0
+
+
+def test_regeneration_cancel_terminates_running_process():
+    proc = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        start_new_session=True,
+    )
+    try:
+        regen_service._regen_state["running"] = True
+        regen_service._regen_state["cancel_requested"] = False
+        regen_service._regen_state["current_step"] = "extract_references"
+        regen_service._regen_state["active_process"] = proc
+
+        result = regen_service.request_regeneration_cancel()
+
+        assert result["status"] == "cancelling"
+        deadline = time.time() + 5
+        while proc.poll() is None and time.time() < deadline:
+            time.sleep(0.05)
+
+        assert proc.poll() is not None
+        assert regen_service._regen_state["active_process"] is None
+    finally:
+        if proc.poll() is None:
+            proc.terminate()
+            proc.wait(timeout=5)

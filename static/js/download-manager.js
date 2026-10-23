@@ -720,8 +720,10 @@
     }
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
+    const REGENERATION_STATUS_POLL_MS = 1000;
     let indexingStatusTimer = null;
     let indexingAbortController = null;
+    let statusRequestInFlight = false;
     let isIndexingRunning = false;
     let currentStepKey = null;
     let currentStepPercent = 0;
@@ -896,9 +898,10 @@
     }
 
     async function refreshRegenerationStatus() {
-        if (!isIndexingRunning) {
+        if (!isIndexingRunning || statusRequestInFlight) {
             return;
         }
+        statusRequestInFlight = true;
         try {
             const payload = await fetchJson(`${BACKEND_URL}/api/database/regenerate/status`, {
                 headers: {
@@ -907,8 +910,20 @@
             });
 
             const regen = payload && payload.regeneration ? payload.regeneration : {};
+            const wasCancelled = Boolean(regen.cancel_requested);
+            if (wasCancelled) {
+                stopRegenerationStatusPolling();
+                finishIndexingProgress(false);
+                setStatus(tr("downloadManager.status.indexingCancelled", "Indexage annulé."), true);
+                return;
+            }
+
             const stepKey = regen.current_step || null;
             if (!stepKey) {
+                if (!regen.running) {
+                    setStatus(tr("downloadManager.status.indexingCompleted", "Indexage terminé."), false);
+                    finishIndexingProgress(true);
+                }
                 return;
             }
 
@@ -960,6 +975,8 @@
             );
         } catch (_) {
             // Ignore transient status polling errors while regeneration is running.
+        } finally {
+            statusRequestInFlight = false;
         }
     }
 
@@ -968,7 +985,7 @@
     function startRegenerationStatusPolling() {
         stopRegenerationStatusPolling();
         refreshRegenerationStatus();
-        indexingStatusTimer = window.setInterval(refreshRegenerationStatus, 250);
+        indexingStatusTimer = window.setInterval(refreshRegenerationStatus, REGENERATION_STATUS_POLL_MS);
     }
 
     async function requestCancelIndexing() {
@@ -977,6 +994,8 @@
         }
 
         try {
+            isIndexingRunning = false;
+            stopRegenerationStatusPolling();
             if (els.cancelIndexing) {
                 els.cancelIndexing.disabled = true;
             }
@@ -2421,16 +2440,32 @@
             indexingAbortController = new AbortController();
             setStatus(tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."), false);
             const selectedModel = String(localStorage.getItem('nutrifaq_selected_model') || '').trim();
-            const result = await fetchJson(`${BACKEND_URL}/api/database/regenerate`, {
+            const processOnlyNewFiles = Boolean(document.getElementById("process-new-files-only")?.checked);
+            const baseUrl = BACKEND_URL || window.location.origin;
+            const regenerateUrl = new URL("/api/database/regenerate", baseUrl);
+            regenerateUrl.searchParams.set("process_only_new_files", String(processOnlyNewFiles));
+            const result = await fetchJson(regenerateUrl.toString(), {
                 method: "POST",
                 headers: {
                     ...authHeaders(),
-                    ...(selectedModel ? { 'X-Selected-Model': selectedModel } : {})
+                    ...(selectedModel ? { 'X-Selected-Model': selectedModel } : {}),
+                    "Content-Type": "application/json"
                 },
+                body: JSON.stringify({ process_only_new_files: processOnlyNewFiles }),
                 signal: indexingAbortController.signal
             });
 
             const finalStatus = result.status || "ok";
+            if (finalStatus === "busy") {
+                setStatus(tr("downloadManager.status.indexingBusy", "Un indexage est déjà en cours."), true);
+                finishIndexingProgress(false);
+                showAlertMessage(tr("downloadManager.status.indexingBusy", "Un indexage est déjà en cours."), true);
+                return;
+            }
+            if (finalStatus === "started") {
+                setStatus(tr("downloadManager.status.indexingInProgress", "Indexage démarré..."), false);
+                return;
+            }
             if (finalStatus === "cancelled") {
                 setStatus(tr("downloadManager.status.indexingCancelled", "Indexage annulé."), true);
                 finishIndexingProgress(false);

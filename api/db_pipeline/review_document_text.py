@@ -20,6 +20,34 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+
+def _new_file_only_enabled() -> bool:
+    return os.getenv("NUTRIFAQ_PROCESS_ONLY_NEW_FILES", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _pipeline_state_path(kb_dir: Path) -> Path:
+    return kb_dir / ".pipeline_new_files_state.json"
+
+
+def _load_pipeline_state(kb_dir: Path) -> dict:
+    state_path = _pipeline_state_path(kb_dir)
+    if not state_path.exists():
+        return {}
+    try:
+        with state_path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception:
+        logger.exception("Failed to load pipeline state from %s", state_path)
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _save_pipeline_state(kb_dir: Path, payload: dict) -> None:
+    state_path = _pipeline_state_path(kb_dir)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    with state_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+
 load_dotenv(REPO_ROOT / ".env", override=False)
 
 from api.services.logging import configure_logging  # noqa: E402
@@ -45,6 +73,7 @@ def _extract_json_object(text: str) -> dict:
     try:
         payload = json.loads(candidate)
     except Exception:
+        logger.exception("Failed to parse review JSON payload from LLM output")
         return {}
 
     if not isinstance(payload, dict):
@@ -98,8 +127,8 @@ def _load_reference_documents(kb_dir: Path):
     try:
         with references_path.open("r", encoding="utf-8") as handle:
             payload = json.load(handle)
-    except Exception as exc:  # pragma: no cover - defensive logging
-        logger.warning("Could not load references.json: %s", exc)
+    except Exception:  # pragma: no cover - defensive logging
+        logger.exception("Could not load references.json from %s", references_path)
         return []
 
     documents = payload.get("documents", []) if isinstance(payload, dict) else []
@@ -113,6 +142,11 @@ def review_document_text(kb_dir: Path, llm_model: str | None = None):
     logger.info("Reviewing extracted document text for relevance...")
 
     docs = _load_reference_documents(kb_dir)
+    if _new_file_only_enabled():
+        state = _load_pipeline_state(kb_dir)
+        allowed = set(state.get("extract_references", {}).keys())
+        if allowed:
+            docs = [doc for doc in docs if str((doc.get("filename") if isinstance(doc, dict) else "") or (doc.get("metadata", {}).get("filename") if isinstance(doc, dict) and isinstance(doc.get("metadata"), dict) else "")).strip() in allowed]
     if not docs:
         logger.warning("No document payload found in references.json")
         output_path = kb_dir / "reviewed_documents.json"
@@ -199,6 +233,15 @@ def review_document_text(kb_dir: Path, llm_model: str | None = None):
         "reviewed_at": __import__("datetime").datetime.now().isoformat(),
         "llm_model": selected_model,
     }
+
+    if _new_file_only_enabled():
+        state = _load_pipeline_state(kb_dir)
+        state["review_document_text"] = {
+            str(doc.get("filename") or doc.get("metadata", {}).get("filename") or ""): True
+            for doc in reviewed_documents
+            if isinstance(doc, dict)
+        }
+        _save_pipeline_state(kb_dir, state)
 
     output_path = kb_dir / "reviewed_documents.json"
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

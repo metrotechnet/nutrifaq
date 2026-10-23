@@ -30,6 +30,33 @@ from api.services.database_regeneration_service import _write_progress_snapshot 
 configure_logging()
 
 
+def _new_file_only_enabled() -> bool:
+    return os.getenv("NUTRIFAQ_PROCESS_ONLY_NEW_FILES", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _pipeline_state_path(kb_root: Path) -> Path:
+    return kb_root / ".pipeline_new_files_state.json"
+
+
+def _load_pipeline_state(kb_root: Path) -> dict:
+    state_path = _pipeline_state_path(kb_root)
+    if not state_path.exists():
+        return {}
+    try:
+        with state_path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _save_pipeline_state(kb_root: Path, payload: dict) -> None:
+    state_path = _pipeline_state_path(kb_root)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    with state_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+
+
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _sanitize_question_topic(text: str, *, max_words: int = 8) -> str:
@@ -128,6 +155,15 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
     documents = payload.get("documents", []) if isinstance(payload, dict) else []
     if not isinstance(documents, list) or not documents:
         raise RuntimeError("No documents found in reviewed_documents.json")
+    if _new_file_only_enabled():
+        state = _load_pipeline_state(kb_root)
+        allowed = set(state.get("review_document_text", {}).keys())
+        if allowed:
+            documents = [
+                doc for doc in documents
+                if isinstance(doc, dict)
+                and str(doc.get("filename") or doc.get("metadata", {}).get("filename") or doc.get("id") or "").strip() in allowed
+            ]
 
     resolved_model = (llm_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or os.getenv("LLM_MODEL") or "").strip()
     if not resolved_model:
@@ -200,6 +236,15 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
         "llm_failures": llm_failures,
         "documents": generated_documents,
     }
+
+    if _new_file_only_enabled():
+        state = _load_pipeline_state(kb_root)
+        state["generate_questions"] = {
+            str(doc.get("document_id") or doc.get("source") or ""): True
+            for doc in generated_documents
+            if isinstance(doc, dict)
+        }
+        _save_pipeline_state(kb_root, state)
 
     output_path = kb_root / "generated_questions.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)

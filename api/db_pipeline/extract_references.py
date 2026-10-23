@@ -35,6 +35,44 @@ configure_logging()
 SUPPORTED_SUFFIXES = (".docx", ".md", ".markdown")
 
 
+def _new_file_only_enabled() -> bool:
+    return os.getenv("NUTRIFAQ_PROCESS_ONLY_NEW_FILES", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _pipeline_state_path(kb_root: Path) -> Path:
+    return kb_root / ".pipeline_new_files_state.json"
+
+
+def _load_pipeline_state(kb_root: Path) -> dict:
+    state_path = _pipeline_state_path(kb_root)
+    if not state_path.exists():
+        return {}
+    try:
+        with state_path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _save_pipeline_state(kb_root: Path, payload: dict) -> None:
+    state_path = _pipeline_state_path(kb_root)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    with state_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+
+
+def _filter_new_files(kb_root: Path, candidates: list[Path]) -> list[Path]:
+    if not _new_file_only_enabled():
+        return candidates
+    state = _load_pipeline_state(kb_root)
+    processed = state.get("extract_docx", {})
+    if not isinstance(processed, dict):
+        return candidates
+    allowed = set(processed.keys())
+    return [file_path for file_path in candidates if file_path.name in allowed]
+
+
 # Purpose: Implement a focused unit of backend behavior used by routes or services.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def resolve_kb_path() -> Path:
@@ -264,11 +302,12 @@ def process_documents(documents_dir: Path):
         logger.error("Documents directory not found: %s", documents_dir)
         return []
 
-    results = []
     files = sorted(
         f for f in documents_dir.iterdir()
         if f.suffix.lower() in SUPPORTED_SUFFIXES and not f.name.startswith("~$")
     )
+    if _new_file_only_enabled():
+        files = _filter_new_files(documents_dir.parent, files)
     total_files = len(files)
     _write_progress_snapshot("extract_references", 0, total_files, "files")
 
@@ -276,9 +315,11 @@ def process_documents(documents_dir: Path):
 
     if total_files == 0:
         _write_progress_snapshot("extract_references", 1, 1, "files")
-        return results
+        return results if 'results' in locals() else []
 
+    results = []
     processed_files = 0
+    processed_map = _load_pipeline_state(documents_dir.parent)
     for fpath in files:
         try:
             if fpath.suffix.lower() == ".docx":
@@ -318,7 +359,11 @@ def process_documents(documents_dir: Path):
             logger.exception("Failed to read %s: %s", fpath.name, e)
         finally:
             processed_files += 1
+            processed_map.setdefault("extract_references", {})[fpath.name] = fpath.stat().st_mtime_ns
             _write_progress_snapshot("extract_references", processed_files, total_files, "files")
+
+    if _new_file_only_enabled():
+        _save_pipeline_state(documents_dir.parent, processed_map)
 
     return results
 

@@ -63,6 +63,26 @@
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .checkbox-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.72);
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .checkbox-wrap input {
+      accent-color: var(--accent);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
     }
 
     button {
@@ -76,8 +96,39 @@
       transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
+    button:disabled {
+      opacity: 0.7;
+      cursor: wait;
+    }
+
     button:hover {
       transform: translateY(-1px);
+    }
+
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: currentColor;
+      display: none;
+      animation: spin 0.75s linear infinite;
+      vertical-align: middle;
+    }
+
+    button.loading .spinner {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     button.primary {
@@ -160,7 +211,14 @@
     <div class="topbar">
       <h1>Nutrifaq Log Viewer</h1>
       <div class="actions">
-        <button id="refreshBtn" class="primary" type="button">Refresh</button>
+        <label class="checkbox-wrap" for="autoRefreshToggle">
+          <input id="autoRefreshToggle" type="checkbox" />
+          <span>Auto-refresh</span>
+        </label>
+        <button id="refreshBtn" class="primary action-button" type="button">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="button-label">Refresh</span>
+        </button>
         <button id="clearBtn" class="danger" type="button">Clear log</button>
         <button id="downloadBtn" type="button">Download .txt</button>
       </div>
@@ -201,6 +259,56 @@
     const logPath = document.getElementById('logPath');
     const logStatus = document.getElementById('logStatus');
     const logView = document.querySelector('.view');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+    let autoRefreshTimer = null;
+    let isFetchingLog = false;
+
+    function setRefreshLoading(isLoading) {
+      if (!refreshBtn) return;
+      refreshBtn.disabled = isLoading;
+      refreshBtn.classList.toggle('loading', isLoading);
+      const label = refreshBtn.querySelector('.button-label');
+      if (label) {
+        label.textContent = isLoading ? 'Refreshing...' : 'Refresh';
+      }
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
+      if (autoRefreshToggle) {
+        autoRefreshToggle.checked = false;
+      }
+    }
+
+    function startAutoRefresh() {
+      if (!autoRefreshToggle) return;
+      stopAutoRefresh();
+      autoRefreshToggle.checked = true;
+      autoRefreshTimer = setInterval(() => {
+        fetchLog();
+      }, 4000);
+      if (logStatus) {
+        logStatus.textContent = 'Auto-refreshing';
+        logStatus.style.color = '#38bdf8';
+      }
+    }
+
+    function toggleAutoRefresh() {
+      if (!autoRefreshToggle) return;
+      if (autoRefreshToggle.checked) {
+        startAutoRefresh();
+      } else {
+        stopAutoRefresh();
+        if (logStatus) {
+          logStatus.textContent = 'Manual refresh';
+          logStatus.style.color = '#9ca3af';
+        }
+      }
+    }
 
     function scrollLogToBottom() {
       if (!logView) return;
@@ -210,6 +318,11 @@
     }
 
     async function fetchLog() {
+      if (isFetchingLog) {
+        return;
+      }
+      isFetchingLog = true;
+      setRefreshLoading(true);
       try {
         if (!authToken) {
           output.textContent = 'Error: Not authenticated. Please log in first.';
@@ -270,6 +383,9 @@
         output.classList.remove('empty');
         logStatus.textContent = 'Error';
         logStatus.style.color = '#f87171';
+      } finally {
+        isFetchingLog = false;
+        setRefreshLoading(false);
       }
     }
 
@@ -360,6 +476,7 @@
     document.getElementById('refreshBtn').addEventListener('click', fetchLog);
     document.getElementById('clearBtn').addEventListener('click', clearLog);
     document.getElementById('downloadBtn').addEventListener('click', downloadLog);
+    document.getElementById('autoRefreshToggle').addEventListener('change', toggleAutoRefresh);
 
     // Load log on page load
     window.addEventListener('load', () => {

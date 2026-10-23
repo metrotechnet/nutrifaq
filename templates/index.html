@@ -52,7 +52,7 @@
                         return false;
                     }
                     var now = Math.floor(Date.now() / 1000);
-                    return exp > (now + 3600);
+                    return exp > now;
                 } catch (_) {
                     return false;
                 }
@@ -71,6 +71,11 @@
                 } catch (_) {
                     // Ignore storage write failures.
                 }
+                try {
+                    sessionStorage.setItem("nutrifaq_login_redirect_loop_guard", "1");
+                } catch (_) {
+                    // Ignore storage write failures.
+                }
                 var params = new URLSearchParams(window.location.search || "");
                 var lang = params.get("lang");
                 var target = "/login.html";
@@ -78,6 +83,12 @@
                     target += "?lang=" + encodeURIComponent(lang);
                 }
                 window.location.replace(target);
+            } else {
+                try {
+                    sessionStorage.removeItem("nutrifaq_login_redirect_loop_guard");
+                } catch (_) {
+                    // Ignore storage write failures.
+                }
             }
         })();
     </script>
@@ -267,6 +278,10 @@
                         <section class="download-status-row" style="display:none;">
                             <p id="status-message" class="status-message" data-i18n="messages.ready">Prêt.</p>
                             <div class="indexing-actions">
+                                <label class="indexing-option-toggle" for="process-new-files-only">
+                                    <input id="process-new-files-only" type="checkbox" />
+                                    <span>Ne traiter que les nouveaux fichiers</span>
+                                </label>
                                 <button id="start-indexing" class="dm-btn indexing" data-i18n="instructions.startIndexing">Démarrer un indexage</button>
                             </div>
                         </section>

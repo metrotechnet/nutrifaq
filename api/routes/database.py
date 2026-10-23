@@ -17,12 +17,12 @@ from api.services.database_regeneration_service import (
     get_regeneration_status,
     list_regeneration_steps,
     request_regeneration_cancel,
-    run_full_regeneration,
     run_extract_docx_step,
     run_extract_references_step,
     run_review_document_text_step,
     run_index_chromadb_json_step,
     run_regeneration_step,
+    start_background_regeneration,
 )
 
 
@@ -110,7 +110,7 @@ def generate_questions(
 
 
 @router.post("/api/database/regenerate")
-def regenerate_database(
+async def regenerate_database(
     request: Request,
     root_folder: str | None = Query(
         default=None,
@@ -125,6 +125,7 @@ def regenerate_database(
         description="Optional model override for LLM-based review/content generation steps.",
     ),
     question_count: int = Query(default=DEFAULT_QUESTION_COUNT, ge=1, le=20, description="Number of questions to generate per document."),
+    process_only_new_files: bool = Query(default=False, description="Skip re-indexing and only refresh newly added files."),
 ):
     """Run the full regeneration pipeline.
 
@@ -133,13 +134,25 @@ def regenerate_database(
     - index_chromadb_json
     """
     selected_model = (llm_model or request.headers.get("x-selected-model") or "").strip() or None
-    result = run_full_regeneration(
+    payload = {}
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if isinstance(payload, dict):
+        incoming_new_files_only = payload.get("process_only_new_files")
+        if isinstance(incoming_new_files_only, bool):
+            process_only_new_files = incoming_new_files_only
+        elif isinstance(incoming_new_files_only, str):
+            process_only_new_files = incoming_new_files_only.strip().lower() in {"1", "true", "yes", "on"}
+    result = start_background_regeneration(
         include_extract_docx=True,
         include_extract_references=True,
         root_folder=root_folder,
         container_name=container,
         llm_model=selected_model,
         question_count=question_count,
+        process_only_new_files=process_only_new_files,
     )
 
     result["provider"] = {
@@ -148,10 +161,8 @@ def regenerate_database(
     }
 
     status_value = result.get("status")
-    if status_value in {"success", "cancelled"}:
-        status_code = 200
-    elif status_value == "busy":
-        status_code = 409
+    if status_value in {"started", "busy"}:
+        status_code = 200 if status_value == "started" else 409
     else:
         status_code = 500
     return JSONResponse(status_code=status_code, content=result)

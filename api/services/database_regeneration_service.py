@@ -9,8 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
-import os
 import json
+import logging
+import os
 import re
 import shutil
 import subprocess
@@ -324,7 +325,7 @@ def _set_active_process(process: subprocess.Popen[str] | None) -> None:
 
 
 def _terminate_active_process(process: subprocess.Popen[str] | None = None) -> None:
-    """Terminate the currently active subprocess and clear it from state."""
+    """Terminate the currently active subprocess and its child tree, then clear it from state."""
     target = process
     if target is None:
         with _regen_state_lock:
@@ -337,19 +338,35 @@ def _terminate_active_process(process: subprocess.Popen[str] | None = None) -> N
         _set_active_process(None)
         return
 
-    try:
-        target.terminate()
-    except Exception:
-        pass
+    logger = logging.getLogger(__name__)
+    logger.warning("Cancelling active regeneration process %s (PID %s)", target.args, target.pid)
 
     try:
-        target.wait(timeout=5)
+        if sys.platform == "win32":
+            subprocess.run(
+                ["taskkill", "/PID", str(target.pid), "/T", "/F"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        else:
+            try:
+                os.killpg(os.getpgid(target.pid), 15)
+            except ProcessLookupError:
+                pass
+            except PermissionError:
+                target.terminate()
+    except Exception:
+        logger.exception("Failed to terminate subprocess tree for PID %s", getattr(target, "pid", "unknown"))
+
+    try:
+        target.wait(timeout=10)
     except subprocess.TimeoutExpired:
         try:
             target.kill()
             target.wait(timeout=5)
         except Exception:
-            pass
+            logger.exception("Forced kill failed for PID %s", getattr(target, "pid", "unknown"))
     finally:
         _set_active_process(None)
 
@@ -431,41 +448,39 @@ def _read_progress_snapshot() -> Dict[str, object]:
 # Inputs/Outputs: See signature and return annotation for contract details.
 def get_regeneration_status() -> Dict[str, object]:
     snapshot = _read_progress_snapshot()
-    
-    
+
     with _regen_state_lock:
         current_step = _regen_state.get("current_step")
-        step_key = str(snapshot.get("step")) if snapshot.get("step") else (str(current_step) if current_step else None)
-        step_index = STEP_ORDER.index(step_key) + 1 if step_key in STEP_ORDER else None
-        total_steps = len(STEP_ORDER)
-        progress_percent = None
-        progress_value = snapshot.get("value")
-        progress_total = snapshot.get("total")
-        progress_kind = snapshot.get("kind")
-        if isinstance(progress_total, (int, float)) and progress_total > 0 and isinstance(progress_value, (int, float)):
-            progress_percent = round((float(progress_value) / float(progress_total)) * 100, 1)
+        running = bool(_regen_state.get("running"))
+        cancel_requested = bool(_regen_state.get("cancel_requested"))
 
-        if progress_total is not None:
-            progress_total = int(progress_total)
-        if progress_value is not None:
-            progress_value = int(progress_value)
-        # print(step_key,"Progress value:", progress_value, "Progress total:", progress_total)
-        _regen_state["progress_value"] = progress_value
-        _regen_state["progress_total"] = progress_total
-        _regen_state["progress_kind"] = progress_kind
-        
-        return {
-            "running": bool(_regen_state.get("running")),
-            "cancel_requested": bool(_regen_state.get("cancel_requested")),
-            "current_step": step_key,
-            "current_step_label": STEP_LABELS.get(step_key) if step_key else None,
-            "step_index": step_index,
-            "total_steps": total_steps,
-            "progress_value": progress_value,
-            "progress_total": progress_total,
-            "progress_kind": progress_kind,
-            "progress_percent": progress_percent,
-        }
+    step_key = str(snapshot.get("step")) if snapshot.get("step") else (str(current_step) if current_step else None)
+    step_index = STEP_ORDER.index(step_key) + 1 if step_key in STEP_ORDER else None
+    total_steps = len(STEP_ORDER)
+    progress_percent = None
+    progress_value = snapshot.get("value")
+    progress_total = snapshot.get("total")
+    progress_kind = snapshot.get("kind")
+    if isinstance(progress_total, (int, float)) and progress_total > 0 and isinstance(progress_value, (int, float)):
+        progress_percent = round((float(progress_value) / float(progress_total)) * 100, 1)
+
+    if progress_total is not None:
+        progress_total = int(progress_total)
+    if progress_value is not None:
+        progress_value = int(progress_value)
+
+    return {
+        "running": running,
+        "cancel_requested": cancel_requested,
+        "current_step": step_key,
+        "current_step_label": STEP_LABELS.get(step_key) if step_key else None,
+        "step_index": step_index,
+        "total_steps": total_steps,
+        "progress_value": progress_value,
+        "progress_total": progress_total,
+        "progress_kind": progress_kind,
+        "progress_percent": progress_percent,
+    }
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -566,12 +581,17 @@ def _run_step_with_env(
     if env_overrides:
         process_env.update({k: str(v) for k, v in env_overrides.items() if v is not None})
 
+    popen_kwargs = {
+        "cwd": str(cwd_override or step.cwd),
+        "env": process_env,
+    }
+    if sys.platform == "win32":
+        popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    else:
+        popen_kwargs["start_new_session"] = True
+
     try:
-        process = subprocess.Popen(
-            command,
-            cwd=str(cwd_override or step.cwd),
-            env=process_env,
-        )
+        process = subprocess.Popen(command, **popen_kwargs)
         logger.info("Process started with PID: %d", process.pid)
     except Exception as exc:
         logger.exception("Failed to start subprocess: %s", exc)
@@ -835,6 +855,54 @@ def _has_readable_documents(local_kb_root: Path) -> bool:
     return False
 
 
+def start_background_regeneration(
+    *,
+    include_extract_docx: bool = False,
+    include_extract_references: bool = False,
+    root_folder: str | None = None,
+    container_name: str | None = None,
+    llm_model: str | None = None,
+    question_count: int = DEFAULT_QUESTION_COUNT,
+    process_only_new_files: bool = False,
+) -> Dict[str, object]:
+    """Launch a full regeneration in the background and return immediately."""
+    if bool(_regen_state.get("running")):
+        return {
+            "status": "busy",
+            "message": "A regeneration is already running.",
+        }
+
+    if not _start_regeneration():
+        return {
+            "status": "busy",
+            "message": "A regeneration is already running.",
+        }
+
+    def worker() -> None:
+        try:
+            result = run_full_regeneration(
+                include_extract_docx=include_extract_docx,
+                include_extract_references=include_extract_references,
+                root_folder=root_folder,
+                container_name=container_name,
+                llm_model=llm_model,
+                question_count=question_count,
+                process_only_new_files=process_only_new_files,
+                skip_start_guard=True,
+            )
+            logging.getLogger(__name__).info("Background regeneration finished with status: %s", result.get("status"))
+        except Exception:
+            logging.getLogger(__name__).exception("Background regeneration crashed")
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    return {
+        "status": "started",
+        "message": "Database regeneration started in background.",
+        "running": True,
+    }
+
+
 def run_full_regeneration(
     include_extract_docx: bool = False,
     include_extract_references: bool = False,
@@ -842,6 +910,8 @@ def run_full_regeneration(
     container_name: str | None = None,
     llm_model: str | None = None,
     question_count: int = DEFAULT_QUESTION_COUNT,
+    process_only_new_files: bool = False,
+    skip_start_guard: bool = False,
 ) -> Dict[str, object]:
     """Run the end-to-end regeneration sequence.
 
@@ -850,10 +920,12 @@ def run_full_regeneration(
     2) index_chromadb_json
     3) generate_questions
 
-    Optional preprocessing steps can be added before it.
+    Optional preprocessing steps can be added before it. When
+    process_only_new_files is enabled, indexing is skipped and the run is kept
+    focused on the newly-added documents in the current knowledge base.
     """
 
-    if not _start_regeneration():
+    if not skip_start_guard and not _start_regeneration():
         return {
             "status": "busy",
             "message": "A regeneration is already running.",
@@ -901,6 +973,7 @@ def run_full_regeneration(
             "AZURE_STORAGE_CONTAINER": resolved_container_name,
             "AZURE_KB_BLOB_CONTAINER": resolved_container_name,
             "NUTRIFAQ_KB_ROOT": str(resolved_local_kb_root),
+            "NUTRIFAQ_PROCESS_ONLY_NEW_FILES": "1" if process_only_new_files else "0",
             "CHAT_MODEL": llm_model or os.getenv("CHAT_MODEL", ""),
             "VERCEL_CHAT_DEPLOYMENT": llm_model or os.getenv("VERCEL_CHAT_DEPLOYMENT", ""),
             "LLM_MODEL": llm_model or os.getenv("LLM_MODEL", ""),
@@ -973,11 +1046,12 @@ def run_full_regeneration(
 
         return {
             "status": "success",
-            "message": "Database regeneration pipeline completed.",
+            "message": "Database regeneration pipeline completed." + (" Only newly added files were processed." if process_only_new_files else ""),
             "effective_target": {
                 "container": resolved_container_name,
                 "root_folder": resolved_root_folder,
             },
+            "process_only_new_files": bool(process_only_new_files),
             "steps": results,
         }
     finally:
