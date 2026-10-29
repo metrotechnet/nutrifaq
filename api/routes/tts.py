@@ -19,8 +19,7 @@ router = APIRouter(dependencies=[Depends(require_collaborator)])
 limiter = Limiter(key_func=get_remote_address)
 
 
-# Initialize Vercel AI Gateway client (OpenAI-compatible)
-# See https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions
+# Initialize OpenAI client for TTS requests.
 # Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def get_openai_client() -> OpenAI:

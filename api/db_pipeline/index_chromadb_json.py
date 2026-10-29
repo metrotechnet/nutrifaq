@@ -156,7 +156,7 @@ def index_chromadb_json(kb_path):
         logger.error("Ensure reviewed_documents.json exists before indexing.")
         return
 
-    embedding_provider = os.getenv("EMBEDDING_PROVIDER", os.getenv("LLM_PROVIDER", "vercel"))
+    embedding_provider = os.getenv("EMBEDDING_PROVIDER", os.getenv("LLM_PROVIDER", "azure"))
     logger.info("Embedding provider: %s", embedding_provider)
     logger.info("Loading JSON from: %s", json_file)
 

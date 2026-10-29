@@ -82,6 +82,7 @@
         statusMessage: document.getElementById("status-message"),
         publishModelSelector: document.getElementById("publish-model-selector"),
         publishSubmit: document.getElementById("publish-submit"),
+        publishCancel: document.getElementById("publish-cancel"),
         publishStatus: document.getElementById("publish-status"),
         publishFinishMessage: document.getElementById("publish-finish-message"),
         publishProgressWrap: document.getElementById("publish-progress-wrap"),
@@ -100,6 +101,7 @@
         els.publishSection = document.getElementById("publish-section");
         els.publishModelSelector = document.getElementById("publish-model-selector");
         els.publishSubmit = document.getElementById("publish-submit");
+        els.publishCancel = document.getElementById("publish-cancel");
         els.publishStatus = document.getElementById("publish-status");
         els.publishFinishMessage = document.getElementById("publish-finish-message");
         els.publishProgressWrap = document.getElementById("publish-progress-wrap");
@@ -116,7 +118,7 @@
     function setPublishProgress(value, text) {
         const progressValue = Math.max(0, Math.min(100, Number(value) || 0));
         if (els.publishProgressWrap) {
-            els.publishProgressWrap.style.display = "block";
+            els.publishProgressWrap.style.display = "grid";
         }
         if (els.publishProgressBar) {
             els.publishProgressBar.style.width = `${progressValue}%`;
@@ -317,6 +319,10 @@
 
         if (els.publishSubmit) {
             els.publishSubmit.textContent = tr("publish.confirm.action", "Publier");
+        }
+
+        if (els.publishCancel) {
+            els.publishCancel.textContent = tr("publish.cancel.action", "Annuler");
         }
 
         const logsTitle = els.publishSection.querySelector(".publish-logs-header h3");
@@ -678,10 +684,13 @@
                 </div>
 
                 <div id="publish-progress-wrap" class="publish-progress-wrap" style="display:none;">
-                    <div class="publish-progress-track">
-                        <div id="publish-progress-bar" class="publish-progress-bar" style="width:0%;"></div>
+                    <div class="publish-progress-main">
+                        <div class="publish-progress-track">
+                            <div id="publish-progress-bar" class="publish-progress-bar" style="width:0%;"></div>
+                        </div>
+                        <div id="publish-progress-text" class="publish-progress-text">0%</div>
                     </div>
-                    <div id="publish-progress-text" class="publish-progress-text">0%</div>
+                    <button id="publish-cancel" class="dm-btn cancel" type="button" style="display:none;">${escapeHtml(tr("publish.cancel.action", "Annuler"))}</button>
                 </div>
 
                 <p id="publish-status" class="status-message">${escapeHtml(tr("publish.status.ready", "Prêt."))}</p>
@@ -941,11 +950,25 @@
                 if (!regen.running) {
                     setStatus(tr("downloadManager.status.indexingCompleted", "Indexage terminé."), false);
                     finishIndexingProgress(true);
+                    return;
                 }
+                const fallbackProgress = Number.isFinite(Number(regen.progress_percent))
+                    ? Number(regen.progress_percent)
+                    : 0;
+                if (els.indexingProgressWrap) {
+                    els.indexingProgressWrap.classList.add("is-visible");
+                }
+                setStatus(tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."), false);
+                setIndexingProgress(fallbackProgress, `${tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes.")} (${Math.round(fallbackProgress)}%)`);
                 return;
             }
 
             if (!regen.current_step || !regen.step_index || !regen.total_steps) {
+                if (els.indexingProgressWrap) {
+                    els.indexingProgressWrap.classList.add("is-visible");
+                }
+                setStatus(tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."), false);
+                setIndexingProgress(0, tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."));
                 return;
             }
 
@@ -1032,6 +1055,44 @@
         refreshRegenerationStatus();
     }
 
+    async function resumeIndexingIfRunning() {
+        try {
+            const payload = await fetchJson(`${BACKEND_URL}/api/database/regenerate/status`, {
+                headers: {
+                    ...authHeaders()
+                }
+            });
+            const regen = payload && payload.regeneration ? payload.regeneration : {};
+            if (!regen.running) {
+                return;
+            }
+            if (!isIndexingRunning) {
+                beginIndexingProgress();
+            }
+
+            const stepKey = regen.current_step || null;
+            const stepLabel = stepKey ? (regen.current_step_label || getStepLabel(stepKey)) : tr("downloadManager.status.indexingInProgress", "Indexage en cours...");
+            const percent = Number.isFinite(Number(regen.progress_percent))
+                ? Number(regen.progress_percent)
+                : (
+                    Number.isFinite(Number(regen.progress_value)) && Number.isFinite(Number(regen.progress_total)) && Number(regen.progress_total) > 0
+                        ? (Number(regen.progress_value) / Number(regen.progress_total)) * 100
+                        : 0
+                );
+            const displayText = stepKey
+                ? `${stepLabel} (${Math.round(percent)}%)`
+                : `${tr("downloadManager.status.indexingInProgress", "Indexage en cours...")} (${Math.round(percent)}%)`;
+            setIndexingProgress(percent, displayText);
+            setStatus(displayText, false);
+            if (els.indexingProgressWrap) {
+                els.indexingProgressWrap.classList.add("is-visible");
+            }
+            await refreshRegenerationStatus();
+        } catch (_) {
+            // Ignore status bootstrap errors on page load.
+        }
+    }
+
     async function requestCancelIndexing() {
         if (!isIndexingRunning) {
             return;
@@ -1099,17 +1160,19 @@
         }
 
         const grid = els.publishSection.querySelector(".publish-controls-grid");
-        if (!grid) {
-            return;
+        if (grid) {
+            grid.classList.toggle("is-disabled", disabled);
+            grid.setAttribute("aria-disabled", String(disabled));
+            const controls = grid.querySelectorAll("button, select, input, textarea");
+            controls.forEach((control) => {
+                control.disabled = disabled;
+            });
         }
 
-        grid.classList.toggle("is-disabled", disabled);
-        grid.setAttribute("aria-disabled", String(disabled));
-
-        const controls = grid.querySelectorAll("button, select, input, textarea");
-        controls.forEach((control) => {
-            control.disabled = disabled;
-        });
+        if (els.publishCancel) {
+            els.publishCancel.disabled = !disabled;
+            els.publishCancel.style.display = disabled ? "inline-flex" : "none";
+        }
     }
 
     // Purpose: Updates UI or local state so downstream interactions stay consistent.
@@ -1908,6 +1971,16 @@
                     return;
                 }
 
+                if (!running && data.status === "cancelled") {
+                    publishTerminalStateHandled = true;
+                    stopPublishStatusPolling();
+                    setPublishControlsDisabled(false);
+                    setPublishStatus(tr("publish.status.cancelRequested", "Publication annulée."), false);
+                    setPublishProgress(100, "100%");
+                    await loadActivePublishLogs();
+                    return;
+                }
+
                 if (!running && data.status === "error") {
                     publishTerminalStateHandled = true;
                     stopPublishStatusPolling();
@@ -1930,6 +2003,72 @@
 
         poll();
         publishStatusTimer = window.setInterval(poll, 1500);
+    }
+
+    async function onPublishCancel() {
+        try {
+            if (!els.publishCancel || els.publishCancel.disabled) {
+                return;
+            }
+            setPublishStatus(tr("publish.status.cancelRequested", "Annulation demandée..."), false);
+            await fetchJson(`${BACKEND_URL}/api/publish/cancel`, {
+                method: "POST",
+                headers: {
+                    ...authHeaders(),
+                    "Content-Type": "application/json",
+                }
+            });
+            setPublishControlsDisabled(true);
+        } catch (error) {
+            const message = error && error.message ? error.message : tr("publish.status.cancelError", "Erreur lors de l'annulation.");
+            setPublishStatus(message, true);
+        }
+    }
+
+    async function restorePublishUiFromServer() {
+        try {
+            const data = await fetchJson(`${BACKEND_URL}/api/publish/status`, {
+                headers: { ...authHeaders() }
+            });
+            const running = Boolean(data && data.running);
+            const status = String((data && data.status) || "idle");
+            const message = (data && data.message) ? String(data.message) : "";
+            const progress = Number((data && data.progress) || 0);
+
+            if (running) {
+                setPublishProgress(progress || 0, `${Math.round(progress || 0)}%`);
+                setPublishStatus(message || tr("publish.status.inProgress", "Publication en cours..."), false);
+                setPublishControlsDisabled(true);
+                startPublishStatusPolling();
+                return;
+            }
+
+            if (status === "cancelled") {
+                setPublishStatus(tr("publish.status.cancelRequested", "Publication annulée."), false);
+                setPublishProgress(100, "100%");
+                return;
+            }
+
+            if (status === "completed") {
+                setPublishStatus(tr("publish.status.completed", "Publication terminée."), false);
+                setPublishProgress(100, "100%");
+                return;
+            }
+
+            if (status === "error") {
+                setPublishStatus(data && data.error ? String(data.error) : tr("publish.status.error", "Publication failed."), true);
+                setPublishProgress(100, "100%");
+                return;
+            }
+
+            setPublishStatus(tr("publish.status.ready", "Prêt."), false);
+            setPublishControlsDisabled(false);
+            hidePublishProgress();
+        } catch (_) {
+            setPublishStatus(tr("publish.status.ready", "Prêt."), false);
+            setPublishControlsDisabled(false);
+            hidePublishProgress();
+        }
     }
 
     async function onPublishSubmit() {
@@ -1989,6 +2128,15 @@
             hidePublishProgress();
             setPublishControlsDisabled(false);
         }
+    }
+
+    function initPublishCancelButton() {
+        if (!els.publishCancel) {
+            return;
+        }
+        els.publishCancel.addEventListener("click", onPublishCancel);
+        els.publishCancel.style.display = "none";
+        els.publishCancel.disabled = true;
     }
 
     async function onRevertSubmit() {
@@ -2497,14 +2645,14 @@
                 signal: indexingAbortController.signal
             });
 
-            const finalStatus = result.status || "ok";
+            const finalStatus = String(result && result.status ? result.status : "").trim().toLowerCase();
             if (finalStatus === "busy") {
                 setStatus(tr("downloadManager.status.indexingBusy", "Un indexage est déjà en cours."), true);
                 finishIndexingProgress(false);
                 showAlertMessage(tr("downloadManager.status.indexingBusy", "Un indexage est déjà en cours."), true);
                 return;
             }
-            if (finalStatus === "started") {
+            if (finalStatus === "started" || finalStatus === "ok" || !finalStatus) {
                 setStatus(tr("downloadManager.status.indexingInProgress", "Indexage démarré..."), false);
                 return;
             }
@@ -2512,10 +2660,16 @@
                 setStatus(tr("downloadManager.status.indexingCancelled", "Indexage annulé."), true);
                 finishIndexingProgress(false);
                 showAlertMessage(tr("downloadManager.status.indexingCancelled", "Indexage annulé."), false);
-            } else {
-                setStatus(tr("downloadManager.status.indexingCompleted", "Indexage terminé. Statut: {status}", { status: finalStatus }), false);
+            } else if (finalStatus === "success" || finalStatus === "completed") {
+                setStatus(tr("downloadManager.status.indexingDone", "Indexage terminé."), false);
                 finishIndexingProgress(true);
                 showAlertMessage(tr("downloadManager.status.indexingDone", "Indexage terminé."), false);
+            } else if (finalStatus === "error") {
+                const detail = (result && (result.message || result.detail)) ? String(result.message || result.detail) : "unknown";
+                throw new Error(detail);
+            } else {
+                setStatus(tr("downloadManager.status.indexingInProgress", "Indexage démarré..."), false);
+                return;
             }
         } catch (error) {
             if (error && error.name === "AbortError") {
@@ -2557,6 +2711,7 @@
     function init() {
         ensurePublishSectionMounted();
         ensurePublishRefreshControl();
+        initPublishCancelButton();
         bindNavigationToggles();
         bindTokenSync();
         bindConfigLanguageSync();
@@ -2584,7 +2739,9 @@
             });
         }
         ensurePublishDefaults();
+        restorePublishUiFromServer();
         loadFiles();
+        resumeIndexingIfRunning();
     }
 
     document.addEventListener("DOMContentLoaded", init);

@@ -401,10 +401,13 @@
                             </div>
 
                             <div id="publish-progress-wrap" class="publish-progress-wrap" style="display:none;">
-                                <div class="publish-progress-track">
-                                    <div id="publish-progress-bar" class="publish-progress-bar" style="width:0%;"></div>
+                                <div class="publish-progress-main">
+                                    <div class="publish-progress-track">
+                                        <div id="publish-progress-bar" class="publish-progress-bar" style="width:0%;"></div>
+                                    </div>
+                                    <div id="publish-progress-text" class="publish-progress-text">0%</div>
                                 </div>
-                                <div id="publish-progress-text" class="publish-progress-text">0%</div>
+                                <button id="publish-cancel" class="dm-btn cancel" type="button" style="display:none;" data-i18n="publish.cancel.action">Annuler</button>
                             </div>
 
                             <p id="publish-status" class="status-message" data-i18n="publish.status.ready">Prêt.</p>
@@ -448,7 +451,6 @@
     
     <!-- Modular JavaScript files (load in dependency order) -->
     <!-- Backend URL configuration must load first -->
-    <script src="/static/js/backend-url.js"></script>
     <script src="/static/js/auth-config.js"></script>
     <script src="/static/js/config.js"></script>
     <script src="/static/js/components.js"></script>

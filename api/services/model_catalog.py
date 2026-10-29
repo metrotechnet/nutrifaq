@@ -30,7 +30,7 @@ def _catalog_blob_name() -> str:
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _current_provider() -> str:
-    return os.getenv("LLM_PROVIDER", "vercel").strip().lower()
+    return os.getenv("LLM_PROVIDER", "azure").strip().lower()
 
 
 # Purpose: Load configuration or persisted data and normalize the result for runtime use.

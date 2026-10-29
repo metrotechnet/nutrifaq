@@ -285,7 +285,7 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
                 and str(doc.get("filename") or doc.get("metadata", {}).get("filename") or doc.get("id") or "").strip() in allowed
             ]
 
-    resolved_model = (llm_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or os.getenv("LLM_MODEL") or "").strip()
+    resolved_model = (llm_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or os.getenv("LLM_MODEL") or "").strip()
     if not resolved_model:
         raise RuntimeError("No model was provided by the client for question generation.")
 
@@ -376,6 +376,5 @@ if __name__ == "__main__":
     # Avoid debugger interruptions on expected non-zero exits.
     if sys.gettrace() is None and exit_code != 0:
         raise SystemExit(exit_code)
-
 
 

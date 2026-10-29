@@ -220,7 +220,6 @@ $settingsMap = [ordered]@{
 
 $optionalSettingKeys = @(
     "OPENAI_API_KEY",
-    "AI_GATEWAY_API_KEY",
     "LLM_PROVIDER",
     "EMBEDDING_PROVIDER",
     "CHAT_MAX_RETRIES",

@@ -166,9 +166,9 @@ def generate_questions_from_transcripts_json(
     ]
 
     process_env = os.environ.copy()
-    selected_model = (llm_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or os.getenv("LLM_MODEL") or "").strip()
+    selected_model = (llm_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or os.getenv("LLM_MODEL") or "").strip()
     if selected_model:
-        process_env["VERCEL_CHAT_DEPLOYMENT"] = selected_model
+        process_env["AZURE_OPENAI_CHAT_DEPLOYMENT"] = selected_model
         process_env["CHAT_MODEL"] = selected_model
         process_env["LLM_MODEL"] = selected_model
 
@@ -1012,7 +1012,7 @@ def run_full_regeneration(
             "NUTRIFAQ_KB_ROOT": str(resolved_local_kb_root),
             "NUTRIFAQ_PROCESS_ONLY_NEW_FILES": "1" if process_only_new_files else "0",
             "CHAT_MODEL": llm_model or os.getenv("CHAT_MODEL", ""),
-            "VERCEL_CHAT_DEPLOYMENT": llm_model or os.getenv("VERCEL_CHAT_DEPLOYMENT", ""),
+            "AZURE_OPENAI_CHAT_DEPLOYMENT": llm_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT", ""),
             "LLM_MODEL": llm_model or os.getenv("LLM_MODEL", ""),
         }
 
@@ -1032,7 +1032,7 @@ def run_full_regeneration(
             "review_document_text": lambda: _run_step_with_env(
                 "review_document_text",
                 env_overrides=regen_env,
-                step_args_override=[str(resolved_local_kb_root), str(llm_model or os.getenv("CHAT_MODEL") or os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("LLM_MODEL") or "")],
+                step_args_override=[str(resolved_local_kb_root), str(llm_model or os.getenv("CHAT_MODEL") or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or os.getenv("LLM_MODEL") or "")],
                 cwd_override=resolved_local_kb_root,
             ),
             "index_chromadb_json": lambda: _run_step_with_env(

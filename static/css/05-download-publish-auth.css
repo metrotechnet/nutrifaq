@@ -270,7 +270,8 @@
     font-weight: 600;
 }
 
-#cancel-indexing {
+#cancel-indexing,
+#publish-cancel {
     justify-self: end;
 }
 
@@ -550,6 +551,17 @@
 .publish-progress-wrap {
     margin-top: 0.85rem;
     display: none;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.85rem;
+    background: #ffffff;
+    border: 1px solid #d5e3df;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+}
+
+.publish-progress-main {
+    min-width: 0;
 }
 
 .publish-progress-track {
@@ -569,7 +581,7 @@
 }
 
 .publish-progress-text {
-    margin-top: 0.45rem;
+    margin: 0.55rem 0 0;
     color: #1f514a;
     font-size: 0.8rem;
     font-weight: 700;

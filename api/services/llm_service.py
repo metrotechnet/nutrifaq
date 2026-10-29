@@ -175,7 +175,7 @@ def build_prompt_from_template(
 def _llm_provider(provider_override: str | None = None) -> str:
     if provider_override:
         return provider_override.strip().lower()
-    return os.getenv("LLM_PROVIDER", "vercel").strip().lower()
+    return os.getenv("LLM_PROVIDER", "azure").strip().lower()
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -347,10 +347,9 @@ def get_gateway_client(provider_override: str | None = None) -> OpenAI | AzureOp
     if provider == "azure":
         return _get_azure_chat_client()
 
-    api_key = os.getenv("AI_GATEWAY_API_KEY")
-    if not api_key:
-        raise RuntimeError("AI_GATEWAY_API_KEY is not configured.")
-    return OpenAI(api_key=api_key, base_url="https://ai-gateway.vercel.sh/v1")
+    raise RuntimeError(
+        "Unsupported LLM_PROVIDER. This deployment supports only 'azure'."
+    )
 
 
 # Purpose: Create a resource by coordinating validation and backend calls.
@@ -365,13 +364,10 @@ def create_chat_completion_stream(
     timeout_seconds: float | None = None,
 ):
     provider = _llm_provider(provider_override)
+    if provider != "azure":
+        raise RuntimeError("Unsupported LLM provider. This deployment supports only 'azure'.")
     requested_model = (model_name or "").strip()
-    env_model = (os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or "").strip()
-
-    if provider == "azure":
-        resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or ""
-    else:
-        resolved_model = _safe_gateway_model_name(requested_model or env_model)
+    resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or ""
 
     if not resolved_model:
         raise RuntimeError("No model was provided for chat generation. Pass llm_model or set the configured model environment variable.")
@@ -433,13 +429,10 @@ def create_chat_completion_text(
 ) -> str:
     """Create a non-streaming chat completion and return plain text content."""
     provider = _llm_provider(provider_override)
+    if provider != "azure":
+        raise RuntimeError("Unsupported LLM provider. This deployment supports only 'azure'.")
     requested_model = (model_name or "").strip()
-    env_model = (os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or "").strip()
-
-    if provider == "azure":
-        resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or ""
-    else:
-        resolved_model = _safe_gateway_model_name(requested_model or env_model)
+    resolved_model = requested_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or ""
 
     if not resolved_model:
         raise RuntimeError("No model was provided for chat generation. Pass llm_model or set the configured model environment variable.")
@@ -467,7 +460,6 @@ def create_chat_completion_text(
             response = client.chat.completions.create(
                 model=resolved_model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
                 stream=False,
                 timeout=request_timeout,
             )
@@ -510,17 +502,13 @@ def create_embedding(
     timeout_seconds: float | None = None,
 ) -> list[float]:
     provider = _embedding_provider(provider_override)
+    if provider != "azure":
+        raise RuntimeError("Unsupported embedding provider. This deployment supports only 'azure'.")
     resolved_model = model_name
     embedding_client: OpenAI | AzureOpenAI
 
-    if provider == "azure":
-        embedding_client = _get_azure_embedding_client()
-        resolved_model = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT") or _normalize_model_name(model_name)
-    else:
-        api_key = os.getenv("AI_GATEWAY_API_KEY")
-        if not api_key:
-            raise RuntimeError("AI_GATEWAY_API_KEY is not configured.")
-        embedding_client = OpenAI(api_key=api_key, base_url="https://ai-gateway.vercel.sh/v1")
+    embedding_client = _get_azure_embedding_client()
+    resolved_model = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT") or _normalize_model_name(model_name)
 
     max_retries = max(0, int(os.getenv("EMBEDDING_MAX_RETRIES", "5")))
     base_delay = max(0.1, float(os.getenv("EMBEDDING_RETRY_BASE_DELAY", "2")))
@@ -563,17 +551,13 @@ def create_embeddings(
         return []
 
     provider = _embedding_provider(provider_override)
+    if provider != "azure":
+        raise RuntimeError("Unsupported embedding provider. This deployment supports only 'azure'.")
     resolved_model = model_name
     embedding_client: OpenAI | AzureOpenAI
 
-    if provider == "azure":
-        embedding_client = _get_azure_embedding_client()
-        resolved_model = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT") or _normalize_model_name(model_name)
-    else:
-        api_key = os.getenv("AI_GATEWAY_API_KEY")
-        if not api_key:
-            raise RuntimeError("AI_GATEWAY_API_KEY is not configured.")
-        embedding_client = OpenAI(api_key=api_key, base_url="https://ai-gateway.vercel.sh/v1")
+    embedding_client = _get_azure_embedding_client()
+    resolved_model = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT") or _normalize_model_name(model_name)
 
     max_retries = max(0, int(os.getenv("EMBEDDING_MAX_RETRIES", "5")))
     base_delay = max(0.1, float(os.getenv("EMBEDDING_RETRY_BASE_DELAY", "2")))

@@ -155,7 +155,7 @@ def review_document_text(kb_dir: Path, llm_model: str | None = None):
         return payload
 
     client = get_gateway_client()
-    selected_model = (llm_model or os.getenv("VERCEL_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or os.getenv("LLM_MODEL") or "").strip()
+    selected_model = (llm_model or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or os.getenv("CHAT_MODEL") or os.getenv("LLM_MODEL") or "").strip()
     if not selected_model:
         raise RuntimeError("No model was provided for review_document_text. Pass llm_model or set the configured model environment variable.")
     reviewed_documents = []

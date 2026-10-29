@@ -10,11 +10,13 @@ import socket
 from pathlib import Path
 from urllib.parse import unquote
 from dotenv import load_dotenv
-from api.services.logging import configure_logging
 
 # Load environment variables from .env file
 load_dotenv()
-configure_logging()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 

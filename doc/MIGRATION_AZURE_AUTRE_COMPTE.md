@@ -65,7 +65,6 @@ Mettre a jour `.env` avec les valeurs cible.
 Variables minimales backend a verifier:
 - `LLM_PROVIDER`
 - `EMBEDDING_PROVIDER`
-- `AI_GATEWAY_API_KEY` (si provider vercel)
 - `AZURE_OPENAI_CHAT_ENDPOINT`
 - `AZURE_OPENAI_CHAT_API_KEY`
 - `AZURE_OPENAI_CHAT_DEPLOYMENT`
@@ -115,8 +114,8 @@ Appliquer explicitement les variables critiques (exemple):
 ```powershell
 az webapp config appsettings set -g nutrifaq-rg -n nutrifaq-webapp --settings `
   BACKEND_URL="https://<ton-backend>.azurewebsites.net" `
-  LLM_PROVIDER="vercel" `
-  EMBEDDING_PROVIDER="vercel" `
+  LLM_PROVIDER="azure" `
+  EMBEDDING_PROVIDER="azure" `
   AZURE_OPENAI_CHAT_ENDPOINT="https://..." `
   AZURE_OPENAI_CHAT_DEPLOYMENT="..." `
   AZURE_OPENAI_EMBEDDING_ENDPOINT="https://..." `
