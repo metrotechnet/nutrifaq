@@ -66,12 +66,9 @@ def sync_blob_databases_on_startup(app: "FastAPI | None" = None) -> None:
         logger.info("[Startup] Azure Blob Storage not configured; skipping startup data hydration.")
         return
 
-    config_prefix_base =  "nutrifaq-config"
     dbase_main_prefix_base = "nutrifaq-dbase-main"
 
-    config_target_root = PROJECT_ROOT / "nutrifaq-config"
     dbase_main_target_root = PROJECT_ROOT / "nutrifaq-dbase-main"
-    dbase_prod_target_root = PROJECT_ROOT / "nutrifaq-dbase-prod"
 
     hydrated_targets: list[Path] = []
 
@@ -113,22 +110,22 @@ def sync_blob_databases_on_startup(app: "FastAPI | None" = None) -> None:
     except Exception as exc:
         logger.warning("[Startup] Main KB hydration skipped: %s", exc)
 
-    try:
-        documents_root = dbase_main_target_root / "documents"
-        if documents_root.exists() and any(documents_root.rglob("*")):
-            uploaded = sync_local_directory_to_blob(
-                source_root=documents_root,
-                destination_prefix="documents",
-                container_name=dbase_main_prefix_base,
-                overwrite=True,
-            )
-            logger.info(
-                "[Startup] Synced %s local document files to Azure Blob Storage (container=%s, prefix=documents)",
-                len(uploaded),
-                dbase_main_prefix_base,
-            )
-        else:
-            logger.info("[Startup] No local document files to sync back to Azure Blob Storage.")
+    # try:
+    #     documents_root = dbase_main_target_root / "documents"
+    #     if documents_root.exists() and any(documents_root.rglob("*")):
+    #         uploaded = sync_local_directory_to_blob(
+    #             source_root=documents_root,
+    #             destination_prefix="documents",
+    #             container_name=dbase_main_prefix_base,
+    #             overwrite=True,
+    #         )
+    #         logger.info(
+    #             "[Startup] Synced %s local document files to Azure Blob Storage (container=%s, prefix=documents)",
+    #             len(uploaded),
+    #             dbase_main_prefix_base,
+    #         )
+    #     else:
+    #         logger.info("[Startup] No local document files to sync back to Azure Blob Storage.")
     except Exception as exc:
         logger.warning("[Startup] Local document sync to blob skipped: %s", exc)
 

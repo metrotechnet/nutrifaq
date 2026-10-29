@@ -3,6 +3,7 @@ __pycache__/
 nutrifaq-config/
 nutrifaq-dbase-prod/
 nutrifaq-dbase-main/
+nutrifaq-dbase-main copy/
 nutrifaq-dbase-prev/
 node_modules/
 .backend-url.tmp

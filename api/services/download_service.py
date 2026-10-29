@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import Header, HTTPException
 
 from api.services.blob_storage_service import (
+    get_blob_container_name,
     get_blob_prefix,
     has_blob_storage_config,
     upload_file_to_blob,
@@ -53,9 +54,8 @@ def _safe_filename(filename: str) -> str:
 
 
 def _azure_blob_path_for_document(filename: str) -> str:
-    prefix = get_blob_prefix().strip("/")
     relative_path = f"documents/{_safe_filename(filename)}".strip("/")
-    return f"{prefix}/{relative_path}" if prefix else relative_path
+    return f"{relative_path}" 
 
 
 def save_uploaded_file(filename: str, content: bytes) -> dict[str, str | bool]:
@@ -77,7 +77,12 @@ def save_uploaded_file(filename: str, content: bytes) -> dict[str, str | bool]:
 
     try:
         blob_name = _azure_blob_path_for_document(final_filename)
-        upload_file_to_blob(blob_name, destination, overwrite=True)
+        upload_file_to_blob(
+            blob_name,
+            destination,
+            overwrite=True,
+            container_name=get_blob_container_name(),
+        )
         result["azure_synced"] = True
         result["azure_blob_path"] = blob_name
     except Exception as exc:

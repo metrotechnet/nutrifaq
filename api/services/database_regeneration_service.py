@@ -976,7 +976,7 @@ def run_full_regeneration(
     resolved_container_name = (
         (container_name or "").strip()
         or os.getenv("AZURE_KB_DEBUG_BLOB_CONTAINER", "").strip()
-        or "nutrifaq-knowledge-base-debug"
+        or "nutrifaq-dbase-main"
     )
     resolved_local_kb_root = REPO_ROOT / resolved_root_folder
 

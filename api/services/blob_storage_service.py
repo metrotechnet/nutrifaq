@@ -65,7 +65,7 @@ def get_blob_container_name(container_name: str | None = None) -> str:
     # stay aligned with the debug dataset unless an explicit override is passed.
     return os.getenv(
         "AZURE_KB_DEBUG_BLOB_CONTAINER",
-        os.getenv("AZURE_STORAGE_CONTAINER", os.getenv("AZURE_KB_BLOB_CONTAINER", "nutrifaq-knowledge-base-debug")),
+        os.getenv("AZURE_STORAGE_CONTAINER", os.getenv("AZURE_KB_BLOB_CONTAINER", "nutrifaq-dbase-main")),
     )
 
 

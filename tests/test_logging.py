@@ -100,7 +100,7 @@ def test_schedule_publish_executes_debug_to_main_sync_and_indexing(tmp_path, mon
 
     assert ("copy", str(debug_root), str(main_root)) in events
     assert ("index", str(main_root)) in events
-    assert ("sync", str(main_root), "nutrifaq-dbase", "nutrifaq-knowledge-base") in events
+    assert ("sync", str(main_root), "nutrifaq-dbase", "nutrifaq-dbase-main") in events
 
 
 def test_regeneration_progress_uses_question_and_token_totals(monkeypatch):
