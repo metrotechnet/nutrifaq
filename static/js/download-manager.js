@@ -929,6 +929,13 @@
                 return;
             }
 
+            if (!regen.running) {
+                stopRegenerationStatusPolling();
+                setStatus(tr("downloadManager.status.indexingCompleted", "Indexage terminé."), false);
+                finishIndexingProgress(true);
+                return;
+            }
+
             const stepKey = regen.current_step || null;
             if (!stepKey) {
                 if (!regen.running) {

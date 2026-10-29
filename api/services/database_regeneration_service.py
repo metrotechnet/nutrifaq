@@ -341,6 +341,7 @@ def _finish_regeneration() -> None:
         _regen_state["progress_kind"] = None
         if not cancel_requested:
             _regen_state["cancel_requested"] = False
+    _reset_progress_snapshot()
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -486,6 +487,9 @@ def get_regeneration_status() -> Dict[str, object]:
         current_step = _regen_state.get("current_step")
         running = bool(_regen_state.get("running"))
         cancel_requested = bool(_regen_state.get("cancel_requested"))
+
+    if not running:
+        snapshot = {}
 
     step_key = str(snapshot.get("step")) if snapshot.get("step") else (str(current_step) if current_step else None)
     step_index = STEP_ORDER.index(step_key) + 1 if step_key in STEP_ORDER else None
