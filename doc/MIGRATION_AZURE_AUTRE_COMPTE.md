@@ -290,7 +290,7 @@ Avec un token client:
 
 2. Doit etre refuse
 - `GET /api/get_config` (403 attendu)
-- `POST /api/database/regenerate` (403 attendu)
+- `POST /api/database/indexing` (403 attendu)
 - `GET /api/blob/files` (403 attendu)
 
 ### Etape 5 - Audit des roles assignes

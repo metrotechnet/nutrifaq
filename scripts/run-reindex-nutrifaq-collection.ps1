@@ -79,7 +79,7 @@ if ($EmbeddingProvider) {
     $queryParams += "embedding_provider=$EmbeddingProvider"
 }
 
-$uri = "$BackendUrl/api/database/regenerate?" + ($queryParams -join "&")
+$uri = "$BackendUrl/api/database/indexing?" + ($queryParams -join "&")
 
 $exitCode = 0
 try {

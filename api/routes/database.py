@@ -1,6 +1,6 @@
-"""Database regeneration routes.
+"""Database indexing routes.
 
-Provides API endpoints to run the nutrifaq-dbase regeneration pipeline
+Provides API endpoints to run the nutrifaq-dbase indexing pipeline
 using scripts under api/db_pipeline.
 """
 
@@ -109,7 +109,7 @@ def generate_questions(
     return JSONResponse(status_code=status_code, content=result)
 
 
-@router.post("/api/database/regenerate")
+@router.post("/api/database/indexing")
 async def index_database(
     request: Request,
     root_folder: str | None = Query(
@@ -127,7 +127,7 @@ async def index_database(
     question_count: int = Query(default=DEFAULT_QUESTION_COUNT, ge=1, le=20, description="Number of questions to generate per document."),
     process_only_new_files: bool = Query(default=False, description="Skip re-indexing and only refresh newly added files."),
 ):
-    """Run the full regeneration pipeline.
+    """Run the full indexing pipeline.
 
     Core steps mirror build-database.bat:
     - review_document_text
@@ -168,7 +168,7 @@ async def index_database(
     return JSONResponse(status_code=status_code, content=result)
 
 
-@router.post("/api/database/regenerate/cancel")
+@router.post("/api/database/indexing/cancel")
 def cancel_indexation():
     """Request cancellation of the currently running indexation job."""
     result = request_indexation_cancel()
@@ -176,7 +176,7 @@ def cancel_indexation():
     return JSONResponse(status_code=status_code, content=result)
 
 
-@router.get("/api/database/regenerate/status")
+@router.get("/api/database/indexing/status")
 def indexation_status():
     """Return current indexation execution status."""
-    return {"status": "ok", "regeneration": get_indexation_status()}
+    return {"status": "ok", "indexing": get_indexation_status()}

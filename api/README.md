@@ -62,13 +62,13 @@ Third-party ingestion helpers:
 - `GET /list_page`
 - `DELETE /delete_page/{filename:path}`
 
-Database regeneration:
+Database indexing:
 
 - `GET /api/database/steps`
 - `POST /api/database/run-step`
-- `POST /api/database/regenerate`
-- `POST /api/database/regenerate/cancel`
-- `GET /api/database/regenerate/status`
+- `POST /api/database/indexing`
+- `POST /api/database/indexing/cancel`
+- `GET /api/database/indexing/status`
 
 User and roles:
 

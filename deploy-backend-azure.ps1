@@ -275,7 +275,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Ensure the runtime environment has the backend dependencies before each startup.
-# App Service on Linux sometimes ignores the inline command when Oryx regenerates startup.sh,
+# App Service on Linux sometimes ignores the inline command when Oryx rebuilds startup.sh,
 # so we set the startup script file itself and make it install deps before launching the app.
 # Also keep the container alive and enable Azure's health probe to prevent the Kudu container
 # from being torn down after a brief idle period.

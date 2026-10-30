@@ -20,8 +20,8 @@ from api.services.config import (
     save_publish_schedule_entries,
     upsert_publish_schedule_entry,
 )
-from api.services.indexation_service import request_indexation_cancel, run_full_indexation
-from api.services.publish_service import cancel_publish, start_publish
+from api.services.indexation_service import get_indexation_status, request_indexation_cancel, run_full_indexation
+from api.services.publish_service import cancel_publish, get_publish_status, start_publish
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEBUG_KB_ROOT = REPO_ROOT / os.getenv("DEBUG_KB_LOCAL_ROOT", "nutrifaq-dbase-main")
@@ -145,7 +145,7 @@ def has_files_changed(root: Path | str | None = None) -> bool:
 
 def run_indexation_then_publish(*, model: str, provider: str = "azure", scheduled_for: datetime | str | None = None) -> dict[str, Any]:
     """Run indexation first and then trigger publish, but only when files changed."""
-    debug = True
+    debug = False
     if debug:
         planned_value = _format_report_datetime(_normalize_datetime(scheduled_for, default_tz=timezone.utc), "UTC") if scheduled_for is not None else _actual_now_iso()
         _append_schedule_log("publish_triggered", model=model, provider=provider, scheduled_for=planned_value, executed_at=_actual_now_iso())
@@ -504,7 +504,6 @@ def schedule_publish(
     if not model or not str(model).strip():
         raise ValueError("A model is required to schedule publication.")
 
-    scheduler = _ensure_scheduler()
     effective_tz = _resolve_timezone(timezone_name)
     run_date = _normalize_datetime(publish_at, default_tz=effective_tz)
 
@@ -519,6 +518,16 @@ def schedule_publish(
             cron_expression = f"{minute} {hour} * * 0"
         cron = cron_expression
 
+    recurrence_name = (recurrence or "").strip().lower()
+    immediate_mode = recurrence_name in {"manual", "immediate"} or (
+        run_date is not None and abs((run_date.astimezone(timezone.utc) - datetime.now(timezone.utc)).total_seconds()) <= 120
+    )
+
+    if immediate_mode:
+        recurrence = "once"
+        run_date = datetime.now(timezone.utc) + timedelta(seconds=30)
+
+    scheduler = _ensure_scheduler()
     resolved_job_id = str(job_id or _build_job_id())
     schedule_for_value = run_date.isoformat() if run_date is not None else None
     job_kwargs: dict[str, Any] = {
@@ -530,23 +539,6 @@ def schedule_publish(
             "scheduled_for": schedule_for_value,
         },
     }
-    actual_date = datetime.now(timezone.utc)
-    if run_date is not None and run_date.astimezone(timezone.utc) <= actual_date + timedelta(seconds=2):
-        result = run_indexation_then_publish(model=str(model), provider=str(provider or "azure"), scheduled_for=run_date.isoformat())
-        schedule_result = {
-            "status": "triggered" if result.get("status") == "ok" else result.get("status", "triggered"),
-            "code": result.get("code") or "publish.schedule.triggered",
-            "message_key": result.get("message_key") or "publish.schedule.triggered",
-            "job_id": resolved_job_id,
-            "model": str(model),
-            "provider": str(provider or "azure"),
-            "schedule": _format_report_datetime(run_date, timezone_name),
-            "recurrence": "one_time",
-            "message": result.get("user_message") or result.get("message") or "Publication immediate started.",
-            "result": result,
-        }
-        return schedule_result
-
     if cron:
         scheduler.add_job(
             run_indexation_then_publish,
@@ -624,49 +616,95 @@ def schedule_file_change_publish(
 
 def list_scheduled_publish_jobs() -> list[dict[str, Any]]:
     scheduler = _scheduler
-    if scheduler is None:
-        try:
-            return load_publish_schedule_entries()
-        except Exception:
-            return []
+    jobs: list[dict[str, Any]] = []
 
-    jobs = []
-    for job in scheduler.get_jobs():
-        next_run_time = job.next_run_time
-        trigger_text = str(job.trigger).lower()
-        recurrence = "unknown"
+    if scheduler is not None:
+        for job in scheduler.get_jobs():
+            next_run_time = job.next_run_time
+            trigger_text = str(job.trigger).lower()
+            recurrence = "unknown"
 
-        if "interval" in trigger_text:
-            recurrence = "interval"
-        elif "date" in trigger_text:
+            if "interval" in trigger_text:
+                recurrence = "interval"
+            elif "date" in trigger_text:
+                recurrence = "one_time"
+            elif "cron" in trigger_text:
+                fields = getattr(job.trigger, "fields", []) or []
+                day_of_week = next((str(field) for field in fields if getattr(field, "name", "") == "day_of_week"), None)
+                if day_of_week and day_of_week not in {"*", "0-6", "1-7"}:
+                    recurrence = "weekly"
+                elif day_of_week in {"*", "0-6", "1-7"}:
+                    recurrence = "daily"
+                else:
+                    recurrence = "cron"
+
+            if recurrence in {"manual", "immediate"}:
+                recurrence = "one_time"
+
+            jobs.append({
+                "id": job.id,
+                "name": job.name,
+                "next_run_time": _format_report_datetime(next_run_time) if next_run_time else None,
+                "trigger": str(job.trigger),
+                "recurrence": recurrence,
+                "schedule": str(job.trigger),
+            })
+
+    try:
+        persisted_entries = load_publish_schedule_entries()
+    except Exception:
+        persisted_entries = []
+
+    persisted_by_id = {str(item.get("job_id") or item.get("id") or ""): item for item in persisted_entries if str(item.get("job_id") or item.get("id") or "").strip()}
+    for item in jobs:
+        item_id = str(item.get("id") or "").strip()
+        if item_id in persisted_by_id:
+            persisted_by_id.pop(item_id)
+
+    for entry in persisted_by_id.values():
+        next_run_text = entry.get("run_at") or entry.get("schedule")
+        recurrence = str(entry.get("recurrence") or "one_time").strip().lower()
+        if recurrence in {"manual", "immediate"}:
             recurrence = "one_time"
-        elif "cron" in trigger_text:
-            fields = getattr(job.trigger, "fields", []) or []
-            day_of_week = next((str(field) for field in fields if getattr(field, "name", "") == "day_of_week"), None)
-            if day_of_week and day_of_week not in {"*", "0-6", "1-7"}:
-                recurrence = "weekly"
-            elif day_of_week in {"*", "0-6", "1-7"}:
-                recurrence = "daily"
-            else:
-                recurrence = "cron"
-
         jobs.append({
-            "id": job.id,
-            "name": job.name,
-            "next_run_time": _format_report_datetime(next_run_time) if next_run_time else None,
-            "trigger": str(job.trigger),
+            "id": entry.get("job_id") or entry.get("id"),
+            "name": entry.get("job_id") or entry.get("id"),
+            "next_run_time": next_run_text,
+            "trigger": recurrence,
             "recurrence": recurrence,
-            "schedule": str(job.trigger),
+            "schedule": next_run_text,
         })
-    return jobs
+
+    relevant_jobs = [job for job in jobs if str(job.get("id") or "").strip() == "active-publish-schedule"]
+    if not relevant_jobs:
+        return []
+    return relevant_jobs
+
+
+def get_publish_scheduler_status() -> dict[str, Any]:
+    active_jobs = list_scheduled_publish_jobs()
+    publish_status = get_publish_status()
+    indexing_status = get_indexation_status()
+
+    publish_running = bool(publish_status.get("running"))
+    indexing_running = bool(indexing_status.get("running"))
+
+    return {
+        "status": "ok",
+        "active_schedule": active_jobs[0] if active_jobs else None,
+        "has_active_schedule": bool(active_jobs),
+        "publish_running": publish_running,
+        "indexing_running": indexing_running,
+        "processing_running": publish_running or indexing_running,
+    }
 
 
 def cancel_scheduled_publish(job_id: str) -> dict[str, Any]:
     scheduler = _scheduler
     target_id = str(job_id or "").strip()
 
-    publish_cancel_result = cancel_publish()
     indexation_cancel_result = request_indexation_cancel()
+    publish_cancel_result = cancel_publish()
 
     persisted_before = []
     try:
@@ -713,6 +751,7 @@ __all__ = [
     "run_indexation_then_publish",
     "has_files_changed",
     "list_scheduled_publish_jobs",
+    "get_publish_scheduler_status",
     "cancel_scheduled_publish",
     "restore_persisted_publish_schedules",
     "shutdown_scheduler",

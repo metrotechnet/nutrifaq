@@ -1,4 +1,4 @@
-"""Services to regenerate the local ChromaDB knowledge base.
+"""Services to index the local ChromaDB knowledge base.
 
 This module wraps scripts in api/db_pipeline and exposes step-based
 execution that mirrors build-database.bat.
@@ -42,7 +42,7 @@ DEBUG_KB_ROOT = REPO_ROOT / get_debug_local_kb_root_folder()
 SCRIPTS_DIR = REPO_ROOT / "api" / "db_pipeline"
 CHROMA_DB_ROOT = KB_ROOT / "chroma_db"
 LOCAL_SERVER_SQLITE_COPY = DEBUG_KB_ROOT / "chroma.sqlite3"
-REGEN_PROGRESS_PATH = DEBUG_KB_ROOT / "regeneration_progress.json"
+REGEN_PROGRESS_PATH = DEBUG_KB_ROOT / "indexing_progress.json"
 
 DEFAULT_QUESTION_COUNT = max(1, int(os.getenv("DEFAULT_QUESTION_COUNT", "1")))
 
@@ -284,6 +284,7 @@ _regen_state: Dict[str, object] = {
     "cancel_requested": False,
     "current_step": None,
     "active_process": None,
+    "termination_in_progress": False,
     "progress_value": None,
     "progress_total": None,
     "progress_kind": None,
@@ -312,7 +313,7 @@ def _reset_progress_snapshot() -> None:
         if REGEN_PROGRESS_PATH.exists():
             REGEN_PROGRESS_PATH.unlink()
     except Exception:
-        # Snapshot reset is best-effort; regeneration can still proceed.
+        # Snapshot reset is best-effort; indexing can still proceed.
         pass
 
 
@@ -325,6 +326,7 @@ def _start_indexation() -> bool:
             return False
         _regen_state["running"] = True
         _regen_state["cancel_requested"] = False
+        _regen_state["termination_in_progress"] = False
         _regen_state["current_step"] = None
         _regen_state["active_process"] = None
         _regen_state["progress_value"] = None
@@ -339,6 +341,7 @@ def _finish_indexation() -> None:
     with _regen_state_lock:
         cancel_requested = bool(_regen_state.get("cancel_requested"))
         _regen_state["running"] = False
+        _regen_state["termination_in_progress"] = False
         _regen_state["current_step"] = None
         _regen_state["active_process"] = None
         _regen_state["progress_value"] = None
@@ -363,6 +366,11 @@ def _set_active_process(process: subprocess.Popen[str] | None) -> None:
         _regen_state["active_process"] = process
 
 
+def _set_termination_in_progress(in_progress: bool) -> None:
+    with _regen_state_lock:
+        _regen_state["termination_in_progress"] = bool(in_progress)
+
+
 def _terminate_active_process(process: subprocess.Popen[str] | None = None) -> None:
     """Terminate the currently active subprocess and its child tree, then clear it from state."""
     target = process
@@ -371,14 +379,16 @@ def _terminate_active_process(process: subprocess.Popen[str] | None = None) -> N
             target = _regen_state.get("active_process")
 
     if not isinstance(target, subprocess.Popen):
+        _set_termination_in_progress(False)
         return
 
     if target.poll() is not None:
         _set_active_process(None)
+        _set_termination_in_progress(False)
         return
 
     logger = logging.getLogger(__name__)
-    logger.warning("Cancelling active regeneration process %s (PID %s)", target.args, target.pid)
+    logger.warning("Cancelling active indexing process %s (PID %s)", target.args, target.pid)
 
     try:
         if sys.platform == "win32":
@@ -387,6 +397,7 @@ def _terminate_active_process(process: subprocess.Popen[str] | None = None) -> N
                 check=False,
                 capture_output=True,
                 text=True,
+                timeout=2,
             )
         else:
             try:
@@ -395,6 +406,11 @@ def _terminate_active_process(process: subprocess.Popen[str] | None = None) -> N
                 pass
             except PermissionError:
                 target.terminate()
+    except subprocess.TimeoutExpired:
+        try:
+            target.terminate()
+        except Exception:
+            logger.exception("Timed out while requesting termination for PID %s", getattr(target, "pid", "unknown"))
     except Exception:
         logger.exception("Failed to terminate subprocess tree for PID %s", getattr(target, "pid", "unknown"))
 
@@ -408,6 +424,16 @@ def _terminate_active_process(process: subprocess.Popen[str] | None = None) -> N
             logger.exception("Forced kill failed for PID %s", getattr(target, "pid", "unknown"))
     finally:
         _set_active_process(None)
+        _set_termination_in_progress(False)
+
+
+def _terminate_active_process_async(process: subprocess.Popen[str] | None) -> None:
+    threading.Thread(
+        target=_terminate_active_process,
+        args=(process,),
+        name="indexing-cancel-terminator",
+        daemon=True,
+    ).start()
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -420,18 +446,24 @@ def _is_cancel_requested() -> bool:
 # Purpose: Implement a focused unit of backend behavior used by routes or services.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def request_indexation_cancel() -> Dict[str, object]:
+    should_start_terminator = False
     with _regen_state_lock:
         if not bool(_regen_state.get("running")):
             return {
                 "status": "idle",
-                "message": "No regeneration is currently running.",
+                "message": "No indexing is currently running.",
             }
 
         _regen_state["cancel_requested"] = True
         process = _regen_state.get("active_process")
         step = _regen_state.get("current_step")
+        termination_in_progress = bool(_regen_state.get("termination_in_progress"))
+        if isinstance(process, subprocess.Popen) and process.poll() is None and not termination_in_progress:
+            _regen_state["termination_in_progress"] = True
+            should_start_terminator = True
 
-    _terminate_active_process(process)
+    if should_start_terminator:
+        _terminate_active_process_async(process if isinstance(process, subprocess.Popen) else None)
 
     return {
         "status": "cancelling",
@@ -811,7 +843,7 @@ def _save_chromadb_to_blob_and_local_copy(
         )
 
         # Upload the full local KB root back to blob after indexing. This ensures local
-        # debug work is preserved and the debug blob stays in sync with the regenerated data.
+        # debug work is preserved and the debug blob stays in sync with the indexed data.
         root_uploads = sync_local_directory_to_blob(
             local_kb_root,
             resolved_root,
@@ -914,17 +946,17 @@ def start_background_indexation(
     question_count: int = DEFAULT_QUESTION_COUNT,
     process_only_new_files: bool = False,
 ) -> Dict[str, object]:
-    """Launch a full regeneration in the background and return immediately."""
+    """Launch a full indexing run in the background and return immediately."""
     if bool(_regen_state.get("running")):
         return {
             "status": "busy",
-            "message": "A regeneration is already running.",
+            "message": "An indexing run is already running.",
         }
 
     if not _start_indexation():
         return {
             "status": "busy",
-            "message": "A regeneration is already running.",
+            "message": "An indexing run is already running.",
         }
 
     def worker() -> None:
@@ -939,15 +971,15 @@ def start_background_indexation(
                 process_only_new_files=process_only_new_files,
                 skip_start_guard=True,
             )
-            logging.getLogger(__name__).info("Background regeneration finished with status: %s", result.get("status"))
+            logging.getLogger(__name__).info("Background indexing finished with status: %s", result.get("status"))
         except Exception:
-            logging.getLogger(__name__).exception("Background regeneration crashed")
+            logging.getLogger(__name__).exception("Background indexing crashed")
 
     thread = threading.Thread(target=worker, daemon=True)
     thread.start()
     return {
         "status": "started",
-        "message": "Database regeneration started in background.",
+        "message": "Database indexing started in background.",
         "running": True,
     }
 
@@ -962,7 +994,7 @@ def run_full_indexation(
     process_only_new_files: bool = False,
     skip_start_guard: bool = False,
 ) -> Dict[str, object]:
-    """Run the end-to-end regeneration sequence.
+    """Run the end-to-end indexing sequence.
 
     The core sequence mirrors build-database.bat with question generation:
     1) review_document_text
@@ -977,7 +1009,7 @@ def run_full_indexation(
     if not skip_start_guard and not _start_indexation():
         return {
             "status": "busy",
-            "message": "A regeneration is already running.",
+            "message": "An indexing run is already running.",
         }
 
     indexation_start_log = {
@@ -1010,7 +1042,7 @@ def run_full_indexation(
         if not _has_readable_documents(resolved_local_kb_root):
             result = {
                 "status": "error",
-                "message": "No document to read in documents/. Please upload at least one document before running regeneration.",
+                "message": "No document to read in documents/. Please upload at least one document before running indexing.",
                 "effective_target": {
                     "container": resolved_container_name,
                     "root_folder": resolved_root_folder,
@@ -1082,7 +1114,7 @@ def run_full_indexation(
             if _is_cancel_requested():
                 result = {
                     "status": "cancelled",
-                    "message": "Regeneration cancelled by user.",
+                    "message": "Indexing cancelled by user.",
                     "steps": results,
                 }
                 return result
@@ -1107,14 +1139,14 @@ def run_full_indexation(
         if _is_cancel_requested():
             result = {
                 "status": "cancelled",
-                "message": "Regeneration cancelled.",
+                "message": "Indexing cancelled.",
                 "steps": results,
             }
             return result
 
         result = {
             "status": "success",
-            "message": "Database regeneration pipeline completed." + (" Only newly added files were processed." if process_only_new_files else ""),
+            "message": "Database indexing pipeline completed." + (" Only newly added files were processed." if process_only_new_files else ""),
             "effective_target": {
                 "container": resolved_container_name,
                 "root_folder": resolved_root_folder,
@@ -1129,7 +1161,7 @@ def run_full_indexation(
                 "timestamp": datetime.now().astimezone().isoformat(),
                 "operation": "indexation",
                 "status": str(result.get("status", "unknown")),
-                "message": str(result.get("message") or "Database regeneration finished."),
+                "message": str(result.get("message") or "Database indexing finished."),
                 "root_folder": resolved_root_folder,
                 "container_name": resolved_container_name,
                 "process_only_new_files": bool(process_only_new_files),

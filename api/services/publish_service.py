@@ -444,7 +444,7 @@ def start_revert() -> dict[str, Any]:
         running=True,
         cancel_requested=False,
         progress=0,
-        message="Restore started in background.",
+        message="Revert started in background.",
         message_key="publish.revert.started",
         operation="revert",
         model=None,
@@ -455,6 +455,6 @@ def start_revert() -> dict[str, Any]:
     )
     return {
         "status": "accepted",
-        "message": "Restore started in background.",
+        "message": "Revert started in background.",
         "message_key": "publish.revert.started",
     }

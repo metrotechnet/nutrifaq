@@ -47,7 +47,7 @@ Matrice des acces par endpoint pour l'API NutriFAQ.
 | `/api/database/extract-references` | POST | admin |
 | `/api/database/generate-transcripts-json` | POST | admin |
 | `/api/database/index-chromadb-json` | POST | admin |
-| `/api/database/regenerate` | POST | admin |
+| `/api/database/indexing` | POST | admin |
 
 ## Note
 

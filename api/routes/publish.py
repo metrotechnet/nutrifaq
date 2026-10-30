@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.services.config import load_publish_log_entries, reset_publish_log_entries
 from api.services.entra_auth_service import EntraUser, require_admin
-from api.services.publish_scheduler import cancel_scheduled_publish, list_scheduled_publish_jobs, schedule_publish
+from api.services.publish_scheduler import (
+    cancel_scheduled_publish,
+    get_publish_scheduler_status,
+    schedule_publish,
+)
 from api.services.publish_service import cancel_publish, get_publish_status, start_publish, start_revert
 
 router = APIRouter()
@@ -35,7 +41,20 @@ def publish_now_api(
         )
 
     provider = str(payload.provider or "azure").strip() or "azure"
-    return start_publish(model=model, provider=provider)
+    try:
+        return schedule_publish(
+            model=model,
+            provider=provider,
+            publish_at=datetime.now(timezone.utc).isoformat(),
+            recurrence="once",
+            timezone_name="UTC",
+            job_id="live-publish",
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": str(exc), "message_key": "publish.status.invalid"},
+        )
 
 
 class PublishScheduleRequest(BaseModel):
@@ -86,10 +105,10 @@ def schedule_publish_api(
         )
 
 
-@router.get("/api/publish/schedule")
-def list_publish_schedules(_: EntraUser = Depends(require_admin)):
-    """Return active automatic publish schedules."""
-    return {"status": "ok", "jobs": list_scheduled_publish_jobs()}
+@router.get("/api/publish/schedule/status")
+def publish_scheduler_status(_: EntraUser = Depends(require_admin)):
+    """Return scheduler + processing status for frontend polling orchestration."""
+    return get_publish_scheduler_status()
 
 
 @router.delete("/api/publish/schedule/{job_id}")

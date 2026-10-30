@@ -74,7 +74,6 @@
         browseBtn: document.getElementById("dnd-browse-btn"),
         fileName: document.getElementById("dnd-file-name"),
         startIndexing: document.getElementById("start-indexing"),
-        cancelIndexing: document.getElementById("cancel-indexing"),
         resetProgressWrap: document.getElementById("reset-progress-wrap"),
         resetProgressBar: document.getElementById("reset-progress-bar"),
         resetProgressText: document.getElementById("reset-progress-text"),
@@ -83,7 +82,6 @@
         indexingProgressText: document.getElementById("indexing-progress-text"),
         filesTbody: document.getElementById("files-tbody"),
         statusMessage: document.getElementById("status-message"),
-        publishModelSelector: document.getElementById("publish-model-selector"),
         publishSubmit: document.getElementById("publish-submit"),
         publishCancel: document.getElementById("publish-cancel"),
         publishStatus: document.getElementById("publish-status"),
@@ -111,7 +109,6 @@
     function hydratePublishElements() {
         els.instructionsSection = document.getElementById("instructions-section");
         els.publishSection = document.getElementById("publish-section");
-        els.publishModelSelector = document.getElementById("publish-model-selector");
         els.publishSubmit = document.getElementById("publish-submit");
         els.publishCancel = document.getElementById("publish-cancel");
         els.publishStatus = document.getElementById("publish-status");
@@ -132,6 +129,15 @@
         els.publishScheduleList = document.getElementById("publish-schedule-list");
         els.publishScheduleDateField = document.getElementById("publish-schedule-date-field");
         els.publishScheduleWeekdayField = document.getElementById("publish-schedule-weekday-field");
+    }
+
+    function getSelectedPublishModel() {
+        const sidebarSelector = document.getElementById("model-selector");
+        const sidebarModel = sidebarSelector ? String(sidebarSelector.value || "").trim() : "";
+        if (sidebarModel) {
+            return sidebarModel;
+        }
+        return String(localStorage.getItem(MODEL_STORAGE_KEY) || "").trim();
     }
 
     // Purpose: Updates UI or local state so downstream interactions stay consistent.
@@ -338,11 +344,6 @@
             sectionTitle.textContent = tr("publish.ui.sectionTitle", "Publier");
         }
 
-        const modelLabel = els.publishSection.querySelector('label[for="publish-model-selector"]');
-        if (modelLabel) {
-            modelLabel.textContent = tr("publish.ui.modelLabel", "Modèle IA final utilisé");
-        }
-
         if (els.publishSubmit) {
             els.publishSubmit.textContent = tr("publish.confirm.action", "Publier");
             els.publishSubmit.style.display = "none";
@@ -545,17 +546,23 @@
         const trigger = job && job.trigger ? String(job.trigger).toLowerCase() : "";
         const scheduleText = job && job.schedule ? String(job.schedule).trim() : "";
 
-        if (recurrence.includes("manual") || recurrence.includes("immediate") || (trigger.includes("date") && recurrence.includes("once") && job && job.next_run_time && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(String(job.next_run_time)))) {
-            return tr("publish.schedule.manual", "Immédiat");
-        }
-
         if (recurrence.includes("weekly") || /\*\s+\*\s+\*\s+\*\s+\d+/.test(scheduleText) || trigger.includes("day_of_week") && trigger.includes("0") && trigger.includes("cron")) {
             return tr("publish.schedule.weekly", "Chaque semaine");
         }
         if (recurrence.includes("daily") || /^\d+\s+\d+\s+\*\s+\*\s+\*$/.test(scheduleText) || trigger.includes("cron") && trigger.includes("day_of_week='*'") && trigger.includes("hour='") && trigger.includes("minute='")) {
             return tr("publish.schedule.daily", "Tous les jours");
         }
-        if (recurrence.includes("once") || recurrence.includes("one_time") || recurrence.includes("one-time") || recurrence.includes("date") || trigger.includes("date")) {
+        if (
+            recurrence.includes("once") ||
+            recurrence.includes("one_time") ||
+            recurrence.includes("one-time") ||
+            recurrence.includes("date") ||
+            recurrence.includes("manual") ||
+            recurrence.includes("immediate") ||
+            trigger.includes("date") ||
+            trigger.includes("manual") ||
+            trigger.includes("immediate")
+        ) {
             return tr("publish.schedule.once", "Une fois");
         }
         if (trigger.includes("interval") || recurrence.includes("interval")) {
@@ -564,19 +571,76 @@
         return tr("publish.schedule.planification", "Planification");
     }
 
+    let publishScheduleJobsAutoRefreshTimer = null;
+    let schedulerProcessingSyncInFlight = false;
+    let lastSchedulerProcessingRunning = false;
+    let isScheduleCancellationInFlight = false;
+
+    function stopAllProcessingStatusPolling() {
+        stopPublishStatusPolling();
+        stopIndexingStatusPolling();
+    }
+
+    async function fetchPublishSchedulerStatus() {
+        return fetchJson(`${BACKEND_URL}/api/publish/schedule/status`, {
+            headers: {
+                ...authHeaders()
+            }
+        });
+    }
+
+    async function syncScheduledProcessingState() {
+        if (isScheduleCancellationInFlight) {
+            return;
+        }
+        if (schedulerProcessingSyncInFlight) {
+            return;
+        }
+        schedulerProcessingSyncInFlight = true;
+        try {
+            const schedulerStatus = await fetchPublishSchedulerStatus();
+            const processingRunning = Boolean(schedulerStatus && schedulerStatus.processing_running);
+            const shouldPollProcessing = processingRunning || lastSchedulerProcessingRunning;
+            lastSchedulerProcessingRunning = processingRunning;
+
+            if (!shouldPollProcessing) {
+                return;
+            }
+
+            await Promise.allSettled([
+                restorePublishUiFromServer(),
+                resumeIndexingIfRunning(),
+            ]);
+        } finally {
+            schedulerProcessingSyncInFlight = false;
+        }
+    }
+
+    function startPublishScheduleAutoRefresh() {
+        if (publishScheduleJobsAutoRefreshTimer !== null) {
+            return;
+        }
+        publishScheduleJobsAutoRefreshTimer = window.setInterval(async () => {
+            try {
+                await Promise.allSettled([
+                    loadScheduledPublishJobs(),
+                    syncScheduledProcessingState(),
+                ]);
+            } catch (error) {
+                // Ignore background refresh failures; the list will retry on the next tick.
+            }
+        }, 5000);
+    }
+
     async function loadScheduledPublishJobs() {
         if (!els.publishScheduleList) {
             return;
         }
 
         try {
-            const data = await fetchJson(`${BACKEND_URL}/api/publish/schedule`, {
-                headers: {
-                    ...authHeaders()
-                }
-            });
-            const jobs = Array.isArray(data && data.jobs) ? data.jobs : [];
-            const activeJobs = jobs.length > 0 ? [jobs[jobs.length - 1]] : [];
+            const data = await fetchPublishSchedulerStatus();
+            const activeSchedule = data && data.active_schedule ? data.active_schedule : null;
+            const activeJobs = activeSchedule ? [activeSchedule] : [];
 
             if (!activeJobs.length) {
                 els.publishScheduleList.innerHTML = '<p class="publish-schedule-empty">Aucune planification active.</p>';
@@ -617,6 +681,8 @@
                     button.disabled = true;
                     button.textContent = tr("publish.schedule.deleting", "Suppression...");
                     setPublishStatus(tr("publish.schedule.deletingStatus", "Suppression de la planification en cours..."), false);
+                    isScheduleCancellationInFlight = true;
+                    stopAllProcessingStatusPolling();
 
                     try {
                         const response = await fetch(`${BACKEND_URL}/api/publish/schedule/${encodeURIComponent(jobId)}`, {
@@ -636,6 +702,8 @@
                         const message = error && error.message ? error.message : tr("publish.schedule.deleteError", "Impossible de supprimer la planification.");
                         setPublishStatus(message, true);
                     } finally {
+                        isScheduleCancellationInFlight = false;
+                        await syncScheduledProcessingState();
                         button.disabled = false;
                         button.textContent = originalLabel;
                     }
@@ -660,17 +728,18 @@
             control.disabled = Boolean(isDisabled);
         });
 
+        if (!isDisabled) {
+            updatePublishScheduleFields();
+        }
+
         if (typeof statusMessage === "string" && statusMessage.trim()) {
             setPublishStatus(statusMessage, false);
         }
     }
 
     async function onPublishScheduleSubmit() {
-        const selectedModel = els.publishModelSelector ? String(els.publishModelSelector.value || "").trim() : "";
-        const selectedOption = els.publishModelSelector && els.publishModelSelector.selectedOptions
-            ? els.publishModelSelector.selectedOptions[0]
-            : null;
-        const selectedProvider = selectedOption ? String(selectedOption.dataset.provider || "azure") : "azure";
+        const selectedModel = getSelectedPublishModel();
+        const selectedProvider = "azure";
 
         if (!selectedModel) {
             setPublishStatus(tr("publish.status.modelRequired", "Veuillez selectionner un modele."), true);
@@ -779,8 +848,10 @@
             });
         }
 
+        startPublishScheduleAutoRefresh();
         updatePublishScheduleFields();
         loadScheduledPublishJobs();
+        syncScheduledProcessingState();
     }
 
     async function resetQuestionLogs() {
@@ -1079,12 +1150,6 @@
             <div class="publish-controls-card">
                 <h2>${escapeHtml(tr("publish.ui.sectionTitle", "Publier"))}</h2>
                 <div class="publish-controls-grid">
-                    <div class="download-control-group wide">
-                        <label for="publish-model-selector">${escapeHtml(tr("publish.ui.modelLabel", "Modèle final utilisé"))}</label>
-                        <select id="publish-model-selector" class="publish-model-selector">
-                            <option value="">${escapeHtml(tr("main.models.loading", "Chargement des modèles..."))}</option>
-                        </select>
-                    </div>
                     <div class="download-control-group actions" style="display:none;">
                         <button id="publish-submit" class="dm-btn primary" type="button">${escapeHtml(tr("publish.confirm.action", "Publier"))}</button>
                     </div>
@@ -1146,7 +1211,6 @@
                         </div>
                         <div id="publish-progress-text" class="publish-progress-text">0%</div>
                     </div>
-                    <button id="publish-cancel" class="dm-btn cancel" type="button" style="display:none;">${escapeHtml(tr("publish.cancel.action", "Annuler"))}</button>
                 </div>
 
                 <p id="publish-status" class="status-message">${escapeHtml(tr("publish.status.ready", "Prêt."))}</p>
@@ -1187,7 +1251,7 @@
     }
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
-    const REGENERATION_STATUS_POLL_MS = 1000;
+    const INDEXING_STATUS_POLL_MS = 1000;
     let indexingStatusTimer = null;
     let indexingAbortController = null;
     let statusRequestInFlight = false;
@@ -1318,14 +1382,10 @@
             els.startIndexing.disabled = true;
             els.startIndexing.textContent = tr("downloadManager.buttons.indexingInProgress", "Indexage en cours...");
         }
-        if (els.cancelIndexing) {
-            els.cancelIndexing.style.display = "inline-flex";
-            els.cancelIndexing.disabled = false;
-        }
 
         setIndexingProgress(0, preparingText);
 
-        startRegenerationStatusPolling();
+        startIndexingStatusPolling();
     }
 
     // Purpose: Implements a focused frontend behavior used by this module.
@@ -1341,7 +1401,7 @@
             window.clearTimeout(stepSwitchTimer);
             stepSwitchTimer = null;
         }
-        stopRegenerationStatusPolling();
+        stopIndexingStatusPolling();
 
         setIndexingProgress(100, success
             ? tr("downloadManager.progress.completed", "Terminé")
@@ -1351,16 +1411,10 @@
             els.startIndexing.disabled = false;
             els.startIndexing.textContent = tr("downloadManager.buttons.startIndexing", "Démarrer un indexage");
         }
-        if (els.cancelIndexing) {
-            els.cancelIndexing.disabled = true;
-        }
 
         window.setTimeout(() => {
             if (els.indexingProgressWrap) {
                 els.indexingProgressWrap.classList.remove("is-visible");
-            }
-            if (els.cancelIndexing) {
-                els.cancelIndexing.style.display = "none";
             }
             setIndexingProgress(0, "0%");
         }, success ? 1200 : 2000);
@@ -1368,36 +1422,36 @@
 
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
-    function stopRegenerationStatusPolling() {
+    function stopIndexingStatusPolling() {
         if (indexingStatusTimer) {
             window.clearInterval(indexingStatusTimer);
             indexingStatusTimer = null;
         }
     }
 
-    async function refreshRegenerationStatus() {
+    async function refreshIndexingStatus() {
         if (!isIndexingRunning || statusRequestInFlight) {
             return;
         }
         statusRequestInFlight = true;
         try {
-            const payload = await fetchJson(`${BACKEND_URL}/api/database/regenerate/status`, {
+            const payload = await fetchJson(`${BACKEND_URL}/api/database/indexing/status`, {
                 headers: {
                     ...authHeaders()
                 }
             });
 
-            const regen = payload && payload.regeneration ? payload.regeneration : {};
+            const regen = payload && payload.indexing ? payload.indexing : {};
             const wasCancelled = Boolean(regen.cancel_requested);
             if (wasCancelled) {
-                stopRegenerationStatusPolling();
+                stopIndexingStatusPolling();
                 finishIndexingProgress(false);
                 setStatus(tr("downloadManager.status.indexingCancelled", "Indexage annulé."), true);
                 return;
             }
 
             if (!regen.running) {
-                stopRegenerationStatusPolling();
+                stopIndexingStatusPolling();
                 setStatus(tr("downloadManager.status.indexingCompleted", "Indexage terminé."), false);
                 finishIndexingProgress(true);
                 return;
@@ -1499,7 +1553,7 @@
                 )
             );
         } catch (_) {
-            // Ignore transient status polling errors while regeneration is running.
+            // Ignore transient status polling errors while indexing is running.
         } finally {
             statusRequestInFlight = false;
         }
@@ -1507,20 +1561,23 @@
 
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
-    function startRegenerationStatusPolling() {
-        stopRegenerationStatusPolling();
-        indexingStatusTimer = window.setInterval(refreshRegenerationStatus, REGENERATION_STATUS_POLL_MS);
-        refreshRegenerationStatus();
+    function startIndexingStatusPolling() {
+        if (isScheduleCancellationInFlight) {
+            return;
+        }
+        stopIndexingStatusPolling();
+        indexingStatusTimer = window.setInterval(refreshIndexingStatus, INDEXING_STATUS_POLL_MS);
+        refreshIndexingStatus();
     }
 
     async function resumeIndexingIfRunning() {
         try {
-            const payload = await fetchJson(`${BACKEND_URL}/api/database/regenerate/status`, {
+            const payload = await fetchJson(`${BACKEND_URL}/api/database/indexing/status`, {
                 headers: {
                     ...authHeaders()
                 }
             });
-            const regen = payload && payload.regeneration ? payload.regeneration : {};
+            const regen = payload && payload.indexing ? payload.indexing : {};
             if (!regen.running) {
                 return;
             }
@@ -1545,35 +1602,9 @@
             if (els.indexingProgressWrap) {
                 els.indexingProgressWrap.classList.add("is-visible");
             }
-            await refreshRegenerationStatus();
+            await refreshIndexingStatus();
         } catch (_) {
             // Ignore status bootstrap errors on page load.
-        }
-    }
-
-    async function requestCancelIndexing() {
-        if (!isIndexingRunning) {
-            return;
-        }
-
-        try {
-            if (els.cancelIndexing) {
-                els.cancelIndexing.disabled = true;
-            }
-            setStatus(tr("downloadManager.status.cancelRequested", "Annulation de l'indexage demandée..."), false);
-
-            if (indexingAbortController) {
-                indexingAbortController.abort();
-            }
-
-            await fetchJson(`${BACKEND_URL}/api/database/regenerate/cancel`, {
-                method: "POST",
-                headers: {
-                    ...authHeaders()
-                }
-            });
-        } catch (error) {
-            setStatus(tr("downloadManager.status.cancelError", "Erreur annulation: {error}", { error: error.message }), true);
         }
     }
 
@@ -2137,50 +2168,7 @@
     }
 
     async function loadPublishModels() {
-        if (!els.publishModelSelector) {
-            return;
-        }
-
-        els.publishModelSelector.innerHTML = `<option value="">${escapeHtml(tr("main.models.loading", "Chargement des modèles..."))}</option>`;
-        els.publishModelSelector.disabled = true;
-
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/models`);
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                throw new Error(payload.message || payload.detail || response.statusText);
-            }
-
-            const models = Array.isArray(payload.models) ? payload.models : [];
-            if (!models.length) {
-                els.publishModelSelector.innerHTML = `<option value="">${escapeHtml(tr("main.models.noneAvailable", "Aucun modèle disponible"))}</option>`;
-                return;
-            }
-
-            els.publishModelSelector.innerHTML = "";
-            models.forEach((model) => {
-                const option = document.createElement("option");
-                option.value = model.id || "";
-                option.textContent = model.label || model.id || "Model";
-                option.dataset.provider = String(model.provider || "azure");
-                els.publishModelSelector.appendChild(option);
-            });
-
-            const selectedByUser = localStorage.getItem(MODEL_STORAGE_KEY) || "";
-            const defaultModel = payload.default_model || "";
-            const candidate = selectedByUser || defaultModel;
-
-            if (candidate && models.some((m) => m.id === candidate)) {
-                els.publishModelSelector.value = candidate;
-            }
-            if (!els.publishModelSelector.value && models[0] && models[0].id) {
-                els.publishModelSelector.value = models[0].id;
-            }
-            els.publishModelSelector.disabled = false;
-        } catch (error) {
-            els.publishModelSelector.innerHTML = `<option value="">${escapeHtml(tr("main.models.loadError", "Erreur chargement modèles"))}</option>`;
-            els.publishModelSelector.disabled = true;
-        }
+        return;
     }
 
     // Purpose: Renders computed content into the DOM for the current view state.
@@ -2365,6 +2353,9 @@
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function startPublishStatusPolling() {
+        if (isScheduleCancellationInFlight) {
+            return;
+        }
         stopPublishStatusPolling();
         publishStatusPollInFlight = false;
         publishTerminalStateHandled = false;
@@ -2534,11 +2525,8 @@
     }
 
     async function onPublishSubmit() {
-        const selectedModel = els.publishModelSelector ? String(els.publishModelSelector.value || "").trim() : "";
-        const selectedOption = els.publishModelSelector && els.publishModelSelector.selectedOptions
-            ? els.publishModelSelector.selectedOptions[0]
-            : null;
-        const selectedProvider = selectedOption ? String(selectedOption.dataset.provider || "azure") : "azure";
+        const selectedModel = getSelectedPublishModel();
+        const selectedProvider = "azure";
 
         if (!selectedModel) {
             setPublishStatus(tr("publish.status.modelRequired", "Veuillez selectionner un modele."), true);
@@ -3245,9 +3233,9 @@
             const selectedModel = String(localStorage.getItem('nutrifaq_selected_model') || '').trim();
             const processOnlyNewFiles = Boolean(document.getElementById("process-new-files-only")?.checked);
             const baseUrl = BACKEND_URL || window.location.origin;
-            const regenerateUrl = new URL("/api/database/regenerate", baseUrl);
-            regenerateUrl.searchParams.set("process_only_new_files", String(processOnlyNewFiles));
-            const result = await fetchJson(regenerateUrl.toString(), {
+            const indexingUrl = new URL("/api/database/indexing", baseUrl);
+            indexingUrl.searchParams.set("process_only_new_files", String(processOnlyNewFiles));
+            const result = await fetchJson(indexingUrl.toString(), {
                 method: "POST",
                 headers: {
                     ...authHeaders(),
@@ -3371,9 +3359,6 @@
         }
         if (els.startIndexing) {
             els.startIndexing.addEventListener("click", startIndexing);
-        }
-        if (els.cancelIndexing) {
-            els.cancelIndexing.addEventListener("click", requestCancelIndexing);
         }
         bindPublishSubmitButton();
         bindPublishRefreshButton();

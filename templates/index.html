@@ -286,16 +286,6 @@
                             </div>
                         </section>
 
-                        <section id="indexing-progress-wrap" class="indexing-progress-wrap" aria-live="polite">
-                            <div class="indexing-progress-main">
-                                <div class="indexing-progress-track">
-                                    <div id="indexing-progress-bar" class="indexing-progress-bar" style="width:0%;"></div>
-                                </div>
-                                <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
-                            </div>
-                            <button id="cancel-indexing" class="dm-btn cancel" type="button" style="display:none;" data-i18n="instructions.cancel">Annuler</button>
-                        </section>
-
                         <section class="download-files-list" aria-live="polite" style="display:none;">
                             <div class="download-files-header">
                                 <div class="download-files-header-copy">
@@ -401,16 +391,10 @@
                         <div class="publish-controls-card">
                             <h2 data-i18n="publish.ui.sectionTitle">Publier</h2>
                             <div class="publish-controls-grid">
-                                <div class="download-control-group wide">
-                                    <label for="publish-model-selector" data-i18n="publish.ui.modelLabel">Modèle final utilisé</label>
-                                    <select id="publish-model-selector" class="publish-model-selector">
-                                        <option value="" data-i18n="main.models.loading">Chargement des modèles...</option>
-                                    </select>
+                                    <div class="download-control-group actions" style="display:none;">
+                                        <button id="publish-submit" class="dm-btn primary" type="button" data-i18n="publish.confirm.action">Publier</button>
+                                    </div>
                                 </div>
-                                <div class="download-control-group actions" style="display:none;">
-                                    <button id="publish-submit" class="dm-btn primary" type="button" data-i18n="publish.confirm.action">Publier</button>
-                                </div>
-                            </div>
 
                             <div class="publish-schedule-panel">
                                 <div class="publish-schedule-header">
@@ -462,6 +446,15 @@
                                 </div>
                             </div>
 
+                            <section id="indexing-progress-wrap" class="indexing-progress-wrap" aria-live="polite">
+                                <div class="indexing-progress-main">
+                                    <div class="indexing-progress-track">
+                                        <div id="indexing-progress-bar" class="indexing-progress-bar" style="width:0%;"></div>
+                                    </div>
+                                    <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
+                                </div>
+                            </section>
+
                             <div id="publish-progress-wrap" class="publish-progress-wrap" style="display:none;">
                                 <div class="publish-progress-main">
                                     <div class="publish-progress-track">
@@ -469,7 +462,6 @@
                                     </div>
                                     <div id="publish-progress-text" class="publish-progress-text">0%</div>
                                 </div>
-                                <button id="publish-cancel" class="dm-btn cancel" type="button" style="display:none;" data-i18n="publish.cancel.action">Annuler</button>
                             </div>
 
                             <p id="publish-status" class="status-message" data-i18n="publish.status.ready">Prêt.</p>

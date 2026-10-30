@@ -36,7 +36,7 @@ import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    sync_blob_databases_on_startup(app)
+    # sync_blob_databases_on_startup(app)
     try:
         from api.services.publish_scheduler import _ensure_scheduler
         _ensure_scheduler()

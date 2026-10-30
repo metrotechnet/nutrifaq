@@ -1,1 +1,1 @@
-"""Database regeneration scripts package."""
+"""Database indexing scripts package."""
