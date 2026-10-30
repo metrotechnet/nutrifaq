@@ -98,7 +98,7 @@
     <!-- Initial Loading Overlay -->
     <div class="initial-loading-overlay" id="initial-loading-overlay">
         <div class="initial-loading-content">
-             <h2 class="app-name">IMX - Nutrifaq</h2>
+             <h2 class="app-name">IMX - Nutrifaq Chat</h2>
            <div class="initial-spinner"></div>
             <p class="initial-loading-text" data-i18n="messages.warmup">Démarrage de l'application...</p>
         </div>
@@ -407,8 +407,59 @@
                                         <option value="" data-i18n="main.models.loading">Chargement des modèles...</option>
                                     </select>
                                 </div>
-                                <div class="download-control-group actions">
+                                <div class="download-control-group actions" style="display:none;">
                                     <button id="publish-submit" class="dm-btn primary" type="button" data-i18n="publish.confirm.action">Publier</button>
+                                </div>
+                            </div>
+
+                            <div class="publish-schedule-panel">
+                                <div class="publish-schedule-header">
+                                    <h3 data-i18n="publish.schedule.title">Planifier la publication</h3>
+                                </div>
+                                <div class="publish-schedule-grid">
+                                    <div class="publish-schedule-field">
+                                        <label for="publish-schedule-recurrence" data-i18n="publish.schedule.frequency">Fréquence</label>
+                                        <select id="publish-schedule-recurrence" class="publish-schedule-select">
+                                            <option value="manual" data-i18n="publish.schedule.manual">Immédiat</option>
+                                            <option value="once" data-i18n="publish.schedule.once">Une fois</option>
+                                            <option value="daily" data-i18n="publish.schedule.daily">Tous les jours</option>
+                                            <option value="weekly" data-i18n="publish.schedule.weekly">Chaque semaine</option>
+                                            <option value="custom_time" data-i18n="publish.schedule.customTime">Heure personnalisée</option>
+                                        </select>
+                                    </div>
+                                    <div id="publish-schedule-date-field" class="publish-schedule-field">
+                                        <label for="publish-schedule-date" data-i18n="publish.schedule.date">Date</label>
+                                        <input id="publish-schedule-date" type="date" />
+                                    </div>
+                                    <div class="publish-schedule-field">
+                                        <label for="publish-schedule-time" data-i18n="publish.schedule.time">Heure</label>
+                                        <input id="publish-schedule-time" type="time" value="09:00" />
+                                    </div>
+                                    <div id="publish-schedule-weekday-field" class="publish-schedule-field" style="display:none;">
+                                        <label for="publish-schedule-weekday" data-i18n="publish.schedule.weekday">Jour</label>
+                                        <select id="publish-schedule-weekday" class="publish-schedule-select">
+                                            <option value="0" data-i18n="publish.schedule.weekday0">Dimanche</option>
+                                            <option value="1" data-i18n="publish.schedule.weekday1">Lundi</option>
+                                            <option value="2" data-i18n="publish.schedule.weekday2">Mardi</option>
+                                            <option value="3" data-i18n="publish.schedule.weekday3">Mercredi</option>
+                                            <option value="4" data-i18n="publish.schedule.weekday4">Jeudi</option>
+                                            <option value="5" data-i18n="publish.schedule.weekday5">Vendredi</option>
+                                            <option value="6" data-i18n="publish.schedule.weekday6">Samedi</option>
+                                        </select>
+                                    </div>
+                                    <div class="publish-schedule-field publish-schedule-action">
+                                        <label>&nbsp;</label>
+                                        <button id="publish-schedule-submit" class="dm-btn secondary" type="button" data-i18n="publish.schedule.submitAction">Publier</button>
+                                    </div>
+                                </div>
+                                <div class="publish-schedule-list-wrap">
+                                    <div class="publish-schedule-list-header">
+                                        <span data-i18n="publish.schedule.listTitle">Planifications actives</span>
+                                        <button id="publish-schedule-refresh" class="dm-btn secondary publish-schedule-refresh" type="button" data-i18n="publish.schedule.refresh">Rafraichir</button>
+                                    </div>
+                                    <div id="publish-schedule-list" class="publish-schedule-list">
+                                        <p class="publish-schedule-empty" data-i18n="publish.schedule.loading">Chargement...</p>
+                                    </div>
                                 </div>
                             </div>
 

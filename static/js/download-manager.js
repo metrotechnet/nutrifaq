@@ -94,7 +94,16 @@
         publishLogsList: document.getElementById("publish-logs-list"),
         publishRefreshLogs: document.getElementById("publish-refresh-logs"),
         publishResetLogs: document.getElementById("publish-reset-logs"),
-        publishExportLogs: document.getElementById("publish-export-logs")
+        publishExportLogs: document.getElementById("publish-export-logs"),
+        publishScheduleRecurrence: document.getElementById("publish-schedule-recurrence"),
+        publishScheduleDate: document.getElementById("publish-schedule-date"),
+        publishScheduleTime: document.getElementById("publish-schedule-time"),
+        publishScheduleWeekday: document.getElementById("publish-schedule-weekday"),
+        publishScheduleSubmit: document.getElementById("publish-schedule-submit"),
+        publishScheduleRefresh: document.getElementById("publish-schedule-refresh"),
+        publishScheduleList: document.getElementById("publish-schedule-list"),
+        publishScheduleDateField: document.getElementById("publish-schedule-date-field"),
+        publishScheduleWeekdayField: document.getElementById("publish-schedule-weekday-field")
     };
 
     // Purpose: Implements a focused frontend behavior used by this module.
@@ -114,6 +123,15 @@
         els.publishRefreshLogs = document.getElementById("publish-refresh-logs");
         els.publishResetLogs = document.getElementById("publish-reset-logs");
         els.publishExportLogs = document.getElementById("publish-export-logs");
+        els.publishScheduleRecurrence = document.getElementById("publish-schedule-recurrence");
+        els.publishScheduleDate = document.getElementById("publish-schedule-date");
+        els.publishScheduleTime = document.getElementById("publish-schedule-time");
+        els.publishScheduleWeekday = document.getElementById("publish-schedule-weekday");
+        els.publishScheduleSubmit = document.getElementById("publish-schedule-submit");
+        els.publishScheduleRefresh = document.getElementById("publish-schedule-refresh");
+        els.publishScheduleList = document.getElementById("publish-schedule-list");
+        els.publishScheduleDateField = document.getElementById("publish-schedule-date-field");
+        els.publishScheduleWeekdayField = document.getElementById("publish-schedule-weekday-field");
     }
 
     // Purpose: Updates UI or local state so downstream interactions stay consistent.
@@ -322,6 +340,7 @@
 
         if (els.publishSubmit) {
             els.publishSubmit.textContent = tr("publish.confirm.action", "Publier");
+            els.publishSubmit.style.display = "none";
         }
 
         if (els.publishCancel) {
@@ -354,6 +373,73 @@
             publishTab.textContent = tr("publish.logs.tabs.publish", "Publications");
         }
 
+        const scheduleTitle = els.publishSection.querySelector(".publish-schedule-header h3");
+        if (scheduleTitle) {
+            scheduleTitle.textContent = tr("publish.schedule.title", "Planifier la publication");
+        }
+
+        const recurrenceLabel = els.publishSection.querySelector('label[for="publish-schedule-recurrence"]');
+        if (recurrenceLabel) {
+            recurrenceLabel.textContent = tr("publish.schedule.frequency", "Fréquence");
+        }
+
+        const dateLabel = els.publishSection.querySelector('label[for="publish-schedule-date"]');
+        if (dateLabel) {
+            dateLabel.textContent = tr("publish.schedule.date", "Date");
+        }
+
+        const timeLabel = els.publishSection.querySelector('label[for="publish-schedule-time"]');
+        if (timeLabel) {
+            timeLabel.textContent = tr("publish.schedule.time", "Heure");
+        }
+
+        const weekdayLabel = els.publishSection.querySelector('label[for="publish-schedule-weekday"]');
+        if (weekdayLabel) {
+            weekdayLabel.textContent = tr("publish.schedule.weekday", "Jour");
+        }
+
+        const scheduleListTitle = els.publishSection.querySelector(".publish-schedule-list-header span");
+        if (scheduleListTitle) {
+            scheduleListTitle.textContent = tr("publish.schedule.listTitle", "Planifications actives");
+        }
+
+        const scheduleRefresh = els.publishSection.querySelector("#publish-schedule-refresh");
+        if (scheduleRefresh) {
+            scheduleRefresh.textContent = tr("publish.schedule.refresh", "Rafraichir");
+        }
+
+        const scheduleSubmit = els.publishSection.querySelector("#publish-schedule-submit");
+        if (scheduleSubmit) {
+            scheduleSubmit.textContent = tr("publish.schedule.submitAction", "Publier");
+        }
+
+        const scheduleOptionMap = [
+            ["#publish-schedule-recurrence option[value='manual']", "publish.schedule.manual", "Immédiat"],
+            ["#publish-schedule-recurrence option[value='once']", "publish.schedule.once", "Une fois"],
+            ["#publish-schedule-recurrence option[value='daily']", "publish.schedule.daily", "Tous les jours"],
+            ["#publish-schedule-recurrence option[value='weekly']", "publish.schedule.weekly", "Chaque semaine"],
+            ["#publish-schedule-recurrence option[value='custom_time']", "publish.schedule.customTime", "Heure personnalisée"],
+            ["#publish-schedule-weekday option[value='0']", "publish.schedule.weekday0", "Dimanche"],
+            ["#publish-schedule-weekday option[value='1']", "publish.schedule.weekday1", "Lundi"],
+            ["#publish-schedule-weekday option[value='2']", "publish.schedule.weekday2", "Mardi"],
+            ["#publish-schedule-weekday option[value='3']", "publish.schedule.weekday3", "Mercredi"],
+            ["#publish-schedule-weekday option[value='4']", "publish.schedule.weekday4", "Jeudi"],
+            ["#publish-schedule-weekday option[value='5']", "publish.schedule.weekday5", "Vendredi"],
+            ["#publish-schedule-weekday option[value='6']", "publish.schedule.weekday6", "Samedi"],
+        ];
+
+        scheduleOptionMap.forEach(([selector, key, fallback]) => {
+            const option = els.publishSection.querySelector(selector);
+            if (option) {
+                option.textContent = tr(key, fallback);
+            }
+        });
+
+        const scheduleEmpty = els.publishSection.querySelector(".publish-schedule-empty");
+        if (scheduleEmpty) {
+            scheduleEmpty.textContent = tr("publish.schedule.loading", "Chargement...");
+        }
+
         const emptyState = els.publishSection.querySelector(".publish-log-empty");
         if (emptyState && !els.publishSection.querySelector(".publish-log-item")) {
             emptyState.textContent = tr("publish.logs.loading", "Chargement des logs...");
@@ -378,6 +464,229 @@
         }
         els.publishSubmit.dataset.bound = "1";
         els.publishSubmit.addEventListener("click", onPublishSubmit);
+    }
+
+    function updatePublishScheduleFields() {
+        const scheduleType = els.publishScheduleRecurrence ? String(els.publishScheduleRecurrence.value || "manual") : "manual";
+        const hasDate = scheduleType === "once" || scheduleType === "custom_time";
+        const showTime = scheduleType !== "manual";
+
+        if (els.publishScheduleDateField) {
+            els.publishScheduleDateField.style.display = "flex";
+            const dateInput = els.publishScheduleDateField.querySelector("input");
+            if (dateInput) {
+                dateInput.disabled = !hasDate;
+            }
+        }
+        if (els.publishScheduleWeekdayField) {
+            const weekdayInput = els.publishScheduleWeekdayField.querySelector("select");
+            const isWeekly = scheduleType === "weekly";
+            els.publishScheduleWeekdayField.style.display = "flex";
+            if (weekdayInput) {
+                weekdayInput.disabled = !isWeekly;
+            }
+        }
+        if (els.publishScheduleTime) {
+            const timeField = els.publishScheduleTime.closest(".publish-schedule-field");
+            if (timeField) {
+                timeField.style.display = "flex";
+                els.publishScheduleTime.disabled = !showTime;
+            }
+        }
+
+        if (!els.publishScheduleDate) {
+            return;
+        }
+        if (!els.publishScheduleDate.value) {
+            const today = new Date();
+            const offset = today.getTimezoneOffset();
+            const local = new Date(today.getTime() - offset * 60000);
+            els.publishScheduleDate.value = local.toISOString().slice(0, 10);
+        }
+    }
+
+    async function loadScheduledPublishJobs() {
+        if (!els.publishScheduleList) {
+            return;
+        }
+
+        try {
+            const data = await fetchJson(`${BACKEND_URL}/api/publish/schedule`, {
+                headers: {
+                    ...authHeaders()
+                }
+            });
+            const jobs = Array.isArray(data && data.jobs) ? data.jobs : [];
+            const activeJobs = jobs.length > 1 ? [jobs[jobs.length - 1]] : jobs;
+
+            if (!activeJobs.length) {
+                els.publishScheduleList.innerHTML = '<p class="publish-schedule-empty">Aucune planification active.</p>';
+                return;
+            }
+
+            els.publishScheduleList.innerHTML = activeJobs.map((job) => {
+                const title = job && job.id ? String(job.id) : "Planification";
+                const nextRun = job && job.next_run_time ? String(job.next_run_time) : (job && job.schedule ? String(job.schedule) : "—");
+                const description = job && job.trigger ? String(job.trigger) : (job && job.recurrence ? String(job.recurrence) : "Planification");
+                return `
+                    <div class="publish-schedule-item">
+                        <div class="publish-schedule-item-main">
+                            <span class="publish-schedule-item-title">${escapeHtml(title)}</span>
+                            <div class="publish-schedule-item-meta">${escapeHtml(nextRun)} • ${escapeHtml(description)}</div>
+                        </div>
+                        <button type="button" class="dm-btn secondary publish-schedule-delete" data-job-id="${escapeHtml(String(job.id || ""))}">Supprimer</button>
+                    </div>
+                `;
+            }).join("");
+
+            els.publishScheduleList.querySelectorAll(".publish-schedule-delete").forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const jobId = button.getAttribute("data-job-id");
+                    if (!jobId) {
+                        return;
+                    }
+                    const confirmed = await confirmAction({
+                        title: tr("publish.schedule.delete.title", "Supprimer la planification ?"),
+                        text: tr("publish.schedule.delete.text", "Voulez-vous vraiment supprimer cette planification automatique ?"),
+                        confirmText: tr("publish.schedule.delete.action", "Supprimer")
+                    });
+                    if (!confirmed) {
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`${BACKEND_URL}/api/publish/schedule/${encodeURIComponent(jobId)}`, {
+                            method: "DELETE",
+                            headers: {
+                                ...authHeaders(),
+                                "Content-Type": "application/json",
+                            }
+                        });
+                        const payload = await response.json().catch(() => ({}));
+                        if (!response.ok) {
+                            throw new Error(payload.detail || payload.message || response.statusText || tr("publish.schedule.deleteError", "Impossible de supprimer la planification."));
+                        }
+                        setPublishStatus(tr("publish.schedule.deleted", "Planification supprimée."), false);
+                        await loadScheduledPublishJobs();
+                    } catch (error) {
+                        const message = error && error.message ? error.message : tr("publish.schedule.deleteError", "Impossible de supprimer la planification.");
+                        setPublishStatus(message, true);
+                    }
+                });
+            });
+        } catch (error) {
+            els.publishScheduleList.innerHTML = '<p class="publish-schedule-empty">Chargement impossible.</p>';
+        }
+    }
+
+    async function onPublishScheduleSubmit() {
+        const selectedModel = els.publishModelSelector ? String(els.publishModelSelector.value || "").trim() : "";
+        const selectedOption = els.publishModelSelector && els.publishModelSelector.selectedOptions
+            ? els.publishModelSelector.selectedOptions[0]
+            : null;
+        const selectedProvider = selectedOption ? String(selectedOption.dataset.provider || "azure") : "azure";
+
+        if (!selectedModel) {
+            setPublishStatus(tr("publish.status.modelRequired", "Veuillez selectionner un modele."), true);
+            return;
+        }
+
+        const recurrence = els.publishScheduleRecurrence ? String(els.publishScheduleRecurrence.value || "manual") : "manual";
+        const timeValue = els.publishScheduleTime && els.publishScheduleTime.value ? String(els.publishScheduleTime.value) : "09:00";
+        const dateValue = els.publishScheduleDate && els.publishScheduleDate.value ? String(els.publishScheduleDate.value) : "";
+        const weekdayValue = els.publishScheduleWeekday ? String(els.publishScheduleWeekday.value || "0") : "0";
+        const timezoneName = (Intl.DateTimeFormat && Intl.DateTimeFormat().resolvedOptions && Intl.DateTimeFormat().resolvedOptions().timeZone)
+            ? Intl.DateTimeFormat().resolvedOptions().timeZone
+            : "UTC";
+
+        if ((recurrence === "once" || recurrence === "custom_time") && !dateValue) {
+            setPublishStatus(tr("publish.schedule.dateRequired", "Veuillez choisir une date pour la planification."), true);
+            return;
+        }
+
+        const confirmed = await confirmAction({
+            title: tr("publish.schedule.submitTitle", "Publier la publication ?"),
+            text: tr("publish.schedule.submitText", "La publication sera programmee selon la configuration choisie."),
+            confirmText: tr("publish.schedule.submitAction", "Publier")
+        });
+
+        if (!confirmed) {
+            return;
+        }
+
+        const body = {
+            model: selectedModel,
+            provider: selectedProvider,
+            timezone_name: timezoneName,
+            job_id: "active-publish-schedule",
+        };
+
+        if (recurrence === "manual") {
+            body.run_at = new Date().toISOString();
+            body.recurrence = "once";
+            body.user_time = null;
+            body.cron = null;
+        }
+
+        if (recurrence === "daily") {
+            body.user_time = timeValue;
+            body.recurrence = "daily";
+        } else if (recurrence === "weekly") {
+            const [hour, minute] = String(timeValue).split(":").map((part) => Number(part) || 0);
+            const dayOfWeek = Number(weekdayValue) || 0;
+            body.cron = `${minute} ${hour} * * ${dayOfWeek}`;
+        } else {
+            const scheduledDate = dateValue || new Date().toISOString().slice(0, 10);
+            body.run_at = `${scheduledDate}T${timeValue}:00`;
+            body.recurrence = "once";
+        }
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/publish/schedule`, {
+                method: "POST",
+                headers: {
+                    ...authHeaders(),
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(body),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const defaultError = tr("publish.schedule.error", "Erreur lors de la planification.");
+                const messageKey = typeof payload.message_key === "string" && payload.message_key.trim() ? payload.message_key : "publish.schedule.error";
+                throw new Error(localizeMessageWithKey(messageKey, payload.detail || payload.message || response.statusText || defaultError));
+            }
+            setPublishStatus(tr("publish.schedule.saved", "Planification enregistrée."), false);
+            await loadScheduledPublishJobs();
+        } catch (error) {
+            const message = error && error.message ? error.message : tr("publish.schedule.error", "Erreur lors de la planification.");
+            setPublishStatus(message, true);
+        }
+    }
+
+    function bindPublishScheduleControls() {
+        if (!els.publishSection) {
+            return;
+        }
+
+        if (els.publishScheduleRecurrence && els.publishScheduleRecurrence.dataset.bound !== "1") {
+            els.publishScheduleRecurrence.dataset.bound = "1";
+            els.publishScheduleRecurrence.addEventListener("change", updatePublishScheduleFields);
+        }
+
+        if (els.publishScheduleSubmit && els.publishScheduleSubmit.dataset.bound !== "1") {
+            els.publishScheduleSubmit.dataset.bound = "1";
+            els.publishScheduleSubmit.addEventListener("click", onPublishScheduleSubmit);
+        }
+
+        if (els.publishScheduleRefresh && els.publishScheduleRefresh.dataset.bound !== "1") {
+            els.publishScheduleRefresh.dataset.bound = "1";
+            els.publishScheduleRefresh.addEventListener("click", async () => {
+                await loadScheduledPublishJobs();
+            });
+        }
+
+        updatePublishScheduleFields();
+        loadScheduledPublishJobs();
     }
 
     async function resetQuestionLogs() {
@@ -656,6 +965,7 @@
             bindPublishRefreshButton();
             bindPublishResetButton();
             bindPublishExportButton();
+            bindPublishScheduleControls();
             syncPublishLogsTabButtons();
             applyPublishTranslations();
             return;
@@ -681,8 +991,58 @@
                             <option value="">${escapeHtml(tr("main.models.loading", "Chargement des modèles..."))}</option>
                         </select>
                     </div>
-                    <div class="download-control-group actions">
+                    <div class="download-control-group actions" style="display:none;">
                         <button id="publish-submit" class="dm-btn primary" type="button">${escapeHtml(tr("publish.confirm.action", "Publier"))}</button>
+                    </div>
+                </div>
+
+                <div class="publish-schedule-panel">
+                    <div class="publish-schedule-header">
+                        <h3>${escapeHtml(tr("publish.schedule.title", "Planifier la publication"))}</h3>
+                    </div>
+                    <div class="publish-schedule-grid">
+                        <div class="publish-schedule-field">
+                            <label for="publish-schedule-recurrence">${escapeHtml(tr("publish.schedule.frequency", "Fréquence"))}</label>
+                            <select id="publish-schedule-recurrence" class="publish-schedule-select">
+                                <option value="once">${escapeHtml(tr("publish.schedule.once", "Une fois"))}</option>
+                                <option value="daily">${escapeHtml(tr("publish.schedule.daily", "Tous les jours"))}</option>
+                                <option value="weekly">${escapeHtml(tr("publish.schedule.weekly", "Chaque semaine"))}</option>
+                                <option value="custom_time">${escapeHtml(tr("publish.schedule.customTime", "Heure personnalisée"))}</option>
+                            </select>
+                        </div>
+                        <div id="publish-schedule-date-field" class="publish-schedule-field">
+                            <label for="publish-schedule-date">${escapeHtml(tr("publish.schedule.date", "Date"))}</label>
+                            <input id="publish-schedule-date" type="date" />
+                        </div>
+                        <div class="publish-schedule-field">
+                            <label for="publish-schedule-time">${escapeHtml(tr("publish.schedule.time", "Heure"))}</label>
+                            <input id="publish-schedule-time" type="time" value="09:00" />
+                        </div>
+                        <div id="publish-schedule-weekday-field" class="publish-schedule-field" style="display:none;">
+                            <label for="publish-schedule-weekday">${escapeHtml(tr("publish.schedule.weekday", "Jour"))}</label>
+                            <select id="publish-schedule-weekday" class="publish-schedule-select">
+                                <option value="0">${escapeHtml(tr("publish.schedule.weekday0", "Dimanche"))}</option>
+                                <option value="1">${escapeHtml(tr("publish.schedule.weekday1", "Lundi"))}</option>
+                                <option value="2">${escapeHtml(tr("publish.schedule.weekday2", "Mardi"))}</option>
+                                <option value="3">${escapeHtml(tr("publish.schedule.weekday3", "Mercredi"))}</option>
+                                <option value="4">${escapeHtml(tr("publish.schedule.weekday4", "Jeudi"))}</option>
+                                <option value="5">${escapeHtml(tr("publish.schedule.weekday5", "Vendredi"))}</option>
+                                <option value="6">${escapeHtml(tr("publish.schedule.weekday6", "Samedi"))}</option>
+                            </select>
+                        </div>
+                        <div class="publish-schedule-field publish-schedule-action">
+                            <label>&nbsp;</label>
+                            <button id="publish-schedule-submit" class="dm-btn secondary" type="button">${escapeHtml(tr("publish.schedule.submitAction", "Publier"))}</button>
+                        </div>
+                    </div>
+                    <div class="publish-schedule-list-wrap">
+                        <div class="publish-schedule-list-header">
+                            <span>${escapeHtml(tr("publish.schedule.listTitle", "Planifications actives"))}</span>
+                            <button id="publish-schedule-refresh" class="dm-btn secondary publish-schedule-refresh" type="button">${escapeHtml(tr("publish.schedule.refresh", "Rafraichir"))}</button>
+                        </div>
+                        <div id="publish-schedule-list" class="publish-schedule-list">
+                            <p class="publish-schedule-empty">${escapeHtml(tr("publish.schedule.loading", "Chargement..."))}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -728,6 +1088,7 @@
         bindPublishRefreshButton();
         bindPublishResetButton();
         bindPublishExportButton();
+        bindPublishScheduleControls();
         syncPublishLogsTabButtons();
     }
 

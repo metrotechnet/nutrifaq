@@ -16,6 +16,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from api.services.startup_sync import sync_blob_databases_on_startup
 from api.services.logging import configure_logging
+from api.services.publish_scheduler import configure_default_auto_publish, shutdown_scheduler
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -32,7 +33,14 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     sync_blob_databases_on_startup(app)
+    try:
+        from api.services.publish_scheduler import _ensure_scheduler
+        _ensure_scheduler()
+        configure_default_auto_publish()
+    except Exception:
+        logger.exception("Failed to start the publish scheduler.")
     yield
+    shutdown_scheduler()
 
 
 app = FastAPI(

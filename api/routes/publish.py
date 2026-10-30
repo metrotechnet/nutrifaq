@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from api.services.config import load_publish_log_entries, reset_publish_log_entries
 from api.services.entra_auth_service import EntraUser, require_admin
+from api.services.publish_scheduler import cancel_scheduled_publish, list_scheduled_publish_jobs, schedule_publish
 from api.services.publish_service import cancel_publish, get_publish_status, start_publish, start_revert
 
 router = APIRouter()
@@ -35,6 +36,66 @@ def publish_now_api(
 
     provider = str(payload.provider or "azure").strip() or "azure"
     return start_publish(model=model, provider=provider)
+
+
+class PublishScheduleRequest(BaseModel):
+    model: str
+    provider: str | None = "azure"
+    run_at: str | None = None
+    cron: str | None = None
+    interval_minutes: int | None = None
+    user_time: str | None = None
+    recurrence: str | None = None
+    timezone_name: str | None = "UTC"
+    job_id: str | None = None
+
+
+@router.post("/api/publish/schedule")
+def schedule_publish_api(
+    payload: PublishScheduleRequest,
+    _: EntraUser = Depends(require_admin),
+):
+    """Create a one-time or recurring automated publish schedule."""
+    model = str(payload.model or "").strip()
+    if not model:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "status": "error",
+                "message": "A model is required to schedule publication.",
+                "message_key": "publish.schedule.modelRequired",
+            },
+        )
+
+    try:
+        return schedule_publish(
+            model=model,
+            provider=str(payload.provider or "azure").strip() or "azure",
+            publish_at=payload.run_at,
+            cron=payload.cron,
+            interval_minutes=payload.interval_minutes,
+            user_time=payload.user_time,
+            recurrence=payload.recurrence,
+            timezone_name=str(payload.timezone_name or "UTC").strip() or "UTC",
+            job_id=payload.job_id or "active-publish-schedule",
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": str(exc), "message_key": "publish.schedule.invalid"},
+        )
+
+
+@router.get("/api/publish/schedule")
+def list_publish_schedules(_: EntraUser = Depends(require_admin)):
+    """Return active automatic publish schedules."""
+    return {"status": "ok", "jobs": list_scheduled_publish_jobs()}
+
+
+@router.delete("/api/publish/schedule/{job_id}")
+def delete_publish_schedule(job_id: str, _: EntraUser = Depends(require_admin)):
+    """Delete a scheduled automatic publish."""
+    return cancel_scheduled_publish(job_id)
 
 
 @router.post("/api/publish/cancel")

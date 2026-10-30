@@ -282,6 +282,9 @@ _regen_state: Dict[str, object] = {
     "cancel_requested": False,
     "current_step": None,
     "active_process": None,
+    "progress_value": None,
+    "progress_total": None,
+    "progress_kind": None,
 }
 
 
@@ -487,17 +490,24 @@ def get_indexation_status() -> Dict[str, object]:
         current_step = _regen_state.get("current_step")
         running = bool(_regen_state.get("running"))
         cancel_requested = bool(_regen_state.get("cancel_requested"))
+        progress_value = _regen_state.get("progress_value")
+        progress_total = _regen_state.get("progress_total")
+        progress_kind = _regen_state.get("progress_kind")
 
     if not running:
         snapshot = {}
 
-    step_key = str(snapshot.get("step")) if snapshot.get("step") else (str(current_step) if current_step else None)
+    if snapshot and progress_kind is None and progress_value is None and progress_total is None:
+        step_key = str(snapshot.get("step")) if snapshot.get("step") else (str(current_step) if current_step else None)
+        progress_value = snapshot.get("value") if snapshot.get("value") is not None else progress_value
+        progress_total = snapshot.get("total") if snapshot.get("total") is not None else progress_total
+        progress_kind = snapshot.get("kind") if snapshot.get("kind") is not None else progress_kind
+    else:
+        step_key = str(current_step) if current_step else None
+
     step_index = STEP_ORDER.index(step_key) + 1 if step_key in STEP_ORDER else None
     total_steps = len(STEP_ORDER)
     progress_percent = None
-    progress_value = snapshot.get("value")
-    progress_total = snapshot.get("total")
-    progress_kind = snapshot.get("kind")
     if isinstance(progress_total, (int, float)) and progress_total > 0 and isinstance(progress_value, (int, float)):
         progress_percent = round((float(progress_value) / float(progress_total)) * 100, 1)
 
