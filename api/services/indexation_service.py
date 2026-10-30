@@ -7,6 +7,7 @@ execution that mirrors build-database.bat.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, IO, List
 import json
@@ -31,6 +32,7 @@ from api.services.blob_storage_service import (
     sync_local_directory_to_blob,
     upload_file_to_blob,
 )
+from api.services.config import append_publish_log_entry
 from api.services.query_chromadb import get_debug_local_kb_root_folder
 
 
@@ -978,6 +980,19 @@ def run_full_indexation(
             "message": "A regeneration is already running.",
         }
 
+    indexation_start_log = {
+        "timestamp": datetime.now().astimezone().isoformat(),
+        "operation": "indexation",
+        "status": "started",
+        "root_folder": (root_folder or "").strip() or os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX", "").strip() or "nutrifaq-dbase-main",
+        "container_name": (container_name or "").strip() or os.getenv("AZURE_KB_DEBUG_BLOB_CONTAINER", "").strip() or "nutrifaq-dbase-main",
+        "llm_model": llm_model or os.getenv("CHAT_MODEL") or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or os.getenv("LLM_MODEL") or "",
+    }
+    try:
+        append_publish_log_entry(indexation_start_log)
+    except Exception:
+        pass
+
     resolved_root_folder = (
         (root_folder or "").strip()
         or os.getenv("AZURE_KB_DEBUG_BLOB_PREFIX", "").strip()
@@ -990,9 +1005,10 @@ def run_full_indexation(
     )
     resolved_local_kb_root = REPO_ROOT / resolved_root_folder
 
+    result: Dict[str, object] = {"status": "unknown"}
     try:
         if not _has_readable_documents(resolved_local_kb_root):
-            return {
+            result = {
                 "status": "error",
                 "message": "No document to read in documents/. Please upload at least one document before running regeneration.",
                 "effective_target": {
@@ -1000,6 +1016,7 @@ def run_full_indexation(
                     "root_folder": resolved_root_folder,
                 },
             }
+            return result
 
         pipeline: List[str] = [
             "extract_docx",
@@ -1063,35 +1080,39 @@ def run_full_indexation(
         for step_key in pipeline:
             _set_current_step(step_key)
             if _is_cancel_requested():
-                return {
+                result = {
                     "status": "cancelled",
                     "message": "Regeneration cancelled by user.",
                     "steps": results,
                 }
+                return result
 
             step_result = step_services[step_key]()
             results.append(step_result)
             if step_result.get("status") == "cancelled":
-                return {
+                result = {
                     "status": "cancelled",
                     "message": f"Pipeline cancelled at step '{step_key}'.",
                     "steps": results,
                 }
+                return result
             if step_result.get("status") != "ok":
-                return {
+                result = {
                     "status": "error",
                     "message": f"Pipeline stopped at step '{step_key}'.",
                     "steps": results,
                 }
+                return result
 
         if _is_cancel_requested():
-            return {
+            result = {
                 "status": "cancelled",
                 "message": "Regeneration cancelled.",
                 "steps": results,
             }
+            return result
 
-        return {
+        result = {
             "status": "success",
             "message": "Database regeneration pipeline completed." + (" Only newly added files were processed." if process_only_new_files else ""),
             "effective_target": {
@@ -1101,5 +1122,18 @@ def run_full_indexation(
             "process_only_new_files": bool(process_only_new_files),
             "steps": results,
         }
+        return result
     finally:
+        try:
+            append_publish_log_entry({
+                "timestamp": datetime.now().astimezone().isoformat(),
+                "operation": "indexation",
+                "status": str(result.get("status", "unknown")),
+                "message": str(result.get("message") or "Database regeneration finished."),
+                "root_folder": resolved_root_folder,
+                "container_name": resolved_container_name,
+                "process_only_new_files": bool(process_only_new_files),
+            })
+        except Exception:
+            pass
         _finish_indexation()

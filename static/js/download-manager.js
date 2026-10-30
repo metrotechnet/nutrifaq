@@ -7,7 +7,7 @@
     const MODEL_STORAGE_KEY = "nutrifaq_selected_model";
     const LOGS_TAB_QUESTIONS = "questions";
     const LOGS_TAB_PUBLISH = "publish";
-    let activePublishLogsTab = LOGS_TAB_QUESTIONS;
+    let activePublishLogsTab = LOGS_TAB_PUBLISH;
 
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
@@ -290,6 +290,11 @@
         await loadActivePublishLogs();
     }
 
+    function initializePublishLogsTabDefault() {
+        activePublishLogsTab = LOGS_TAB_PUBLISH;
+        syncPublishLogsTabButtons();
+    }
+
     // Purpose: Attaches event listeners and links UI controls to their handlers.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function bindPublishLogsTabButtons() {
@@ -418,7 +423,6 @@
             ["#publish-schedule-recurrence option[value='once']", "publish.schedule.once", "Une fois"],
             ["#publish-schedule-recurrence option[value='daily']", "publish.schedule.daily", "Tous les jours"],
             ["#publish-schedule-recurrence option[value='weekly']", "publish.schedule.weekly", "Chaque semaine"],
-            ["#publish-schedule-recurrence option[value='custom_time']", "publish.schedule.customTime", "Heure personnalisée"],
             ["#publish-schedule-weekday option[value='0']", "publish.schedule.weekday0", "Dimanche"],
             ["#publish-schedule-weekday option[value='1']", "publish.schedule.weekday1", "Lundi"],
             ["#publish-schedule-weekday option[value='2']", "publish.schedule.weekday2", "Mardi"],
@@ -468,8 +472,27 @@
 
     function updatePublishScheduleFields() {
         const scheduleType = els.publishScheduleRecurrence ? String(els.publishScheduleRecurrence.value || "manual") : "manual";
-        const hasDate = scheduleType === "once" || scheduleType === "custom_time";
+        const hasDate = scheduleType === "once";
         const showTime = scheduleType !== "manual";
+
+        if (els.publishScheduleDate && els.publishScheduleDate.dataset.initialized !== "1") {
+            const now = new Date();
+            const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+            els.publishScheduleDate.value = localDate;
+            els.publishScheduleDate.dataset.initialized = "1";
+        }
+        if (els.publishScheduleTime && els.publishScheduleTime.dataset.initialized !== "1") {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, "0");
+            const minutes = String(now.getMinutes()).padStart(2, "0");
+            els.publishScheduleTime.value = `${hours}:${minutes}`;
+            els.publishScheduleTime.dataset.initialized = "1";
+        }
+        if (els.publishScheduleWeekday && els.publishScheduleWeekday.dataset.initialized !== "1") {
+            const now = new Date();
+            els.publishScheduleWeekday.value = String(now.getDay());
+            els.publishScheduleWeekday.dataset.initialized = "1";
+        }
 
         if (els.publishScheduleDateField) {
             els.publishScheduleDateField.style.display = "flex";
@@ -493,16 +516,52 @@
                 els.publishScheduleTime.disabled = !showTime;
             }
         }
+    }
 
-        if (!els.publishScheduleDate) {
-            return;
+    function formatSimpleScheduleDate(rawValue) {
+        if (!rawValue || rawValue === "-") {
+            return "—";
         }
-        if (!els.publishScheduleDate.value) {
-            const today = new Date();
-            const offset = today.getTimezoneOffset();
-            const local = new Date(today.getTime() - offset * 60000);
-            els.publishScheduleDate.value = local.toISOString().slice(0, 10);
+
+        const text = String(rawValue).trim();
+        const normalized = text.includes("T") ? text : text.replace(" ", "T");
+        const parsed = new Date(normalized);
+        if (Number.isNaN(parsed.getTime())) {
+            return text;
         }
+
+        return parsed.toLocaleString(undefined, {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        }).replace(/,\s*/, " ");
+    }
+
+    function getPublishScheduleDisplayType(job) {
+        const recurrence = job && job.recurrence ? String(job.recurrence).toLowerCase() : "";
+        const trigger = job && job.trigger ? String(job.trigger).toLowerCase() : "";
+        const scheduleText = job && job.schedule ? String(job.schedule).trim() : "";
+
+        if (recurrence.includes("manual") || recurrence.includes("immediate") || (trigger.includes("date") && recurrence.includes("once") && job && job.next_run_time && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(String(job.next_run_time)))) {
+            return tr("publish.schedule.manual", "Immédiat");
+        }
+
+        if (recurrence.includes("weekly") || /\*\s+\*\s+\*\s+\*\s+\d+/.test(scheduleText) || trigger.includes("day_of_week") && trigger.includes("0") && trigger.includes("cron")) {
+            return tr("publish.schedule.weekly", "Chaque semaine");
+        }
+        if (recurrence.includes("daily") || /^\d+\s+\d+\s+\*\s+\*\s+\*$/.test(scheduleText) || trigger.includes("cron") && trigger.includes("day_of_week='*'") && trigger.includes("hour='") && trigger.includes("minute='")) {
+            return tr("publish.schedule.daily", "Tous les jours");
+        }
+        if (recurrence.includes("once") || recurrence.includes("one_time") || recurrence.includes("one-time") || recurrence.includes("date") || trigger.includes("date")) {
+            return tr("publish.schedule.once", "Une fois");
+        }
+        if (trigger.includes("interval") || recurrence.includes("interval")) {
+            return tr("publish.schedule.interval", "Intervalle");
+        }
+        return tr("publish.schedule.planification", "Planification");
     }
 
     async function loadScheduledPublishJobs() {
@@ -517,7 +576,7 @@
                 }
             });
             const jobs = Array.isArray(data && data.jobs) ? data.jobs : [];
-            const activeJobs = jobs.length > 1 ? [jobs[jobs.length - 1]] : jobs;
+            const activeJobs = jobs.length > 0 ? [jobs[jobs.length - 1]] : [];
 
             if (!activeJobs.length) {
                 els.publishScheduleList.innerHTML = '<p class="publish-schedule-empty">Aucune planification active.</p>';
@@ -525,14 +584,14 @@
             }
 
             els.publishScheduleList.innerHTML = activeJobs.map((job) => {
-                const title = job && job.id ? String(job.id) : "Planification";
+                const title = getPublishScheduleDisplayType(job);
                 const nextRun = job && job.next_run_time ? String(job.next_run_time) : (job && job.schedule ? String(job.schedule) : "—");
-                const description = job && job.trigger ? String(job.trigger) : (job && job.recurrence ? String(job.recurrence) : "Planification");
+                const formattedDate = formatSimpleScheduleDate(nextRun);
                 return `
                     <div class="publish-schedule-item">
                         <div class="publish-schedule-item-main">
                             <span class="publish-schedule-item-title">${escapeHtml(title)}</span>
-                            <div class="publish-schedule-item-meta">${escapeHtml(nextRun)} • ${escapeHtml(description)}</div>
+                            <div class="publish-schedule-item-meta">${escapeHtml(formattedDate)}</div>
                         </div>
                         <button type="button" class="dm-btn secondary publish-schedule-delete" data-job-id="${escapeHtml(String(job.id || ""))}">Supprimer</button>
                     </div>
@@ -553,6 +612,12 @@
                     if (!confirmed) {
                         return;
                     }
+
+                    const originalLabel = button.textContent;
+                    button.disabled = true;
+                    button.textContent = tr("publish.schedule.deleting", "Suppression...");
+                    setPublishStatus(tr("publish.schedule.deletingStatus", "Suppression de la planification en cours..."), false);
+
                     try {
                         const response = await fetch(`${BACKEND_URL}/api/publish/schedule/${encodeURIComponent(jobId)}`, {
                             method: "DELETE",
@@ -570,11 +635,33 @@
                     } catch (error) {
                         const message = error && error.message ? error.message : tr("publish.schedule.deleteError", "Impossible de supprimer la planification.");
                         setPublishStatus(message, true);
+                    } finally {
+                        button.disabled = false;
+                        button.textContent = originalLabel;
                     }
                 });
             });
         } catch (error) {
             els.publishScheduleList.innerHTML = '<p class="publish-schedule-empty">Chargement impossible.</p>';
+        }
+    }
+
+    function setPublishScheduleControlsDisabled(isDisabled, statusMessage) {
+        const controls = [
+            els.publishScheduleRecurrence,
+            els.publishScheduleDate,
+            els.publishScheduleTime,
+            els.publishScheduleWeekday,
+            els.publishScheduleSubmit,
+            els.publishScheduleRefresh,
+        ].filter(Boolean);
+
+        controls.forEach((control) => {
+            control.disabled = Boolean(isDisabled);
+        });
+
+        if (typeof statusMessage === "string" && statusMessage.trim()) {
+            setPublishStatus(statusMessage, false);
         }
     }
 
@@ -598,13 +685,13 @@
             ? Intl.DateTimeFormat().resolvedOptions().timeZone
             : "UTC";
 
-        if ((recurrence === "once" || recurrence === "custom_time") && !dateValue) {
+        if (recurrence === "once" && !dateValue) {
             setPublishStatus(tr("publish.schedule.dateRequired", "Veuillez choisir une date pour la planification."), true);
             return;
         }
 
         const confirmed = await confirmAction({
-            title: tr("publish.schedule.submitTitle", "Publier la publication ?"),
+            title: tr("publish.schedule.submitTitle", "Publier ?"),
             text: tr("publish.schedule.submitText", "La publication sera programmee selon la configuration choisie."),
             confirmText: tr("publish.schedule.submitAction", "Publier")
         });
@@ -613,6 +700,8 @@
             return;
         }
 
+        setPublishScheduleControlsDisabled(true, tr("publish.schedule.saving", "Planification en cours..."));
+
         const body = {
             model: selectedModel,
             provider: selectedProvider,
@@ -620,27 +709,26 @@
             job_id: "active-publish-schedule",
         };
 
-        if (recurrence === "manual") {
-            body.run_at = new Date().toISOString();
-            body.recurrence = "once";
-            body.user_time = null;
-            body.cron = null;
-        }
-
-        if (recurrence === "daily") {
-            body.user_time = timeValue;
-            body.recurrence = "daily";
-        } else if (recurrence === "weekly") {
-            const [hour, minute] = String(timeValue).split(":").map((part) => Number(part) || 0);
-            const dayOfWeek = Number(weekdayValue) || 0;
-            body.cron = `${minute} ${hour} * * ${dayOfWeek}`;
-        } else {
-            const scheduledDate = dateValue || new Date().toISOString().slice(0, 10);
-            body.run_at = `${scheduledDate}T${timeValue}:00`;
-            body.recurrence = "once";
-        }
-
         try {
+            if (recurrence === "manual") {
+                body.run_at = new Date().toISOString();
+                body.recurrence = "once";
+                body.user_time = null;
+                body.cron = null;
+                body.job_id = "active-publish-schedule";
+            } else if (recurrence === "daily") {
+                body.user_time = timeValue;
+                body.recurrence = "daily";
+            } else if (recurrence === "weekly") {
+                const [hour, minute] = String(timeValue).split(":").map((part) => Number(part) || 0);
+                const dayOfWeek = Number(weekdayValue) || 0;
+                body.cron = `${minute} ${hour} * * ${dayOfWeek}`;
+            } else if (recurrence === "once") {
+                const scheduledDate = dateValue || new Date().toISOString().slice(0, 10);
+                body.run_at = `${scheduledDate}T${timeValue}:00`;
+                body.recurrence = "once";
+            }
+
             const response = await fetch(`${BACKEND_URL}/api/publish/schedule`, {
                 method: "POST",
                 headers: {
@@ -655,11 +743,17 @@
                 const messageKey = typeof payload.message_key === "string" && payload.message_key.trim() ? payload.message_key : "publish.schedule.error";
                 throw new Error(localizeMessageWithKey(messageKey, payload.detail || payload.message || response.statusText || defaultError));
             }
-            setPublishStatus(tr("publish.schedule.saved", "Planification enregistrée."), false);
+            const successKey = typeof payload.message_key === "string" && payload.message_key.trim()
+                ? payload.message_key
+                : (typeof payload.code === "string" && payload.code.trim() ? payload.code : "publish.schedule.saved");
+            const successFallback = typeof payload.message === "string" && payload.message.trim() ? payload.message : tr("publish.schedule.saved", "Planification enregistrée.");
+            setPublishStatus(localizeMessageWithKey(successKey, successFallback), false);
             await loadScheduledPublishJobs();
         } catch (error) {
             const message = error && error.message ? error.message : tr("publish.schedule.error", "Erreur lors de la planification.");
             setPublishStatus(message, true);
+        } finally {
+            setPublishScheduleControlsDisabled(false, "");
         }
     }
 
@@ -1007,7 +1101,6 @@
                                 <option value="once">${escapeHtml(tr("publish.schedule.once", "Une fois"))}</option>
                                 <option value="daily">${escapeHtml(tr("publish.schedule.daily", "Tous les jours"))}</option>
                                 <option value="weekly">${escapeHtml(tr("publish.schedule.weekly", "Chaque semaine"))}</option>
-                                <option value="custom_time">${escapeHtml(tr("publish.schedule.customTime", "Heure personnalisée"))}</option>
                             </select>
                         </div>
                         <div id="publish-schedule-date-field" class="publish-schedule-field">
@@ -1089,6 +1182,7 @@
         bindPublishResetButton();
         bindPublishExportButton();
         bindPublishScheduleControls();
+        initializePublishLogsTabDefault();
         syncPublishLogsTabButtons();
     }
 
@@ -2116,7 +2210,7 @@
         }
 
         const rows = entries.slice().reverse().map((entry) => {
-            const timestampRaw = String(entry.timestamp || "-");
+            const details = entry && typeof entry.details === "object" ? entry.details : {}; const resultDetails = entry && typeof entry.result === "object" ? entry.result : {}; const scheduledFor = details.scheduled_for || details.run_at || details.triggered_at || entry.scheduled_for || resultDetails.scheduled_for || resultDetails.run_at || resultDetails.triggered_at || entry.timestamp || "-"; const timestampRaw = String(scheduledFor);
             const modelRaw = String(entry.model_used || entry.model || tr("publish.logs.modelUnknown", "inconnu"));
             const questionText = String(entry.question || "").trim();
             const responseText = String(entry.response || "").trim();
@@ -2201,10 +2295,14 @@
         }
 
         const rows = logs.slice().reverse().map((entry, index) => {
-            const timestampRaw = String(entry.timestamp || "-");
-            const modelRaw = String(entry.model_used || entry.model || tr("publish.logs.modelUnknown", "inconnu"));
-            const providerRaw = String(entry.provider_used || entry.provider || tr("publish.logs.providerUnknown", "inconnu"));
-            const filesCountRaw = Number(entry.files_count || 0);
+            const details = entry && typeof entry.details === "object" ? entry.details : {};
+            const resultDetails = entry && typeof entry.result === "object" ? entry.result : {};
+            const scheduledFor = details.scheduled_for || details.run_at || details.triggered_at || entry.scheduled_for || resultDetails.scheduled_for || resultDetails.run_at || resultDetails.triggered_at || entry.timestamp || "-";
+            const timestampRaw = String(scheduledFor);
+            console.log("Scheduled for raw value:", scheduledFor);
+            const modelRaw = String(entry.model_used || entry.model || details.model_used || details.model || tr("publish.logs.modelUnknown", "inconnu"));
+            const providerRaw = String(entry.provider_used || entry.provider || details.provider_used || details.provider || tr("publish.logs.providerUnknown", "inconnu"));
+            const filesCountRaw = Number(entry.files_count || details.files_count || details.uploaded_files_count || 0);
 
             const ts = escapeHtml(formatDate(timestampRaw));
             const model = escapeHtml(modelRaw);

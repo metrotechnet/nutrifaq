@@ -53,6 +53,13 @@ def _publish_log_blob_name() -> str:
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
+def _publish_schedules_blob_name() -> str:
+    prefix = _config_blob_prefix()
+    return f"{prefix}/publish_schedules.json" if prefix else "publish_schedules.json"
+
+
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _resolve_config_path(file_name: str) -> Path:
     frontend_path = FRONTEND_CONFIG_ROOT / file_name
     if frontend_path.exists():
@@ -327,6 +334,69 @@ def append_publish_log_entry(entry: dict[str, Any]) -> dict[str, Any]:
     entries.append(entry)
     save_publish_log_entries(entries)
     return entry
+
+
+def load_publish_schedule_entries() -> list[dict[str, Any]]:
+    """Load persisted scheduler definitions from Azure Blob config storage."""
+    if not has_blob_storage_config():
+        raise RuntimeError("Azure Blob Storage is required to load publish schedules.")
+
+    blob_name = _publish_schedules_blob_name()
+    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
+    try:
+        raw_content = blob_client.download_blob().readall()
+    except Exception as exc:
+        message = str(exc)
+        if "BlobNotFound" in message or "The specified blob does not exist" in message:
+            return []
+        raise
+
+    payload = json.loads(raw_content.decode("utf-8"))
+    if isinstance(payload, dict):
+        entries = payload.get("entries", [])
+    elif isinstance(payload, list):
+        entries = payload
+    else:
+        entries = []
+    return [item for item in entries if isinstance(item, dict)]
+
+
+def save_publish_schedule_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Persist scheduler definitions to Azure Blob config storage."""
+    if not has_blob_storage_config():
+        raise RuntimeError("Azure Blob Storage is required to save publish schedules.")
+
+    cleaned_entries = [item for item in entries if isinstance(item, dict)]
+    payload = {"entries": cleaned_entries}
+    blob_name = _publish_schedules_blob_name()
+    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
+    blob_client.upload_blob(json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"), overwrite=True)
+    return cleaned_entries
+
+
+def upsert_publish_schedule_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    """Insert or replace a persisted schedule entry by its job id."""
+    if not isinstance(entry, dict):
+        raise TypeError("upsert_publish_schedule_entry expects a dictionary.")
+
+    job_id = str(entry.get("job_id") or entry.get("id") or "").strip()
+    entries = load_publish_schedule_entries()
+    if job_id:
+        entries = [item for item in entries if str(item.get("job_id") or item.get("id") or "").strip() != job_id]
+    entries.append(entry)
+    save_publish_schedule_entries(entries)
+    return entry
+
+
+def delete_publish_schedule_entry(job_id: str) -> list[dict[str, Any]]:
+    """Delete a persisted schedule entry by its job id."""
+    target = str(job_id or "").strip()
+    if not target:
+        return load_publish_schedule_entries()
+
+    entries = [item for item in load_publish_schedule_entries() if str(item.get("job_id") or item.get("id") or "").strip() != target]
+    save_publish_schedule_entries(entries)
+    return entries
 
 
 def reset_publish_log_entries() -> list[dict[str, Any]]:

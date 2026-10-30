@@ -368,7 +368,6 @@
       "once": "Once",
       "daily": "Daily",
       "weekly": "Weekly",
-      "customTime": "Custom time",
       "date": "Date",
       "time": "Time",
       "weekday": "Day",
@@ -386,6 +385,10 @@
       "empty": "No active schedules.",
       "dateRequired": "Please choose a date for the schedule.",
       "saved": "Schedule saved.",
+      "saving": "Scheduling in progress...",
+      "noChanges": "No files changed; nothing to publish.",
+      "triggered": "Publication started.",
+      "indexationFailed": "Indexation failed.",
       "deleted": "Schedule deleted.",
       "delete": {
         "title": "Delete schedule?",
@@ -394,7 +397,7 @@
       },
       "deleteError": "Unable to delete the schedule.",
       "immediate": "Immediate",
-      "submitTitle": "Publish the publication?",
+      "submitTitle": "Publish NutriFAQ-Chat ?",
       "submitText": "The publication will be scheduled according to the selected configuration."
     },
     "revert": {

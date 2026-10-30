@@ -368,7 +368,6 @@
       "once": "Une fois",
       "daily": "Tous les jours",
       "weekly": "Chaque semaine",
-      "customTime": "Heure personnalisée",
       "date": "Date",
       "time": "Heure",
       "weekday": "Jour",
@@ -386,6 +385,10 @@
       "empty": "Aucune planification active.",
       "dateRequired": "Veuillez choisir une date pour la planification.",
       "saved": "Planification enregistrée.",
+      "saving": "Planification en cours...",
+      "noChanges": "Aucun fichier n'a changé; rien à publier.",
+      "triggered": "Publication déclenchée.",
+      "indexationFailed": "L'indexation a échoué.",
       "deleted": "Planification supprimée.",
       "delete": {
         "title": "Supprimer la planification ?",
@@ -394,7 +397,7 @@
       },
       "deleteError": "Impossible de supprimer la planification.",
       "immediate": "Immédiat",
-      "submitTitle": "Publier la publication ?",
+      "submitTitle": "Publier NutriFAQ-Chat ?",
       "submitText": "La publication sera programmée selon la configuration choisie."
     },
     "revert": {
