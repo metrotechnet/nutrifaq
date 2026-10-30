@@ -309,15 +309,27 @@
                                         <input id="download-file-search" class="download-files-search" type="search" placeholder="Rechercher un fichier" aria-label="Rechercher un fichier" />
                                     </label>
                                 </div>
-                                <button id="refresh-files" class="dm-btn secondary refresh-files-btn" type="button" data-i18n="downloadManager.table.refresh">Refresh</button>
+                                <div class="download-files-header-actions">
+                                    <button id="download-selected-files" class="dm-btn secondary download-selected-files-btn icon-only" type="button" disabled title="Télécharger la sélection" aria-label="Télécharger la sélection">
+                                        <i class="bi bi-download" aria-hidden="true"></i>
+                                    </button>
+                                    <button id="delete-selected-files" class="dm-btn danger delete-selected-files-btn icon-only" type="button" disabled title="Supprimer la sélection" aria-label="Supprimer la sélection">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                    <button id="refresh-files" class="dm-btn secondary refresh-files-btn icon-only" type="button" title="Rafraîchir" aria-label="Rafraîchir">
+                                        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                             </div>
                             <table class="files-table" id="files-table">
                                 <thead>
                                     <tr>
+                                        <th class="file-select-header" style="width: 42px; text-align: center;">
+                                            <input id="select-all-files" type="checkbox" aria-label="Sélectionner tous les fichiers" />
+                                        </th>
                                         <th data-i18n="downloadManager.table.name">Nom</th>
                                         <th data-i18n="downloadManager.table.size">Taille</th>
                                         <th data-i18n="downloadManager.table.lastModified">Dernière modification</th>
-                                        <th data-i18n="downloadManager.table.actions">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="files-tbody">

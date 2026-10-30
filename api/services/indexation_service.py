@@ -313,7 +313,7 @@ def _reset_progress_snapshot() -> None:
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def _start_regeneration() -> bool:
+def _start_indexation() -> bool:
     _reset_progress_snapshot()
     with _regen_state_lock:
         if bool(_regen_state.get("running")):
@@ -330,7 +330,7 @@ def _start_regeneration() -> bool:
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def _finish_regeneration() -> None:
+def _finish_indexation() -> None:
     with _regen_state_lock:
         cancel_requested = bool(_regen_state.get("cancel_requested"))
         _regen_state["running"] = False
@@ -414,7 +414,7 @@ def _is_cancel_requested() -> bool:
 
 # Purpose: Implement a focused unit of backend behavior used by routes or services.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def request_regeneration_cancel() -> Dict[str, object]:
+def request_indexation_cancel() -> Dict[str, object]:
     with _regen_state_lock:
         if not bool(_regen_state.get("running")):
             return {
@@ -480,7 +480,7 @@ def _read_progress_snapshot() -> Dict[str, object]:
 
 # Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def get_regeneration_status() -> Dict[str, object]:
+def get_indexation_status() -> Dict[str, object]:
     snapshot = _read_progress_snapshot()
 
     with _regen_state_lock:
@@ -564,7 +564,7 @@ def _step_definitions() -> Dict[str, StepDefinition]:
 
 # Purpose: Collect and return a list view for API responses or internal processing.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def list_regeneration_steps() -> List[Dict[str, str]]:
+def list_indexation_steps() -> List[Dict[str, str]]:
     steps = _step_definitions()
     listed_steps: list[dict[str, str]] = []
     for key in STEP_ORDER:
@@ -742,7 +742,7 @@ def run_generate_questions_step(
 
 # Purpose: Implement a focused unit of backend behavior used by routes or services.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def run_regeneration_step(step_key: str) -> Dict[str, object]:
+def run_indexation_step(step_key: str) -> Dict[str, object]:
     step_services = {
         "extract_docx": run_extract_docx_step,
         "extract_references": run_extract_references_step,
@@ -892,7 +892,7 @@ def _has_readable_documents(local_kb_root: Path) -> bool:
     return False
 
 
-def start_background_regeneration(
+def start_background_indexation(
     *,
     include_extract_docx: bool = False,
     include_extract_references: bool = False,
@@ -909,7 +909,7 @@ def start_background_regeneration(
             "message": "A regeneration is already running.",
         }
 
-    if not _start_regeneration():
+    if not _start_indexation():
         return {
             "status": "busy",
             "message": "A regeneration is already running.",
@@ -917,7 +917,7 @@ def start_background_regeneration(
 
     def worker() -> None:
         try:
-            result = run_full_regeneration(
+            result = run_full_indexation(
                 include_extract_docx=include_extract_docx,
                 include_extract_references=include_extract_references,
                 root_folder=root_folder,
@@ -940,7 +940,7 @@ def start_background_regeneration(
     }
 
 
-def run_full_regeneration(
+def run_full_indexation(
     include_extract_docx: bool = False,
     include_extract_references: bool = False,
     root_folder: str | None = None,
@@ -962,7 +962,7 @@ def run_full_regeneration(
     focused on the newly-added documents in the current knowledge base.
     """
 
-    if not skip_start_guard and not _start_regeneration():
+    if not skip_start_guard and not _start_indexation():
         return {
             "status": "busy",
             "message": "A regeneration is already running.",
@@ -1092,4 +1092,4 @@ def run_full_regeneration(
             "steps": results,
         }
     finally:
-        _finish_regeneration()
+        _finish_indexation()

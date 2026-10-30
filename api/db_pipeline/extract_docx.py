@@ -16,7 +16,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from api.services.logging import configure_logging  # noqa: E402
-from api.services.database_regeneration_service import _write_progress_snapshot  # noqa: E402
+from api.services.indexation_service import _write_progress_snapshot  # noqa: E402
 
 configure_logging()
 

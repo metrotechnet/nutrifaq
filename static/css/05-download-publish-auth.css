@@ -172,6 +172,12 @@
     border: 1px solid #fecaca;
 }
 
+.dm-btn.danger {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
 .dm-btn.cancel:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -349,6 +355,54 @@
     box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
 }
 
+.file-select-header,
+.files-table td:first-child {
+    width: 42px;
+    text-align: center;
+}
+
+.files-table input[type="checkbox"],
+#select-all-files {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #8db7ae;
+    border-radius: 5px;
+    background: #ffffff;
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 0;
+    vertical-align: middle;
+}
+
+.files-table input[type="checkbox"]:checked,
+#select-all-files:checked {
+    background: #0f766e;
+    border-color: #0f766e;
+}
+
+.files-table input[type="checkbox"]:checked::after,
+#select-all-files:checked::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.files-table input[type="checkbox"]:focus-visible,
+#select-all-files:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.18);
+}
+
 .download-files-count {
     flex: 0 0 auto;
     color: #1d4d48;
@@ -371,9 +425,23 @@
     font-size: 0.85rem;
 }
 
+.download-files-header-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.download-selected-files-btn,
+.delete-selected-files-btn,
 .refresh-files-btn {
-    padding: 0.62rem 0.95rem;
-    font-size: 0.82rem;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
     min-width: 0;
     white-space: nowrap;
 }

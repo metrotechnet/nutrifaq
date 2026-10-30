@@ -82,7 +82,7 @@ User and roles:
 
 - `services/query_chromadb.py`: retrieval + prompt building + streaming answer orchestration.
 - `services/llm_service.py`: LLM client wrappers, retries, embeddings, and prompt template helpers.
-- `services/database_regeneration_service.py`: end-to-end regeneration orchestration and progress status.
+- `services/indexation_service.py`: end-to-end indexation orchestration and progress status.
 - `services/publish_service.py`: publish/revert jobs and operation status tracking.
 - `services/blob_storage_service.py`: Azure Blob access, sync, upload, copy, and delete helpers.
 

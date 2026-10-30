@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import api.services.logging as logging_service
 import api.services.publish_scheduler as publish_scheduler
-import api.services.database_regeneration_service as regen_service
+import api.services.indexation_service as regen_service
 
 
 def test_question_log_defaults_to_debug_kb_path():
@@ -103,7 +103,7 @@ def test_schedule_publish_executes_debug_to_main_sync_and_indexing(tmp_path, mon
     assert ("sync", str(main_root), "nutrifaq-dbase", "nutrifaq-dbase-main") in events
 
 
-def test_regeneration_progress_uses_question_and_token_totals(monkeypatch):
+def test_indexation_progress_uses_question_and_token_totals(monkeypatch):
     monkeypatch.setattr(regen_service, "_regen_state", {
         "running": True,
         "cancel_requested": False,
@@ -114,7 +114,7 @@ def test_regeneration_progress_uses_question_and_token_totals(monkeypatch):
         "active_process": None,
     })
 
-    status = regen_service.get_regeneration_status()
+    status = regen_service.get_indexation_status()
     assert status["progress_kind"] == "questions"
     assert status["progress_total"] == 100
     assert status["progress_percent"] == 40.0
@@ -129,13 +129,13 @@ def test_regeneration_progress_uses_question_and_token_totals(monkeypatch):
         "active_process": None,
     })
 
-    status = regen_service.get_regeneration_status()
+    status = regen_service.get_indexation_status()
     assert status["progress_kind"] == "tokens"
     assert status["progress_total"] == 5000
     assert status["progress_percent"] == 50.0
 
 
-def test_regeneration_cancel_terminates_running_process():
+def test_indexation_cancel_terminates_running_process():
     proc = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(60)"],
         start_new_session=True,
@@ -146,7 +146,7 @@ def test_regeneration_cancel_terminates_running_process():
         regen_service._regen_state["current_step"] = "extract_references"
         regen_service._regen_state["active_process"] = proc
 
-        result = regen_service.request_regeneration_cancel()
+        result = regen_service.request_indexation_cancel()
 
         assert result["status"] == "cancelling"
         deadline = time.time() + 5

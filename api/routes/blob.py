@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import os
+import zipfile
 from dataclasses import asdict
 from io import BytesIO
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from api.services.entra_auth_service import require_admin, require_collaborator
@@ -219,6 +220,43 @@ def download_file(
         )
     except Exception as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/api/blob/files/download-all")
+def download_files_zip(
+    file_names: list[str] = Body(..., embed=False),
+    container: str | None = Query(default=None, description="Optional blob container name override."),
+    _: object = Depends(require_collaborator),
+):
+    """Download several selected files as a zip archive."""
+    if not file_names:
+        raise HTTPException(status_code=400, detail="No files selected for download.")
+
+    archive_buffer = BytesIO()
+    try:
+        with zipfile.ZipFile(archive_buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for blob_name in file_names:
+                if not blob_name:
+                    continue
+                local_path = _local_file_path(blob_name)
+                if not local_path.exists() or not local_path.is_file():
+                    continue
+                archive.write(local_path, arcname=local_path.name)
+
+        if archive_buffer.tell() == 0:
+            raise FileNotFoundError("No valid files found for the requested download.")
+
+        archive_buffer.seek(0)
+        filename = "selected-files.zip"
+        return StreamingResponse(
+            archive_buffer,
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.post("/api/blob/files/{blob_name:path}")

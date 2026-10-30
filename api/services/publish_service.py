@@ -14,7 +14,7 @@ from api.services.blob_storage_service import (
     sync_local_directory_to_blob,
 )
 from api.services.config import append_publish_log_entry, sync_next_prod_chroma_from_main, update_prod_config, update_prod_config
-from api.services.database_regeneration_service import run_full_regeneration
+from api.services.indexation_service import run_full_indexation
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -130,25 +130,33 @@ def _run_publish_job(model: str, provider: str) -> None:
 
         documents_root = local_main_root / "documents"
         documents_file_count = sum(1 for path in documents_root.rglob("*") if path.is_file()) if documents_root.exists() else 0
-        
-        # _set_publish_state(
-        #     progress=20,
-        #     message="Regenerating local database...",
-        #     message_key="publish.status.regeneratingDb",
-        # )
-        # if _is_publish_cancel_requested():
-        #     raise RuntimeError("Publication cancelled by user.")
-        # # Regenerate the local database before backing up the current main database
-        # regeneration_result = run_full_regeneration(
-        #     include_extract_docx=False,
-        #     include_extract_references=False,
-        #     root_folder=local_main_root.name,
-        #     container_name=main_container,
-        # )
-        # if regeneration_result.get("status") != "success":
-        #     raise RuntimeError(
-        #         f"Database regeneration failed before backup: {regeneration_result.get('message', 'unknown error')}"
-        #     )
+        needs_regeneration = not documents_root.exists() or not any(documents_root.rglob("*"))
+
+        if needs_regeneration:
+            _set_publish_state(
+                progress=20,
+                message="Regenerating local database...",
+                message_key="publish.status.regeneratingDb",
+            )
+            if _is_publish_cancel_requested():
+                raise RuntimeError("Publication cancelled by user.")
+            # Regenerate the local database before backing up the current main database
+            regeneration_result = run_full_indexation(
+                include_extract_docx=False,
+                include_extract_references=False,
+                root_folder=local_main_root.name,
+                container_name=main_container,
+            )
+            if regeneration_result.get("status") != "success":
+                raise RuntimeError(
+                    f"Database regeneration failed before backup: {regeneration_result.get('message', 'unknown error')}"
+                )
+        else:
+            _set_publish_state(
+                progress=20,
+                message="Local database already indexed; skipping regeneration.",
+                message_key="publish.status.skippingRegeneration",
+            )
 
         backup_result = {"copied_count": 0, "failed_count": 0}
         _set_publish_state(

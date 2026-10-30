@@ -64,6 +64,9 @@
         downloadSection: document.getElementById("download-section"),
         publishSection: document.getElementById("publish-section"),
         refreshFiles: document.getElementById("refresh-files"),
+        downloadSelectedFiles: document.getElementById("download-selected-files"),
+        deleteSelectedFiles: document.getElementById("delete-selected-files"),
+        selectAllFiles: document.getElementById("select-all-files"),
         fileSearch: document.getElementById("download-file-search"),
         filesFoundCount: document.getElementById("files-found-count"),
         uploadFile: document.getElementById("upload-file"),
@@ -2250,6 +2253,48 @@
 
     // Purpose: Renders computed content into the DOM for the current view state.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
+    let fileSearchQuery = "";
+    let selectedFileNames = new Set();
+
+    function getSelectedFileNames() {
+        return [...selectedFileNames].filter(Boolean);
+    }
+
+    function isFileSelected(blobName) {
+        return Boolean(blobName) && selectedFileNames.has(blobName);
+    }
+
+    function setFileSelection(blobName, isSelected) {
+        if (!blobName) {
+            return;
+        }
+
+        if (isSelected) {
+            selectedFileNames.add(blobName);
+        } else {
+            selectedFileNames.delete(blobName);
+        }
+        if (els.downloadSelectedFiles) {
+            els.downloadSelectedFiles.disabled = getSelectedFileNames().length === 0;
+        }
+        if (els.deleteSelectedFiles) {
+            els.deleteSelectedFiles.disabled = getSelectedFileNames().length === 0;
+        }
+        if (els.selectAllFiles) {
+            const visibleFiles = getVisibleFiles();
+            const allSelected = visibleFiles.length > 0 && visibleFiles.every((file) => {
+                const candidate = file.blob_name || file.name || "";
+                return isFileSelected(candidate);
+            });
+            const someSelected = visibleFiles.some((file) => {
+                const candidate = file.blob_name || file.name || "";
+                return isFileSelected(candidate);
+            });
+            els.selectAllFiles.checked = allSelected;
+            els.selectAllFiles.indeterminate = !allSelected && someSelected;
+        }
+    }
+
     function renderRows(files) {
         if (!els.filesTbody) {
             return;
@@ -2266,9 +2311,12 @@
             const lastModified = formatDate(file.last_modified);
             const size = formatBytes(file.size_bytes ?? file.size);
             const downloadLabel = tr("downloadManager.table.download", "Indexer");
-            const deleteLabel = tr("downloadManager.table.delete", "Supprimer");
+            const checked = isFileSelected(blobName) ? "checked" : "";
             return `
                 <tr>
+                    <td style="text-align: center; width: 42px;">
+                        <input type="checkbox" data-select-file="true" data-name="${encodeURIComponent(blobName)}" aria-label="${escapeHtml(tr("downloadManager.table.selectFile", "Sélectionner {name}", { name: fileName }))}" ${checked} />
+                    </td>
                     <td>${escapeHtml(fileName)}</td>
                     <td>${escapeHtml(size)}</td>
                     <td>${escapeHtml(lastModified)}</td>
@@ -2276,20 +2324,46 @@
                         <button class="dm-btn table-action icon-only" data-action="download" data-name="${encodeURIComponent(blobName)}" title="${escapeHtml(downloadLabel)}" aria-label="${escapeHtml(downloadLabel)}">
                             <i class="bi bi-download" aria-hidden="true"></i>
                         </button>
-                        <button class="dm-btn table-action danger icon-only" data-action="delete" data-name="${encodeURIComponent(blobName)}" title="${escapeHtml(deleteLabel)}" aria-label="${escapeHtml(deleteLabel)}">
-                            <i class="bi bi-trash" aria-hidden="true"></i>
-                        </button>
                     </td>
                 </tr>
             `;
         });
 
         els.filesTbody.innerHTML = rows.join("");
+        if (els.selectAllFiles) {
+            const visibleFiles = getVisibleFiles();
+            const allSelected = visibleFiles.length > 0 && visibleFiles.every((file) => {
+                const candidate = file.blob_name || file.name || "";
+                return isFileSelected(candidate);
+            });
+            const someSelected = visibleFiles.some((file) => {
+                const candidate = file.blob_name || file.name || "";
+                return isFileSelected(candidate);
+            });
+            els.selectAllFiles.checked = allSelected;
+            els.selectAllFiles.indeterminate = !allSelected && someSelected;
+        }
+        if (els.downloadSelectedFiles) {
+            els.downloadSelectedFiles.disabled = getSelectedFileNames().length === 0;
+        }
+        if (els.deleteSelectedFiles) {
+            els.deleteSelectedFiles.disabled = getSelectedFileNames().length === 0;
+        }
     }
 
-    // Purpose: Updates UI or local state so downstream interactions stay consistent.
-    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
-    let fileSearchQuery = "";
+    function resetSelectedFiles() {
+        selectedFileNames.clear();
+        if (els.downloadSelectedFiles) {
+            els.downloadSelectedFiles.disabled = true;
+        }
+        if (els.deleteSelectedFiles) {
+            els.deleteSelectedFiles.disabled = true;
+        }
+        if (els.selectAllFiles) {
+            els.selectAllFiles.checked = false;
+            els.selectAllFiles.indeterminate = false;
+        }
+    }
 
     function updateFilesFoundCountLabel(count) {
         if (!els.filesFoundCount) {
@@ -2380,6 +2454,50 @@
         setFilesFoundStatus(visibleFiles.length);
     }
 
+    async function downloadSelectedFiles() {
+        const selected = getSelectedFileNames();
+        if (!selected.length) {
+            return;
+        }
+
+        await downloadFilesZip(selected);
+    }
+
+    async function deleteSelectedFiles() {
+        const selected = getSelectedFileNames();
+        if (!selected.length) {
+            return;
+        }
+
+        const selectedLabel = selected.length === 1 ? selected[0].split("/").pop() : `${selected.length} fichiers`;
+        const confirmed = await confirmAction({
+            title: tr("downloadManager.confirm.deleteSelectedTitle", "Supprimer les fichiers sélectionnés ?"),
+            text: selectedLabel,
+            confirmText: tr("downloadManager.confirm.delete", "Supprimer"),
+        });
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setStatus(tr("downloadManager.status.deletingSelected", "Suppression des fichiers sélectionnés..."), false);
+            for (const blobName of [...selected]) {
+                await fetchJson(withContainerQuery(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}`), {
+                    method: "DELETE",
+                    headers: {
+                        ...authHeaders()
+                    }
+                });
+                removeLocalFileEntry(blobName);
+            }
+            resetSelectedFiles();
+            refreshLocalFilesTable();
+            setStatus(tr("downloadManager.status.deletedSelected", "Fichiers supprimés: {count}", { count: selected.length }), false);
+        } catch (error) {
+            setStatus(tr("downloadManager.status.deleteError", "Erreur suppression: {error}", { error: error.message }), true);
+        }
+    }
+
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function escapeHtml(value) {
@@ -2395,7 +2513,7 @@
         try {
             setStatus(tr("downloadManager.status.loadingFiles", "Chargement des fichiers Azure..."), false);
             if (els.filesTbody) {
-                els.filesTbody.innerHTML = `<tr><td colspan="4">${escapeHtml(tr("downloadManager.table.loading", "Chargement..."))}</td></tr>`;
+                els.filesTbody.innerHTML = `<tr><td colspan="5">${escapeHtml(tr("downloadManager.table.loading", "Chargement..."))}</td></tr>`;
             }
             const prefix = DOCUMENTS_PREFIX;
             const query = prefix ? `?prefix=${encodeURIComponent(prefix)}` : "";
@@ -2408,7 +2526,7 @@
             refreshLocalFilesTable();
         } catch (error) {
             if (els.filesTbody) {
-                els.filesTbody.innerHTML = `<tr><td colspan="4">${escapeHtml(tr("downloadManager.table.errorPrefix", "Erreur: "))}${escapeHtml(error.message)}</td></tr>`;
+                els.filesTbody.innerHTML = `<tr><td colspan="5">${escapeHtml(tr("downloadManager.table.errorPrefix", "Erreur: "))}${escapeHtml(error.message)}</td></tr>`;
             }
             setStatus(tr("downloadManager.status.loadError", "Erreur de chargement: {error}", { error: error.message }), true);
         }
@@ -2444,6 +2562,42 @@
             }
         } catch (error) {
             setStatus(tr("downloadManager.status.deleteError", "Erreur suppression: {error}", { error: error.message }), true);
+        }
+    }
+
+    async function downloadFilesZip(blobNames) {
+        const names = Array.isArray(blobNames) ? blobNames.filter(Boolean) : [];
+        if (!names.length) {
+            return;
+        }
+
+        try {
+            const response = await fetch(withContainerQuery(`${BACKEND_URL}/api/blob/files/download-all`), {
+                method: "POST",
+                headers: {
+                    ...authHeaders(),
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(names),
+            });
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                throw new Error(payload.detail || response.statusText);
+            }
+
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = "selected-files.zip";
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(objectUrl);
+
+            setStatus(tr("downloadManager.status.downloadStarted", "Téléchargement lancé: {count} fichier(s)", { count: names.length }), false);
+        } catch (error) {
+            setStatus(tr("downloadManager.status.downloadError", "Erreur téléchargement: {error}", { error: error.message }), true);
         }
     }
 
@@ -2704,6 +2858,42 @@
                 deleteFile(blobName);
             }
         });
+
+        els.filesTbody.addEventListener("change", (event) => {
+            const checkbox = event.target.closest("input[data-select-file]");
+            if (!checkbox) {
+                return;
+            }
+            const blobName = decodeURIComponent(checkbox.getAttribute("data-name") || "");
+            setFileSelection(blobName, checkbox.checked);
+        });
+    }
+
+    function bindBulkFileSelectionControls() {
+        if (els.selectAllFiles) {
+            els.selectAllFiles.addEventListener("change", (event) => {
+                const checked = Boolean(event.target.checked);
+                const visibleFiles = getVisibleFiles();
+                visibleFiles.forEach((file) => {
+                    const blobName = file.blob_name || file.name || "";
+                    setFileSelection(blobName, checked);
+                    const rowCheckbox = els.filesTbody && els.filesTbody.querySelector(`input[data-select-file][data-name="${encodeURIComponent(blobName)}"]`);
+                    if (rowCheckbox) {
+                        rowCheckbox.checked = checked;
+                    }
+                });
+            });
+        }
+
+        if (els.downloadSelectedFiles) {
+            els.downloadSelectedFiles.addEventListener("click", downloadSelectedFiles);
+            els.downloadSelectedFiles.disabled = true;
+        }
+
+        if (els.deleteSelectedFiles) {
+            els.deleteSelectedFiles.addEventListener("click", deleteSelectedFiles);
+            els.deleteSelectedFiles.disabled = true;
+        }
     }
 
     // Purpose: Initializes module behavior and wires startup dependencies.
@@ -2732,6 +2922,7 @@
 
         bindDragAndDrop();
         bindTableActions();
+        bindBulkFileSelectionControls();
         if (els.fileSearch) {
             els.fileSearch.addEventListener("input", (event) => {
                 fileSearchQuery = event.target && typeof event.target.value === "string" ? event.target.value : "";

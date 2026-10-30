@@ -11,18 +11,18 @@ from fastapi.responses import JSONResponse
 
 from api.services.entra_auth_service import require_admin
 
-from api.services.database_regeneration_service import (
+from api.services.indexation_service import (
     DEFAULT_QUESTION_COUNT,
     generate_questions_from_transcripts_json,
-    get_regeneration_status,
-    list_regeneration_steps,
-    request_regeneration_cancel,
+    get_indexation_status,
+    list_indexation_steps,
+    request_indexation_cancel,
     run_extract_docx_step,
     run_extract_references_step,
     run_review_document_text_step,
     run_index_chromadb_json_step,
-    run_regeneration_step,
-    start_background_regeneration,
+    run_indexation_step,
+    start_background_indexation,
 )
 
 
@@ -30,17 +30,17 @@ router = APIRouter(dependencies=[Depends(require_admin)])
 
 
 @router.get("/api/database/steps")
-def get_database_regeneration_steps():
-    """List available regeneration steps."""
-    return {"status": "ok", "steps": list_regeneration_steps()}
+def get_database_indexation_steps():
+    """List available indexation steps."""
+    return {"status": "ok", "steps": list_indexation_steps()}
 
 
 @router.post("/api/database/run-step")
 def run_database_step(
     step: str = Query(..., description="Step key to run, e.g. index_chromadb_json."),
 ):
-    """Run one regeneration step by key."""
-    result = run_regeneration_step(step)
+    """Run one indexation step by key."""
+    result = run_indexation_step(step)
     status_code = 200 if result.get("status") == "ok" else 400
     return JSONResponse(status_code=status_code, content=result)
 
@@ -110,7 +110,7 @@ def generate_questions(
 
 
 @router.post("/api/database/regenerate")
-async def regenerate_database(
+async def index_database(
     request: Request,
     root_folder: str | None = Query(
         default=None,
@@ -145,7 +145,7 @@ async def regenerate_database(
             process_only_new_files = incoming_new_files_only
         elif isinstance(incoming_new_files_only, str):
             process_only_new_files = incoming_new_files_only.strip().lower() in {"1", "true", "yes", "on"}
-    result = start_background_regeneration(
+    result = start_background_indexation(
         include_extract_docx=True,
         include_extract_references=True,
         root_folder=root_folder,
@@ -169,14 +169,14 @@ async def regenerate_database(
 
 
 @router.post("/api/database/regenerate/cancel")
-def cancel_regeneration():
-    """Request cancellation of the currently running regeneration job."""
-    result = request_regeneration_cancel()
+def cancel_indexation():
+    """Request cancellation of the currently running indexation job."""
+    result = request_indexation_cancel()
     status_code = 200 if result.get("status") in {"cancelling", "idle"} else 500
     return JSONResponse(status_code=status_code, content=result)
 
 
 @router.get("/api/database/regenerate/status")
-def regeneration_status():
-    """Return current regeneration execution status."""
-    return {"status": "ok", "regeneration": get_regeneration_status()}
+def indexation_status():
+    """Return current indexation execution status."""
+    return {"status": "ok", "regeneration": get_indexation_status()}

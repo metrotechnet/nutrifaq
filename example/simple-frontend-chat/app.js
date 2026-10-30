@@ -1,4 +1,4 @@
-const API_BASE = (window.API_BASE || "http://localhost:8080").trim();
+const BACKEND_URL = (window.BACKEND_URL || "http://localhost:8080").trim();
 const CLIENT_QUERY_KEY = (window.CLIENT_QUERY_KEY || "").trim();
 
 const display = document.getElementById("display");
@@ -162,7 +162,7 @@ function createFileRow(fileItem) {
     }
     deleteBtn.disabled = true;
     try {
-      const response = await fetch(`${API_BASE}/delete_page/${encodeURIComponent(fileItem.filename)}`, {
+      const response = await fetch(`${BACKEND_URL}/delete_page/${encodeURIComponent(fileItem.filename)}`, {
         method: "DELETE",
         headers: fileHeaders(),
       });
@@ -187,7 +187,7 @@ function createFileRow(fileItem) {
 }
 
 async function fetchFilesList() {
-  const response = await fetch(`${API_BASE}/list_page`, {
+  const response = await fetch(`${BACKEND_URL}/list_page`, {
     method: "GET",
     headers: fileHeaders(),
   });
@@ -245,7 +245,7 @@ async function streamQuery(question, assistantBubble) {
     headers["X-Client-Key"] = CLIENT_QUERY_KEY;
   }
 
-  const response = await fetch(`${API_BASE}/query`, {
+  const response = await fetch(`${BACKEND_URL}/query`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -353,7 +353,7 @@ async function uploadSelectedFile(file) {
   const formData = new FormData();
   formData.append("file", file, file.name);
 
-  const response = await fetch(`${API_BASE}/download_page`, {
+  const response = await fetch(`${BACKEND_URL}/download_page`, {
     method: "POST",
     headers,
     body: formData,
