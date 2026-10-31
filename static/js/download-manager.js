@@ -1584,6 +1584,10 @@
             if (!isIndexingRunning) {
                 beginIndexingProgress();
             }
+            if (indexingStatusTimer !== null) {
+                await refreshIndexingStatus();
+                return;
+            }
 
             const stepKey = regen.current_step || null;
             const stepLabel = stepKey ? (regen.current_step_label || getStepLabel(stepKey)) : tr("downloadManager.status.indexingInProgress", "Indexage en cours...");

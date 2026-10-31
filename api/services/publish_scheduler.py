@@ -164,19 +164,19 @@ def run_indexation_then_publish(*, model: str, provider: str = "azure", schedule
     planned_value = _format_report_datetime(_normalize_datetime(scheduled_for, default_tz=timezone.utc), "UTC") if scheduled_for is not None else _actual_now_iso()
     root_path = Path(MAIN_KB_ROOT)
 
-    if not has_files_changed(root_path):
-        no_change = {
-            "status": "no_changes",
-            "code": "publish.schedule.noChanges",
-            "message_key": "publish.schedule.noChanges",
-            "message": "No files changed; nothing to publish.",
-            "user_message": "No files changed; nothing to publish.",
-            "model": model,
-            "provider": provider,
-            "scheduled_for": planned_value,
-        }
-        _append_schedule_log("publish_skipped_no_changes", model=model, provider=provider, root=str(root_path), result=no_change, scheduled_for=planned_value, executed_at=_actual_now_iso())
-        return no_change
+    # if not has_files_changed(root_path):
+    #     no_change = {
+    #         "status": "no_changes",
+    #         "code": "publish.schedule.noChanges",
+    #         "message_key": "publish.schedule.noChanges",
+    #         "message": "No files changed; nothing to publish.",
+    #         "user_message": "No files changed; nothing to publish.",
+    #         "model": model,
+    #         "provider": provider,
+    #         "scheduled_for": planned_value,
+    #     }
+    #     _append_schedule_log("publish_skipped_no_changes", model=model, provider=provider, root=str(root_path), result=no_change, scheduled_for=planned_value, executed_at=_actual_now_iso())
+    #     return no_change
 
     indexation_result = run_full_indexation(
         include_extract_docx=True,
