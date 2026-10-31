@@ -49,22 +49,23 @@
   },
   "loginPage": {
     "title": "Connexion - NutriFAQ-Chat",
-    "description": "Connectez-vous avec votre compte Azure Entra ID pour continuer.",
-    "signIn": "Se connecter avec Azure",
+    "heading": "Bienvenue",
+    "description": "Connectez-vous avec votre courriel et votre mot de passe pour continuer.",
+    "emailLabel": "Courriel",
+    "passwordLabel": "Mot de passe",
+    "emailPlaceholder": "admin@exemple.com",
+    "passwordPlaceholder": "Votre mot de passe",
+    "signIn": "Se connecter",
     "ready": "Prêt.",
-    "statusRedirectIdentity": "Redirection vers Microsoft Entra ID...",
-    "statusRedirectLogin": "Redirection vers la page de connexion...",
-    "statusConfigError": "Erreur config auth: {error}",
     "statusSessionDetected": "Session détectée ({role}). Redirection...",
-    "statusSessionExpired": "Session détectée, mais token expiré. Reconnexion requise.",
+    "statusFormMissing": "Le formulaire de connexion est introuvable.",
+    "statusCredentialsRequired": "Entrez votre courriel et votre mot de passe.",
+    "statusSigningIn": "Connexion en cours...",
     "statusLoginFailed": "Connexion échouée: {error}",
+    "statusLoginFailedSimple": "Échec de la connexion.",
+    "statusTokenMissing": "Réponse invalide: token manquant.",
     "unknownRole": "rôle inconnu",
-    "unknownError": "Erreur inconnue",
-    "msalUnavailable": "MSAL indisponible: impossible de charger la bibliothèque d'authentification.",
-    "missingTenant": "ENTRA_TENANT_ID manquant.",
-    "missingClientId": "ENTRA_CLIENT_ID manquant.",
-    "msalNotFound": "MSAL indisponible.",
-    "tokenAcquireFailed": "Impossible de récupérer le token API."
+    "unknownError": "Erreur inconnue"
   },
   "sidebar": {
     "title": "IMX - NutriFAQ",
@@ -73,6 +74,7 @@
     "test": "Valider",
     "validate": "Publier",
     "logout": "Déconnecter",
+    "manageUsers": "Gérer les utilisateurs",
     "accountMenu": "Menu du compte",
     "aboutImx": "À propos d'IMX",
     "legal": "Avertissements",
@@ -90,7 +92,7 @@
     "downloadItem1": "Glissez-déposez un fichier ou sélectionnez-le avec le bouton Choisir un fichier.",
     "downloadItem2": "Indexez la base de données pour transformer les fichiers en données consultables par le système.",
     "downloadItem3": "Cette étape permet au chatbot de retrouver les bons contenus lors des réponses et d’améliorer la précision des résultats.",
-    "supportNote": "Besoin d’aide ? Écrivez-nous à info@imxtech.ca",
+    "supportNote": "Besoin d’aide ? Écrivez-nous à support@imxtech.ca",
     "testTitle": "Valider",
     "testDescription": "Une fois les fichiers chargés et indexés, passez en mode Valider pour vérifier le comportement réel.",
     "testItem1": "Posez une question de test en rapport avec le contenu indexé.",
@@ -163,7 +165,7 @@
       " - Retirer votre consentement à tout moment.",
       "",
       "6. Contact",
-      "Pour toute question concernant cette politique de confidentialité, contactez-nous à <a href=\"mailto:info@imxtech.ca\">info@imxtech.ca</a>."
+      "Pour toute question concernant cette politique de confidentialité, contactez-nous à <a href=\"mailto:support@imxtech.ca\">support@imxtech.ca</a>."
     ]
   },
   "messages": {
@@ -474,7 +476,7 @@
       "Cette application est développée par IMX Technologie inc., une entreprise spécialisée dans le développement de solutions d'intelligence artificielle innovantes.",
       "Nos outils visent à démocratiser l'accès aux technologies IA tout en maintenant des standards élevés de qualité, de sécurité et de respect de la vie privée.",
       "Chaque application est conçue pour offrir une expérience utilisateur intuitive et des résultats fiables, adaptés aux besoins spécifiques de nos utilisateurs.",
-      "Pour en savoir plus sur nos projets et services, contactez-nous à <a href=\"mailto:info@imxtech.ca\">info@imxtech.ca</a>."
+      "Pour en savoir plus sur nos projets et services, contactez-nous à <a href=\"mailto:support@imxtech.ca\">support@imxtech.ca</a>."
     ],
     "closeButton": "Fermer"
   },

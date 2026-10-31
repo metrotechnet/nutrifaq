@@ -49,22 +49,23 @@
   },
   "loginPage": {
     "title": "Sign in - NutriFAQ-Chat",
-    "description": "Sign in with your Azure Entra ID account to continue.",
-    "signIn": "Sign in with Azure",
+    "heading": "Welcome",
+    "description": "Sign in with your email and password to continue.",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "emailPlaceholder": "admin@example.com",
+    "passwordPlaceholder": "Your password",
+    "signIn": "Sign in",
     "ready": "Ready.",
-    "statusRedirectIdentity": "Redirecting to Microsoft Entra ID...",
-    "statusRedirectLogin": "Redirecting to the sign-in page...",
-    "statusConfigError": "Auth config error: {error}",
     "statusSessionDetected": "Session detected ({role}). Redirecting...",
-    "statusSessionExpired": "Session detected, but token expired. Sign-in required.",
+    "statusFormMissing": "Sign-in form is missing.",
+    "statusCredentialsRequired": "Enter your email and password.",
+    "statusSigningIn": "Signing in...",
     "statusLoginFailed": "Sign-in failed: {error}",
+    "statusLoginFailedSimple": "Sign-in failed.",
+    "statusTokenMissing": "Invalid response: missing token.",
     "unknownRole": "unknown role",
-    "unknownError": "Unknown error",
-    "msalUnavailable": "MSAL unavailable: unable to load authentication library.",
-    "missingTenant": "Missing ENTRA_TENANT_ID.",
-    "missingClientId": "Missing ENTRA_CLIENT_ID.",
-    "msalNotFound": "MSAL unavailable.",
-    "tokenAcquireFailed": "Unable to retrieve API token."
+    "unknownError": "Unknown error"
   },
   "sidebar": {
     "title": "IMX - NutriFAQ",
@@ -73,6 +74,7 @@
     "test": "Validate",
     "validate": "Publish",
     "logout": "Logout",
+    "manageUsers": "Manage users",
     "accountMenu": "Account menu",
     "aboutImx": "About IMX",
     "legal": "Warnings",
@@ -90,7 +92,7 @@
     "downloadItem1": "Drag and drop a file or select it with the Choose file button.",
     "downloadItem2": "Index the database to turn files into data the system can search and retrieve.",
     "downloadItem3": "This step lets the chatbot find the right content during responses and improves result accuracy.",
-    "supportNote": "Need help? Write to us at info@imxtech.ca",
+    "supportNote": "Need help? Write to us at support@imxtech.ca",
     "testTitle": "Validate",
     "testDescription": "Once the files are uploaded and indexed, switch to Validate mode to verify the real behavior.",
     "testItem1": "Ask a test question related to the indexed content.",
@@ -163,7 +165,7 @@
       " - Withdraw your consent at any time.",
       "",
       "6. Contact",
-      "For any questions regarding this privacy policy, contact us at <a href=\"mailto:info@imxtech.ca\">info@imxtech.ca</a>."
+      "For any questions regarding this privacy policy, contact us at <a href=\"mailto:support@imxtech.ca\">support@imxtech.ca</a>."
     ]
   },
   "messages": {
@@ -473,7 +475,7 @@
       "This application is developed by IMX Technologie inc., a company specializing in the development of innovative artificial intelligence solutions.",
       "Our tools aim to democratize access to AI technologies while maintaining high standards of quality, security, and privacy.",
       "Each application is designed to provide an intuitive user experience and reliable results, tailored to the specific needs of our users.",
-      "To learn more about our projects and services, contact us at <a href=\"mailto:info@imxtech.ca\">info@imxtech.ca</a>."
+      "To learn more about our projects and services, contact us at <a href=\"mailto:support@imxtech.ca\">support@imxtech.ca</a>."
     ],
     "closeButton": "Close"
   },

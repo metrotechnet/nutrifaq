@@ -16,20 +16,55 @@ api/
 
 ## Authentication and authorization
 
-The backend uses Microsoft Entra ID bearer tokens for protected endpoints.
+The backend uses local JWT authentication powered by `fastapi-users`.
 
 Current behavior:
 
+- Login endpoint: `POST /auth/jwt/login`
+- Registration endpoint: `POST /auth/register`
+- Authenticated user endpoints: `/auth/users/*`
+- Login smoke test script: `python scripts/test_login.py`
 - `/query` accepts either:
-	- `Authorization: Bearer <entra_token>`
+	- `Authorization: Bearer <jwt-token>`
 	- `X-Client-Key` matching `QUERY_ACCESS_KEY`
-- Other protected endpoints require Entra bearer auth and ignore query-key access.
+- Other protected endpoints require JWT bearer auth and ignore query-key access.
 - `/query_debug` is admin-only.
 
 Role model:
 
 - Effective role is resolved from local role assignments when present.
-- If no explicit assignment exists, authenticated Entra users default to `admin`.
+- If no explicit assignment exists, superusers are `admin`, others are `client`.
+
+Login test examples:
+
+```powershell
+python scripts/test_login.py
+python scripts/test_login.py --email admin@imxtech.ca --password "your-password"
+python scripts/test_login.py --base-url http://127.0.0.1:8080 --check-admin
+```
+
+### Azure SQL migration for auth users
+
+To persist credentials across App Service deployments, move auth storage from local SQLite to Azure SQL.
+
+Recommended environment settings:
+
+- `AUTH_DB_BACKEND=azure_sql`
+- `AUTH_SQL_SERVER=<server>.database.windows.net`
+- `AUTH_SQL_DATABASE=<database-name>`
+- `AUTH_SQL_USER=<sql-user>`
+- `AUTH_SQL_PASSWORD=<sql-password>`
+- `AUTH_SQL_PORT=1433` (optional)
+- `AUTH_SQL_DRIVER=ODBC Driver 18 for SQL Server` (optional)
+
+Alternative:
+
+- Set `AUTH_DATABASE_URL` directly with an async SQLAlchemy URL (it takes precedence over `AUTH_DB_BACKEND`).
+
+Notes:
+
+- The backend auto-creates auth tables at startup (`initialize_auth`).
+- Ensure the App Service runtime includes ODBC Driver 18 for SQL Server.
 
 ## Main route groups
 
@@ -75,7 +110,9 @@ User and roles:
 - `GET /api/users/me`
 - `GET /api/users`
 - `POST /api/users`
+- `PUT /api/users/{user_object_id}/password`
 - `PUT /api/users/{user_object_id}/role`
+- `DELETE /api/users/{user_object_id}`
 - `DELETE /api/users/{user_object_id}/role`
 
 ## Key services

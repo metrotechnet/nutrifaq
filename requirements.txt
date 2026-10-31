@@ -17,3 +17,10 @@ gunicorn
 azure-storage-blob
 PyJWT[crypto]
 APScheduler
+fastapi-users[sqlalchemy]
+fastapi-users-db-sqlalchemy
+sqlalchemy[asyncio]
+aiosqlite
+aioodbc
+pyodbc
+email-validator

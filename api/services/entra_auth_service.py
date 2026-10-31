@@ -1,17 +1,25 @@
-"""Microsoft Entra ID authentication and role-based authorization helpers."""
+"""Local authentication and role-based authorization powered by fastapi-users."""
 
 from __future__ import annotations
 
 import hmac
 import os
+import uuid
 from dataclasses import dataclass
-from functools import lru_cache
-from typing import Any
+from pathlib import Path
+from typing import Any, AsyncGenerator
+from urllib.parse import quote_plus
 
-import jwt
-import requests
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas
+from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
+from fastapi_users.db import SQLAlchemyUserDatabase
+from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
+from sqlalchemy import select
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from api.services.user_management_service import (
     ROLE_ADMIN,
@@ -26,6 +34,27 @@ _ROLE_ORDER = {
     ROLE_COLLABORATOR: 2,
     ROLE_ADMIN: 3,
 }
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(SQLAlchemyBaseUserTableUUID, Base):
+    __tablename__ = "auth_users"
+
+
+class UserRead(schemas.BaseUser[uuid.UUID]):
+    pass
+
+
+class UserCreate(schemas.BaseUserCreate):
+    pass
+
+
+class UserUpdate(schemas.BaseUserUpdate):
+    pass
 
 
 @dataclass
@@ -38,186 +67,138 @@ class EntraUser:
     claims: dict[str, Any]
 
 
-@lru_cache(maxsize=1)
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _openid_configuration() -> dict[str, Any]:
-    tenant_id = os.getenv("ENTRA_TENANT_ID", "").strip()
-    if not tenant_id:
-        raise RuntimeError("ENTRA_TENANT_ID is required for Entra ID authentication.")
+def _build_azure_sql_database_url() -> str:
+    user = os.getenv("AUTH_SQL_USER", "").strip()
+    password = os.getenv("AUTH_SQL_PASSWORD", "").strip()
+    server = os.getenv("AUTH_SQL_SERVER", "").strip()
+    database = os.getenv("AUTH_SQL_DATABASE", "").strip()
+    port = os.getenv("AUTH_SQL_PORT", "1433").strip() or "1433"
+    driver = os.getenv("AUTH_SQL_DRIVER", "ODBC Driver 18 for SQL Server").strip() or "ODBC Driver 18 for SQL Server"
 
-    config_url = os.getenv(
-        "ENTRA_OPENID_CONFIG_URL",
-        f"https://login.microsoftonline.com/{tenant_id}/v2.0/.well-known/openid-configuration",
-    ).strip()
+    missing = [
+        name for name, value in (
+            ("AUTH_SQL_USER", user),
+            ("AUTH_SQL_PASSWORD", password),
+            ("AUTH_SQL_SERVER", server),
+            ("AUTH_SQL_DATABASE", database),
+        ) if not value
+    ]
+    if missing:
+        missing_values = ", ".join(missing)
+        raise RuntimeError(f"Missing Azure SQL settings for auth DB: {missing_values}")
 
-    response = requests.get(config_url, timeout=10)
-    response.raise_for_status()
-    payload = response.json()
-    if not isinstance(payload, dict):
-        raise RuntimeError("Invalid OpenID configuration payload from Entra ID.")
-    return payload
-
-
-@lru_cache(maxsize=1)
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _jwks_client() -> jwt.PyJWKClient:
-    openid_cfg = _openid_configuration()
-    jwks_uri = str(openid_cfg.get("jwks_uri", "")).strip()
-    if not jwks_uri:
-        raise RuntimeError("jwks_uri not found in Entra OpenID configuration.")
-    return jwt.PyJWKClient(jwks_uri)
+    encoded_user = quote_plus(user)
+    encoded_password = quote_plus(password)
+    encoded_driver = quote_plus(driver)
+    return (
+        f"mssql+aioodbc://{encoded_user}:{encoded_password}@{server}:{port}/{database}"
+        f"?driver={encoded_driver}&Encrypt=yes&TrustServerCertificate=no"
+    )
 
 
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _expected_audience() -> str | list[str]:
-    raw = os.getenv("ENTRA_AUDIENCE", "").strip()
-    if raw:
-        values = [item.strip() for item in raw.split(",") if item.strip()]
-    else:
-        client_id = os.getenv("ENTRA_CLIENT_ID", "").strip()
-        values = [client_id] if client_id else []
+def _resolve_auth_database_url() -> str:
+    explicit = os.getenv("AUTH_DATABASE_URL", "").strip()
+    if explicit:
+        return _prepare_sqlite_database_url(explicit)
 
-    if not values:
-        raise RuntimeError("Set ENTRA_AUDIENCE or ENTRA_CLIENT_ID for token audience validation.")
-    return values[0] if len(values) == 1 else values
+    backend = os.getenv("AUTH_DB_BACKEND", "sqlite").strip().lower()
+    if backend == "azure_sql":
+        return _build_azure_sql_database_url()
+
+    return _prepare_sqlite_database_url("sqlite+aiosqlite:///./nutrifaq_auth.db")
 
 
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _jwt_leeway_seconds() -> int:
-    raw = os.getenv("ENTRA_TOKEN_LEEWAY_SECONDS", "10800").strip()
-    try:
-        return max(0, int(raw))
-    except ValueError:
-        return 10800
+def _prepare_sqlite_database_url(raw_url: str) -> str:
+    if not raw_url.startswith("sqlite"):
+        return raw_url
+
+    parsed = make_url(raw_url)
+    database = (parsed.database or "").strip()
+    if not database or database == ":memory:" or database.startswith("file:"):
+        return raw_url
+
+    db_path = Path(database).expanduser()
+    if not db_path.is_absolute():
+        db_path = (_PROJECT_ROOT / db_path).resolve()
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return str(parsed.set(database=db_path.as_posix()))
 
 
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _token_roles(claims: dict[str, Any]) -> list[str]:
-    raw_roles = claims.get("roles")
-    if isinstance(raw_roles, list):
-        values = raw_roles
-    elif isinstance(raw_roles, str):
-        values = [raw_roles]
-    else:
-        values = []
+DATABASE_URL = _resolve_auth_database_url()
+AUTH_SECRET = os.getenv("AUTH_SECRET", os.getenv("JWT_SECRET", "change-me-in-production")).strip()
+AUTH_CREATE_DEFAULT_ADMIN = os.getenv("AUTH_CREATE_DEFAULT_ADMIN", "1").strip().lower() in {"1", "true", "yes", "on"}
+AUTH_DEFAULT_ADMIN_EMAIL = os.getenv("AUTH_DEFAULT_ADMIN_EMAIL", "admin@example.com").strip()
+AUTH_DEFAULT_ADMIN_PASSWORD = os.getenv("AUTH_DEFAULT_ADMIN_PASSWORD", "ChangeMe!123").strip()
 
-    return [str(role).strip().lower() for role in values if str(role).strip()]
+engine = create_async_engine(DATABASE_URL, future=True, pool_pre_ping=True)
+async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _effective_role(object_id: str, claim_roles: list[str]) -> str:
-    _ = claim_roles  # Role authorization intentionally ignores token roles.
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        yield session
 
-    assigned = get_assigned_role(object_id)
+
+async def get_user_db(session: AsyncSession = Depends(get_async_session)) -> AsyncGenerator[SQLAlchemyUserDatabase[User, uuid.UUID], None]:
+    yield SQLAlchemyUserDatabase(session, User)
+
+
+class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
+    reset_password_token_secret = AUTH_SECRET
+    verification_token_secret = AUTH_SECRET
+
+
+async def get_user_manager(user_db: SQLAlchemyUserDatabase[User, uuid.UUID] = Depends(get_user_db)) -> AsyncGenerator[UserManager, None]:
+    yield UserManager(user_db)
+
+
+bearer_transport = BearerTransport(tokenUrl="/auth/jwt/login")
+
+
+def get_jwt_strategy() -> JWTStrategy:
+    return JWTStrategy(secret=AUTH_SECRET, lifetime_seconds=60 * 60 * 12)
+
+
+auth_backend = AuthenticationBackend(
+    name="jwt",
+    transport=bearer_transport,
+    get_strategy=get_jwt_strategy,
+)
+
+fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
+_current_active_user = fastapi_users.current_user(active=True)
+
+
+def _effective_role(user: User) -> str:
+    assigned = get_assigned_role(str(user.id))
     if assigned:
         return assigned
-
-    # Default every authenticated Entra user to admin unless explicitly overridden.
-    return ROLE_ADMIN
-
-
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _decode_access_token(token: str) -> dict[str, Any]:
-    openid_cfg = _openid_configuration()
-    issuer = str(openid_cfg.get("issuer", "")).strip()
-    if not issuer:
-        raise RuntimeError("issuer not found in Entra OpenID configuration.")
-
-    tenant_id = os.getenv("ENTRA_TENANT_ID", "").strip()
-    if not tenant_id:
-        raise RuntimeError("ENTRA_TENANT_ID is required for issuer validation.")
-
-    audience = _expected_audience()
-    signing_key = _jwks_client().get_signing_key_from_jwt(token)
-    claims = jwt.decode(
-        token,
-        signing_key.key,
-        algorithms=["RS256"],
-        audience=audience,
-        leeway=_jwt_leeway_seconds(),
-        options={"require": ["exp", "iat", "iss", "aud"], "verify_iss": False},
-    )
-    if not isinstance(claims, dict):
-        raise RuntimeError("Invalid token claims payload.")
-
-    # Accept equivalent Entra issuer variants for the configured tenant (v1/v2 forms).
-    token_issuer = str(claims.get("iss", "")).strip()
-    normalized_issuer = token_issuer.rstrip("/").lower()
-    allowed_issuers = {
-        issuer.rstrip("/").lower(),
-        f"https://login.microsoftonline.com/{tenant_id}/v2.0".rstrip("/").lower(),
-        f"https://sts.windows.net/{tenant_id}".rstrip("/").lower(),
-    }
-    if normalized_issuer not in allowed_issuers:
-        raise RuntimeError(f"Invalid issuer '{token_issuer}' for tenant '{tenant_id}'.")
-
-    token_tid = str(claims.get("tid", "")).strip()
-    if token_tid and token_tid.lower() != tenant_id.lower():
-        raise RuntimeError(f"Invalid tenant '{token_tid}'. Expected '{tenant_id}'.")
-
-    return claims
+    if bool(user.is_superuser):
+        return ROLE_ADMIN
+    return ROLE_CLIENT
 
 
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _build_user(claims: dict[str, Any]) -> EntraUser:
-    object_id = str(claims.get("oid") or claims.get("sub") or "").strip()
-    if not object_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing oid/sub claim.")
-
-    username = str(
-        claims.get("preferred_username")
-        or claims.get("upn")
-        or claims.get("email")
-        or object_id
-    ).strip()
-    display_name = str(claims.get("name") or username).strip()
-    token_roles = _token_roles(claims)
-    role = _effective_role(object_id, token_roles)
-
+def _build_user(user: User) -> EntraUser:
+    username = str(user.email or user.id).strip()
     return EntraUser(
-        object_id=object_id,
+        object_id=str(user.id),
         username=username,
-        display_name=display_name,
-        role=role,
-        token_roles=token_roles,
-        claims=claims,
+        display_name=username,
+        role=_effective_role(user),
+        token_roles=[],
+        claims={"auth": "local_jwt"},
     )
 
 
-# Purpose: Retrieve data needed by callers and return it in a ready-to-use format.
-# Inputs/Outputs: See signature and return annotation for contract details.
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_security),
-) -> EntraUser:
-    if credentials is None or not credentials.credentials:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token.")
-
-    token = credentials.credentials
-    try:
-        claims = _decode_access_token(token)
-        return _build_user(claims)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {exc}") from exc
+async def get_current_user(user: User = Depends(_current_active_user)) -> EntraUser:
+    return _build_user(user)
 
 
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
 def _require_min_role(min_role: str):
     if min_role not in _ROLE_ORDER:
         raise ValueError(f"Unsupported role guard: {min_role}")
 
-    # Purpose: Internal helper used to keep the main workflow readable and maintainable.
-    # Inputs/Outputs: See signature and return annotation for contract details.
     async def _guard(user: EntraUser = Depends(get_current_user)) -> EntraUser:
         if _ROLE_ORDER.get(user.role, 0) < _ROLE_ORDER[min_role]:
             raise HTTPException(
@@ -234,8 +215,6 @@ require_admin = _require_min_role(ROLE_ADMIN)
 require_client = _require_min_role(ROLE_CLIENT)
 
 
-# Purpose: Implement a focused unit of backend behavior used by routes or services.
-# Inputs/Outputs: See signature and return annotation for contract details.
 async def require_client_or_query_key(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_security),
@@ -256,10 +235,48 @@ async def require_client_or_query_key(
             claims={"mode": "query_key"},
         )
 
-    user = await get_current_user(credentials)
-    if _ROLE_ORDER.get(user.role, 0) < _ROLE_ORDER[ROLE_CLIENT]:
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token.")
+
+    token = credentials.credentials
+    async with async_session_maker() as session:
+        user_db = SQLAlchemyUserDatabase(session, User)
+        manager = UserManager(user_db)
+        user = await get_jwt_strategy().read_token(token, manager)
+
+    if user is None or not bool(user.is_active):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid bearer token.")
+
+    mapped = _build_user(user)
+    if _ROLE_ORDER.get(mapped.role, 0) < _ROLE_ORDER[ROLE_CLIENT]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Insufficient permissions. Required role: {ROLE_CLIENT}.",
         )
-    return user
+    return mapped
+
+
+async def initialize_auth() -> None:
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    if not AUTH_CREATE_DEFAULT_ADMIN or not AUTH_DEFAULT_ADMIN_EMAIL or not AUTH_DEFAULT_ADMIN_PASSWORD:
+        return
+
+    async with async_session_maker() as session:
+        existing = await session.execute(select(User).where(User.email == AUTH_DEFAULT_ADMIN_EMAIL))
+        if existing.scalar_one_or_none() is not None:
+            return
+
+    user_create = UserCreate(
+        email=AUTH_DEFAULT_ADMIN_EMAIL,
+        password=AUTH_DEFAULT_ADMIN_PASSWORD,
+        is_active=True,
+        is_superuser=True,
+        is_verified=True,
+    )
+
+    async with async_session_maker() as session:
+        user_db = SQLAlchemyUserDatabase(session, User)
+        manager = UserManager(user_db)
+        await manager.create(user_create, safe=False)

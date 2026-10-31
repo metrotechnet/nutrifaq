@@ -632,6 +632,14 @@
         }, 5000);
     }
 
+    function stopPublishScheduleAutoRefresh() {
+        if (publishScheduleJobsAutoRefreshTimer === null) {
+            return;
+        }
+        window.clearInterval(publishScheduleJobsAutoRefreshTimer);
+        publishScheduleJobsAutoRefreshTimer = null;
+    }
+
     async function loadScheduledPublishJobs() {
         if (!els.publishScheduleList) {
             return;
@@ -848,10 +856,7 @@
             });
         }
 
-        startPublishScheduleAutoRefresh();
         updatePublishScheduleFields();
-        loadScheduledPublishJobs();
-        syncScheduledProcessingState();
     }
 
     async function resetQuestionLogs() {
@@ -1617,6 +1622,7 @@
     function hideIntegratedPanels() {
         const downloadPanel = document.getElementById("download-manager-panel");
         const authPanel = document.getElementById("azure-auth-panel");
+        stopPublishScheduleAutoRefresh();
         if (downloadPanel) {
             downloadPanel.style.display = "none";
         }
@@ -1894,6 +1900,13 @@
         if (emptyState) {
             emptyState.style.display = "none";
         }
+        startPublishScheduleAutoRefresh();
+        loadScheduledPublishJobs().catch(() => {
+            // Ignore transient refresh failures.
+        });
+        syncScheduledProcessingState().catch(() => {
+            // Ignore transient refresh failures.
+        });
     }
 
     // Purpose: Keeps frontend state synchronized with server or shared UI state.

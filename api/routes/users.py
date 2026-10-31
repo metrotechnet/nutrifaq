@@ -1,17 +1,26 @@
-"""User management routes with Entra ID authentication and role-based access control."""
+"""Local user management routes with role-based access control."""
 
 from __future__ import annotations
 
-import base64
-import os
-import uuid
 from typing import Any
+from uuid import UUID
 
-import requests
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from fastapi_users.db import SQLAlchemyUserDatabase
+from fastapi_users.exceptions import InvalidPasswordException, UserAlreadyExists
+from fastapi_users.password import PasswordHelper
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import select
 
-from api.services.entra_auth_service import EntraUser, require_admin, require_collaborator
+from api.services.entra_auth_service import (
+    EntraUser,
+    User,
+    UserCreate,
+    UserManager,
+    async_session_maker,
+    require_admin,
+    require_collaborator,
+)
 from api.services.user_management_service import (
     ROLE_ADMIN,
     ROLE_CLIENT,
@@ -23,172 +32,67 @@ from api.services.user_management_service import (
 )
 
 router = APIRouter()
+password_helper = PasswordHelper()
 
 
 class UpdateUserRoleRequest(BaseModel):
     role: str = Field(..., description="Role to assign: admin, collaborator, or client")
 
 
+class UpdateUserPasswordRequest(BaseModel):
+    password: str = Field(..., min_length=8, description="New password")
+
+
 class CreateUserRequest(BaseModel):
-    email: str = Field(..., description="User principal name, e.g. user@contoso.com")
-    display_name: str | None = Field(None, description="Display name for the user")
-    password: str | None = Field(None, description="Initial password for the new Entra user")
+    email: EmailStr = Field(..., description="Email address used to sign in")
+    display_name: str | None = Field(None, description="Optional display name")
+    password: str = Field(..., min_length=8, description="Initial password")
     role: str = Field("client", description="Role to assign after creation: admin, collaborator, or client")
 
 
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _get_graph_access_token() -> str:
-    tenant_id = os.getenv("ENTRA_TENANT_ID", "").strip()
-    client_id = os.getenv("ENTRA_CLIENT_ID", "").strip()
-    client_secret = os.getenv("ENTRA_CLIENT_SECRET", "").strip()
+def _normalize_role(value: str) -> str:
+    role = value.strip().lower()
+    if role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail=f"role must be one of: {sorted(VALID_ROLES)}")
+    return role
 
-    if not tenant_id or not client_id or not client_secret:
-        raise RuntimeError("Missing ENTRA_TENANT_ID, ENTRA_CLIENT_ID or ENTRA_CLIENT_SECRET for Graph API creation.")
 
-    token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-    payload = {
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "scope": "https://graph.microsoft.com/.default",
-        "grant_type": "client_credentials",
+def _serialize_user(user: User, assigned_roles: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    user_id = str(user.id)
+    assignment = assigned_roles.get(user_id, {}) if isinstance(assigned_roles, dict) else {}
+    assigned_role = str(assignment.get("role", "")).strip().lower() or None
+    effective_role = assigned_role or (ROLE_ADMIN if bool(user.is_superuser) else ROLE_CLIENT)
+    email = str(user.email or "").strip()
+
+    return {
+        "object_id": user_id,
+        "email": email,
+        "display_name": email.split("@")[0] if "@" in email else email,
+        "role": effective_role,
+        "assigned_role": assigned_role,
+        "is_active": bool(user.is_active),
+        "is_superuser": bool(user.is_superuser),
+        "is_verified": bool(user.is_verified),
     }
-    response = requests.post(token_url, data=payload, timeout=30)
-    response.raise_for_status()
-    token = response.json().get("access_token")
-    if not token:
-        raise RuntimeError("Graph access token response did not include access_token.")
-    return token
 
 
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _get_verified_domains(token: str) -> tuple[list[str], str | None]:
-    response = requests.get(
-        "https://graph.microsoft.com/v1.0/domains?$select=id,isVerified,isDefault",
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    payload = response.json()
-    domains: list[str] = []
-    default_domain: str | None = None
-    for item in payload.get("value", []):
-        if not isinstance(item, dict):
-            continue
-        domain_id = str(item.get("id") or "").strip().lower()
-        if not domain_id or not bool(item.get("isVerified")):
-            continue
-        domains.append(domain_id)
-        if bool(item.get("isDefault")) and default_domain is None:
-            default_domain = domain_id
-
-    # Preserve insertion order while removing duplicates.
-    deduped_domains = list(dict.fromkeys(domains))
-    return deduped_domains, default_domain
-
-
-# Purpose: Internal helper used to keep the main workflow readable and maintainable.
-# Inputs/Outputs: See signature and return annotation for contract details.
-def _create_entra_user_via_graph(email: str, display_name: str | None, password: str | None) -> dict[str, Any]:
-    token = _get_graph_access_token()
-
-    local_part, input_domain = email.split("@", 1)
-    user_name = (display_name or local_part).strip()
-    mail_nickname = local_part.strip()
-    password_value = password or "P@ssw0rd!2026"
-    requested_domain = input_domain.strip().lower()
-
-    verified_domains: list[str] = []
-    default_verified_domain: str | None = None
+async def _get_user_by_id_or_404(user_object_id: str) -> User:
     try:
-        verified_domains, default_verified_domain = _get_verified_domains(token)
-    except Exception:
-        # If domain lookup fails, keep the original requested UPN and let Graph validate.
-        verified_domains = []
-        default_verified_domain = None
+        user_uuid = UUID(user_object_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid user_object_id (expected UUID).") from exc
 
-    upn_email = email
-    if verified_domains and requested_domain not in verified_domains:
-        selected_domain = default_verified_domain or verified_domains[0]
-        upn_email = f"{mail_nickname}@{selected_domain}"
-
-    payload = {
-        "accountEnabled": True,
-        "displayName": user_name,
-        "mailNickname": mail_nickname,
-        "userPrincipalName": upn_email,
-        "passwordProfile": {
-            "password": password_value,
-            "forceChangePasswordNextSignIn": False,
-        },
-    }
-    if upn_email.lower() != email.lower():
-        payload["otherMails"] = [email]
-
-    # Purpose: Internal helper used to keep the main workflow readable and maintainable.
-    # Inputs/Outputs: See signature and return annotation for contract details.
-    def _post_user(candidate_payload: dict[str, Any]) -> requests.Response:
-        return requests.post(
-            "https://graph.microsoft.com/v1.0/users",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            },
-            json=candidate_payload,
-            timeout=30,
-        )
-
-    # Purpose: Internal helper used to keep the main workflow readable and maintainable.
-    # Inputs/Outputs: See signature and return annotation for contract details.
-    def _error_message(candidate_response: requests.Response) -> str:
-        try:
-            payload = candidate_response.json()
-            return str(payload.get("error", {}).get("message", ""))
-        except Exception:
-            return ""
-
-    response = _post_user(payload)
-
-    if response.status_code == 400:
-        message = _error_message(response)
-        if "SourceAnchor is a required property for creation of a federated user" in message:
-            source_anchor = base64.b64encode(uuid.uuid4().bytes).decode("ascii").rstrip("=")
-            retry_payload = dict(payload)
-            retry_payload["onPremisesImmutableId"] = source_anchor
-            response = _post_user(retry_payload)
-
-    if response.status_code == 400:
-        message = _error_message(response)
-        invalid_domain_msg = "The domain portion of the userPrincipalName property is invalid"
-        fallback_upn_domain = os.getenv("ENTRA_UPN_DOMAIN", "").strip().lower()
-        if invalid_domain_msg in message and fallback_upn_domain:
-            retry_payload = dict(payload)
-            retry_payload["userPrincipalName"] = f"{mail_nickname}@{fallback_upn_domain}"
-            retry_payload["otherMails"] = [email]
-            response = _post_user(retry_payload)
-
-            if response.status_code == 400:
-                second_message = _error_message(response)
-                if "SourceAnchor is a required property for creation of a federated user" in second_message:
-                    retry_payload["onPremisesImmutableId"] = base64.b64encode(uuid.uuid4().bytes).decode("ascii").rstrip("=")
-                    response = _post_user(retry_payload)
-
-    if response.status_code in {400, 401, 403, 409}:
-        try:
-            detail = response.json()
-        except Exception:
-            detail = response.text
-        raise HTTPException(status_code=400, detail=f"Graph user creation failed: {detail}")
-    response.raise_for_status()
-    user = response.json()
-    return user
+    async with async_session_maker() as session:
+        result = await session.execute(select(User).where(User.id == user_uuid))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found.")
+        return user
 
 
 @router.get("/api/users/me")
 async def get_current_user_profile(user: EntraUser = Depends(require_collaborator)):
-    """Return identity and effective role for the authenticated Entra user."""
+    """Return identity and effective role for the authenticated local user."""
     return {
         "object_id": user.object_id,
         "username": user.username,
@@ -203,41 +107,72 @@ async def create_user(
     body: CreateUserRequest,
     current_user: EntraUser = Depends(require_admin),
 ):
-    """Create an Entra user via Graph and assign a local app role."""
-    normalized_email = body.email.strip()
-    if "@" not in normalized_email:
-        raise HTTPException(status_code=400, detail="email must be a valid UPN like user@domain.com")
+    """Create a local user and assign an application role."""
+    normalized_role = _normalize_role(body.role)
 
-    normalized_role = body.role.strip().lower()
-    if normalized_role not in VALID_ROLES:
-        raise HTTPException(status_code=400, detail=f"role must be one of: {sorted(VALID_ROLES)}")
+    user_create = UserCreate(
+        email=str(body.email).strip().lower(),
+        password=body.password,
+        is_active=True,
+        is_superuser=normalized_role == ROLE_ADMIN,
+        is_verified=True,
+    )
 
     try:
-        graph_user = _create_entra_user_via_graph(normalized_email, body.display_name, body.password)
+        async with async_session_maker() as session:
+            user_db = SQLAlchemyUserDatabase(session, User)
+            manager = UserManager(user_db)
+            created = await manager.create(user_create, safe=False)
+    except UserAlreadyExists as exc:
+        raise HTTPException(status_code=409, detail="A user with this email already exists.") from exc
+    except InvalidPasswordException as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid password: {exc.reason}") from exc
+
+    assignment: dict[str, Any] | None = None
+    try:
+        assignment = set_assigned_role(str(created.id), normalized_role, assigned_by=current_user.object_id)
     except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        if normalized_role != ROLE_ADMIN:
+            async with async_session_maker() as cleanup_session:
+                result = await cleanup_session.execute(select(User).where(User.id == created.id))
+                user_to_delete = result.scalar_one_or_none()
+                if user_to_delete is not None:
+                    await cleanup_session.delete(user_to_delete)
+                    await cleanup_session.commit()
+            raise HTTPException(
+                status_code=500,
+                detail="Unable to persist role assignment. User creation has been rolled back.",
+            ) from exc
 
-    object_id = str(graph_user.get("id") or graph_user.get("objectId") or "").strip()
-    if not object_id:
-        raise HTTPException(status_code=500, detail="Graph user creation succeeded but no object id was returned.")
-
-    assignment = set_assigned_role(object_id, normalized_role, assigned_by=current_user.object_id)
     return {
         "user": {
-            "object_id": object_id,
-            "email": normalized_email,
-            "display_name": body.display_name or normalized_email.split("@")[0],
-            "user_principal_name": graph_user.get("userPrincipalName", normalized_email),
+            "object_id": str(created.id),
+            "email": str(created.email),
+            "display_name": body.display_name or str(created.email).split("@")[0],
         },
-        "role": assignment,
+        "role": assignment or {"role": normalized_role},
     }
 
 
 @router.get("/api/users")
 async def list_users(_: EntraUser = Depends(require_admin)):
-    """List explicit role assignments stored by the API."""
+    """List local users and role assignments."""
+    async with async_session_maker() as session:
+        result = await session.execute(select(User).order_by(User.email.asc()))
+        users = list(result.scalars().all())
+
+    assigned_roles = list_assigned_roles()
+    known_user_ids = {str(user.id) for user in users}
+    orphan_roles = {
+        user_id: assignment
+        for user_id, assignment in assigned_roles.items()
+        if user_id not in known_user_ids
+    }
+
     return {
-        "roles": list_assigned_roles(),
+        "users": [_serialize_user(user, assigned_roles) for user in users],
+        "roles": assigned_roles,
+        "orphan_roles": orphan_roles,
         "available_roles": [ROLE_ADMIN, ROLE_COLLABORATOR, ROLE_CLIENT],
     }
 
@@ -248,15 +183,82 @@ async def update_user_role(
     body: UpdateUserRoleRequest,
     current_user: EntraUser = Depends(require_admin),
 ):
-    """Set role assignment for a user object ID."""
-    normalized_role = body.role.strip().lower()
-    if normalized_role not in VALID_ROLES:
-        raise HTTPException(status_code=400, detail=f"role must be one of: {sorted(VALID_ROLES)}")
+    """Set role assignment for a local user."""
+    normalized_role = _normalize_role(body.role)
+    user = await _get_user_by_id_or_404(user_object_id)
 
-    result = set_assigned_role(user_object_id, normalized_role, assigned_by=current_user.object_id)
+    async with async_session_maker() as session:
+        result = await session.execute(select(User).where(User.id == user.id))
+        persisted_user = result.scalar_one_or_none()
+        if persisted_user is None:
+            raise HTTPException(status_code=404, detail="User not found.")
+        persisted_user.is_superuser = normalized_role == ROLE_ADMIN
+        session.add(persisted_user)
+        await session.commit()
+
+    try:
+        result = set_assigned_role(str(user.id), normalized_role, assigned_by=current_user.object_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=f"Unable to persist role assignment: {exc}") from exc
+
     return {
-        "object_id": user_object_id,
+        "object_id": str(user.id),
         "assignment": result,
+    }
+
+
+@router.put("/api/users/{user_object_id}/password")
+async def update_user_password(
+    user_object_id: str,
+    body: UpdateUserPasswordRequest,
+    _: EntraUser = Depends(require_admin),
+):
+    """Set a new password for a local user."""
+    user = await _get_user_by_id_or_404(user_object_id)
+
+    async with async_session_maker() as session:
+        user_db = SQLAlchemyUserDatabase(session, User)
+        manager = UserManager(user_db)
+        try:
+            await manager.validate_password(body.password, user)
+        except InvalidPasswordException as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid password: {exc.reason}") from exc
+
+        result = await session.execute(select(User).where(User.id == user.id))
+        persisted_user = result.scalar_one_or_none()
+        if persisted_user is None:
+            raise HTTPException(status_code=404, detail="User not found.")
+
+        persisted_user.hashed_password = password_helper.hash(body.password)
+        session.add(persisted_user)
+        await session.commit()
+
+    return {"object_id": str(user.id), "password_updated": True}
+
+
+@router.delete("/api/users/{user_object_id}")
+async def delete_user(
+    user_object_id: str,
+    current_user: EntraUser = Depends(require_admin),
+):
+    """Delete a local user account and associated app role assignment."""
+    if user_object_id == current_user.object_id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account.")
+
+    user = await _get_user_by_id_or_404(user_object_id)
+    async with async_session_maker() as session:
+        result = await session.execute(select(User).where(User.id == user.id))
+        persisted_user = result.scalar_one_or_none()
+        if persisted_user is None:
+            raise HTTPException(status_code=404, detail="User not found.")
+        await session.delete(persisted_user)
+        await session.commit()
+
+    role_deleted = remove_assigned_role(str(user.id))
+    return {
+        "object_id": str(user.id),
+        "deleted": True,
+        "role_deleted": role_deleted,
     }
 
 
@@ -265,7 +267,8 @@ async def delete_user_role(
     user_object_id: str,
     _: EntraUser = Depends(require_admin),
 ):
-    """Remove role assignment for a user object ID."""
+    """Remove role assignment for a local user object ID."""
+    _ = await _get_user_by_id_or_404(user_object_id)
     deleted = remove_assigned_role(user_object_id)
     return {
         "object_id": user_object_id,

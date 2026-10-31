@@ -21,6 +21,14 @@ from api.services.publish_scheduler import (
     restore_persisted_publish_schedules,
     shutdown_scheduler,
 )
+from api.services.entra_auth_service import (
+    auth_backend,
+    fastapi_users,
+    initialize_auth,
+    UserCreate,
+    UserRead,
+    UserUpdate,
+)
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -38,6 +46,7 @@ import os
 async def lifespan(app: FastAPI):
     # sync_blob_databases_on_startup(app)
     try:
+        await initialize_auth()
         from api.services.publish_scheduler import _ensure_scheduler
         _ensure_scheduler()
         restore_persisted_publish_schedules()
@@ -144,6 +153,10 @@ app.add_middleware(
 # =====================================================
 # Include API Routes
 # =====================================================
+app.include_router(fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"])
+app.include_router(fastapi_users.get_register_router(UserRead, UserCreate), prefix="/auth", tags=["auth"])
+app.include_router(fastapi_users.get_users_router(UserRead, UserUpdate), prefix="/auth/users", tags=["auth"])
+
 ROUTE_MODULES = [
     ("api.routes.users", "users"),
     ("api.routes.third_party_api", "third_party_api"),

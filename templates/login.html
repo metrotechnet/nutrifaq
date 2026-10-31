@@ -13,22 +13,27 @@
     <link rel="stylesheet" href="/static/css/06-voice-tts.css">
     <link rel="stylesheet" href="/static/css/07-empty-state-cards.css">
     <link rel="stylesheet" href="/static/css/08-cookie-and-mobile.css">
-    <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.4/lib/msal-browser.min.js"></script>
-    <script>
-        window.ENTRA_TENANT_ID = "d3e9806e-79b8-4a79-8fcf-0e55f0241725";
-        window.ENTRA_CLIENT_ID = "402e00f8-a00c-4c47-86b0-c88a6587b64c";
-        window.ENTRA_AUDIENCE = "api://402e00f8-a00c-4c47-86b0-c88a6587b64c";
-        window.ENTRA_UPN_DOMAIN = "imxtech.ca";
-        window.ENTRA_REDIRECT_URI = `${window.location.origin}/login.html`;
-    </script>
 </head>
 <body class="login-page">
     <div class="login-page-overlay">
         <div class="login-page-card">
-            <img src="/static/logos/logo-imx.png" alt="IMX Technologie" class="login-page-logo">
-            <h1>NutriFAQ-Chat</h1>
-            <p data-i18n="loginPage.description">Connectez-vous avec votre compte Azure Entra ID pour continuer.</p>
-            <button id="login-page-signin" type="button" class="dm-btn primary" data-i18n="loginPage.signIn">Se connecter avec Azure</button>
+            <div class="login-page-branding">
+                <img src="/static/logos/logo-imx.png" alt="IMX Technologie" class="login-page-logo">
+                <p class="login-page-product-tag">NutriFAQ-Chat</p>
+                <h1 data-i18n="loginPage.heading">Bienvenue</h1>
+                <p data-i18n="loginPage.description">Connectez-vous avec votre courriel et votre mot de passe pour continuer.</p>
+            </div>
+            <form id="login-page-form" class="login-page-form">
+                <div class="login-page-field">
+                    <label for="login-page-email" data-i18n="loginPage.emailLabel">Courriel</label>
+                    <input id="login-page-email" name="email" type="email" autocomplete="username" required />
+                </div>
+                <div class="login-page-field">
+                    <label for="login-page-password" data-i18n="loginPage.passwordLabel">Mot de passe</label>
+                    <input id="login-page-password" name="password" type="password" autocomplete="current-password" required />
+                </div>
+                <button id="login-page-signin" type="submit" class="dm-btn primary" data-i18n="loginPage.signIn">Se connecter</button>
+            </form>
             <p id="login-page-status" class="status-message" data-i18n="loginPage.ready">Prêt.</p>
         </div>
     </div>

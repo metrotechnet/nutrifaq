@@ -8,12 +8,15 @@
     const refreshBtn = document.getElementById("azure-refresh-token-btn");
     const logoutBtn = document.getElementById("azure-logout-btn");
     const sidebarLogoutLink = document.getElementById("sidebar-logout-link");
+    const sidebarManageUsersLink = document.getElementById("sidebar-manage-users-link");
     const startupLoginBtn = document.getElementById("startup-login-btn");
     const startupForgotPasswordBtn = document.getElementById("startup-forgot-password-btn");
     const authGateOverlay = document.getElementById("auth-gate-overlay");
     const sidebarUserEmailEl = document.getElementById("sidebar-user-email");
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
+    const USER_PROFILE_KEY = "nutrifaq_user_profile";
+    const USER_ASSIGNMENTS_KEY = "nutrifaq_user_assignments";
 
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
@@ -171,11 +174,45 @@
             return;
         }
         const safeEmail = typeof email === "string" ? email.trim() : "";
+        const profileEmail = getEmailFromStoredProfile();
         const tokenEmail = getEmailFromStoredToken();
-        const fallbackAccount = tr("azureAuth.accountDefault", "Account");
-        const displayEmail = safeEmail || tokenEmail || fallbackAccount;
+        const displayEmail = safeEmail || profileEmail || tokenEmail || "";
         sidebarUserEmailEl.textContent = displayEmail;
         sidebarUserEmailEl.title = displayEmail;
+    }
+
+    function setManageUsersVisibility(role) {
+        if (!sidebarManageUsersLink) {
+            return;
+        }
+        const isAdmin = String(role || "").trim().toLowerCase() === "admin";
+        sidebarManageUsersLink.hidden = !isAdmin;
+    }
+
+    // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
+    // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
+    function getEmailFromStoredProfile() {
+        try {
+            const raw = localStorage.getItem(USER_PROFILE_KEY) || "";
+            if (!raw) {
+                return "";
+            }
+            const profile = JSON.parse(raw);
+            const candidates = [
+                profile && profile.username,
+                profile && profile.email,
+                profile && profile.display_name,
+            ];
+            for (const value of candidates) {
+                const text = typeof value === "string" ? value.trim() : "";
+                if (text) {
+                    return text;
+                }
+            }
+        } catch (_) {
+            // Ignore profile parsing errors and fallback to other sources.
+        }
+        return "";
     }
 
     // Purpose: Fetches and prepares data needed by the UI flow that calls this function.
@@ -418,6 +455,22 @@
         return payload;
     }
 
+    async function hydrateSidebarUserFromApi() {
+        const token = localStorage.getItem(TOKEN_KEY) || "";
+        if (!token) {
+            return;
+        }
+        try {
+            const me = await fetchMe(token);
+            localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(me));
+            const bestEmail = (me && (me.username || me.email || me.display_name)) || "";
+            setSidebarUserEmail(bestEmail);
+            setManageUsersVisibility(me && me.role);
+        } catch (_) {
+            // Ignore hydration failures and keep token/profile fallback.
+        }
+    }
+
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function pushAdminToken(token) {
@@ -488,11 +541,13 @@
 
         try {
             const me = await fetchMe(accessToken);
+            setManageUsersVisibility(me && me.role);
             const usersData = (me && String(me.role || "").toLowerCase() === "admin")
                 ? await fetchUsers(accessToken).catch((error) => ({ error: error.message }))
                 : { status: "skipped", detail: tr("azureAuth.usersAdminOnly", "Users endpoint is restricted to admins.") };
             prettyPrint(meResponseEl, { me, users: usersData });
         } catch (apiError) {
+            setManageUsersVisibility("");
             prettyPrint(meResponseEl, { error: apiError.message });
         }
 
@@ -523,34 +578,30 @@
 
         try {
             const me = await fetchMe(accessToken);
+            setManageUsersVisibility(me && me.role);
             const usersData = (me && String(me.role || "").toLowerCase() === "admin")
                 ? await fetchUsers(accessToken).catch((error) => ({ error: error.message }))
                 : { status: "skipped", detail: tr("azureAuth.usersAdminOnly", "Users endpoint is restricted to admins.") };
             prettyPrint(meResponseEl, { me, users: usersData });
         } catch (apiError) {
+            setManageUsersVisibility("");
             prettyPrint(meResponseEl, { error: apiError.message });
         }
 
         setStatus(tr("azureAuth.statusRefreshed", "Token refreshed and information updated."), false);
     }
 
-    async function logout(msalApp) {
-        const account = msalApp ? (msalApp.getActiveAccount() || msalApp.getAllAccounts()[0]) : null;
+    async function logout() {
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_PROFILE_KEY);
+        localStorage.removeItem(USER_ASSIGNMENTS_KEY);
         window.dispatchEvent(new CustomEvent("nutrifaq:admin-token-updated", { detail: { token: "" } }));
 
         prettyPrint(accountInfoEl, "-");
         prettyPrint(tokenClaimsEl, "-");
         prettyPrint(meResponseEl, "-");
         setSidebarUserEmail("");
-
-        if (msalApp && account) {
-            if (isPopupContext()) {
-                await msalApp.logoutRedirect({ account });
-                return;
-            }
-            await msalApp.logoutPopup({ account });
-        }
+        setManageUsersVisibility("");
 
         setStatus(tr("azureAuth.statusDisconnected", "Signed out."), false);
         redirectToLogin();
@@ -563,6 +614,8 @@
 
         // Always hydrate the sidebar from local token claims when available.
         setSidebarUserEmail("");
+        setManageUsersVisibility("");
+        await hydrateSidebarUserFromApi();
 
         let msalApp;
         try {
@@ -622,7 +675,7 @@
         if (logoutBtn) {
             logoutBtn.addEventListener("click", async () => {
                 try {
-                    await logout(msalApp);
+                    await logout();
                 } catch (error) {
                     setStatus(tr("azureAuth.statusLogoutFailed", "Sign-out failed: {error}", { error: error.message }), true);
                 }
@@ -633,7 +686,7 @@
             sidebarLogoutLink.addEventListener("click", async (event) => {
                 event.preventDefault();
                 try {
-                    await logout(msalApp);
+                    await logout();
                 } catch (error) {
                     setStatus(tr("azureAuth.statusLogoutFailed", "Sign-out failed: {error}", { error: error.message }), true);
                 }
