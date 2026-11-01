@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
+import re
 import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -23,6 +26,7 @@ from api.services.config import (
 from api.services.indexation_service import get_indexation_status, request_indexation_cancel, run_full_indexation
 from api.services.publish_service import cancel_publish, get_publish_status, start_publish
 
+logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEBUG_KB_ROOT = REPO_ROOT / os.getenv("DEBUG_KB_LOCAL_ROOT", "nutrifaq-dbase-main")
 MAIN_KB_ROOT = REPO_ROOT / os.getenv("AZURE_KB_MAIN_LOCAL_ROOT", "nutrifaq-dbase-main")
@@ -39,6 +43,9 @@ AUTO_PUBLISH_COOLDOWN_MINUTES = int(os.getenv("AUTO_PUBLISH_COOLDOWN_MINUTES", "
 
 _scheduler: BackgroundScheduler | None = None
 _scheduler_lock = threading.RLock()
+_schedule_persist_lock = threading.Lock()
+_schedule_persist_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="publish-schedule-persist")
+_schedule_persist_sequence_by_job: dict[str, int] = {}
 _FILE_CHANGE_SNAPSHOT_PATH = REPO_ROOT / ".publish_file_snapshot.json"
 
 
@@ -325,13 +332,44 @@ def _actual_now_iso(timezone_name: str | None = None) -> str:
     return datetime.now(target_tz).isoformat() if target_tz is not None else datetime.now().astimezone().isoformat()
 
 
+def _next_schedule_persist_sequence(job_id: str) -> int:
+    normalized_job_id = str(job_id or "").strip()
+    with _schedule_persist_lock:
+        sequence = _schedule_persist_sequence_by_job.get(normalized_job_id, 0) + 1
+        _schedule_persist_sequence_by_job[normalized_job_id] = sequence
+        return sequence
+
+
+def _is_latest_schedule_persist_sequence(job_id: str, sequence: int) -> bool:
+    normalized_job_id = str(job_id or "").strip()
+    with _schedule_persist_lock:
+        return _schedule_persist_sequence_by_job.get(normalized_job_id) == sequence
+
+
 def _persist_schedule_entry(record: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(record, dict):
         return record
-    return upsert_publish_schedule_entry(record)
+    job_id = str(record.get("job_id") or record.get("id") or "").strip()
+    if not job_id:
+        logger.error("Skipping async schedule persistence: missing job id in record.")
+        return record
+
+    sequence = _next_schedule_persist_sequence(job_id)
+
+    def _run() -> None:
+        if not _is_latest_schedule_persist_sequence(job_id, sequence):
+            return
+        try:
+            upsert_publish_schedule_entry(record)
+        except Exception:
+            logger.exception("Async publish schedule persistence failed for job '%s'.", job_id)
+
+    _schedule_persist_executor.submit(_run)
+    return record
 
 
 def _remove_persisted_schedule(job_id: str) -> list[dict[str, Any]]:
+    _next_schedule_persist_sequence(job_id)
     return delete_publish_schedule_entry(job_id)
 
 
@@ -630,10 +668,19 @@ def list_scheduled_publish_jobs() -> list[dict[str, Any]]:
                 recurrence = "one_time"
             elif "cron" in trigger_text:
                 fields = getattr(job.trigger, "fields", []) or []
-                day_of_week = next((str(field) for field in fields if getattr(field, "name", "") == "day_of_week"), None)
-                if day_of_week and day_of_week not in {"*", "0-6", "1-7"}:
+                day_of_week_field = next((field for field in fields if getattr(field, "name", "") == "day_of_week"), None)
+                day_of_week = ""
+                if day_of_week_field is not None:
+                    expressions = getattr(day_of_week_field, "expressions", None) or []
+                    if expressions:
+                        day_of_week = ",".join(str(expression) for expression in expressions).strip().lower()
+                    if not day_of_week:
+                        day_of_week = str(day_of_week_field).strip().lower()
+                    day_of_week = re.sub(r"^[^=]*=\s*", "", day_of_week).strip("'\" ")
+
+                if day_of_week and day_of_week not in {"*", "0-6", "1-7", "mon-sun"}:
                     recurrence = "weekly"
-                elif day_of_week in {"*", "0-6", "1-7"}:
+                elif day_of_week in {"*", "0-6", "1-7", "mon-sun"}:
                     recurrence = "daily"
                 else:
                     recurrence = "cron"

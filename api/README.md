@@ -138,6 +138,7 @@ Notes:
 - `PUT /api/users/me/password` updates the authenticated user's password and clears the first-login password-change flag. It expects `temporary_password` and `new_password`.
 - `PUT /api/users/{user_object_id}/password/reset-required` generates a server-side `temporary_password` and forces password reset at next login.
 - Auth SQLite backup upload after user mutations runs in a non-blocking background thread.
+- Publish schedule persistence to Azure Blob runs in a non-blocking background thread (schedule activation in memory remains immediate).
 
 ## Key services
 
