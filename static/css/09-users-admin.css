@@ -73,11 +73,11 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #14532d 100%);
+    background-color: black;
     border: 1px solid rgba(148, 163, 184, 0.3);
     border-radius: 16px;
     box-shadow: 0 18px 36px rgba(15, 23, 42, 0.22);
-    padding: 1.2rem 1.25rem;
+    padding: 1.0rem;
     overflow: hidden;
 }
 
@@ -89,7 +89,6 @@
     width: 280px;
     height: 280px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 70%);
     pointer-events: none;
 }
 
@@ -296,7 +295,28 @@
     width: 100%;
     border-collapse: collapse;
     min-width: 760px;
+    table-layout: fixed;
     background: #ffffff;
+    --users-col-email: 35%;
+    --users-col-role: 15%;
+    --users-col-reset: 20%;
+    --users-col-actions: 30%;
+}
+
+.users-admin-table col.users-col-email {
+    width: var(--users-col-email) !important;
+}
+
+.users-admin-table col.users-col-role {
+    width: var(--users-col-role) !important;
+}
+
+.users-admin-table col.users-col-reset {
+    width: var(--users-col-reset) !important;
+}
+
+.users-admin-table col.users-col-actions {
+    width: var(--users-col-actions) !important;
 }
 
 .users-admin-table thead th {
@@ -313,6 +333,8 @@
     text-align: left;
     vertical-align: middle;
     border-bottom: 1px solid #e4edf8;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .users-admin-table tbody tr:nth-child(even) {
@@ -325,8 +347,19 @@
 
 .users-admin-row-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.35rem;
+    width: 100%;
+    overflow: hidden;
+    grid-row: 1;
+}
+
+.users-admin-actions-cell {
+    display: grid;
+    grid-template-rows: auto 1.2rem;
+    row-gap: 0.32rem;
+    align-content: start;
+    overflow: hidden;
 }
 
 .users-admin-icon-btn {
@@ -349,6 +382,18 @@
     border-color: #1d75c2;
     color: #0f4d90;
     transform: translateY(-1px);
+}
+
+#users-admin-add-btn {
+    background: linear-gradient(135deg, #1d75c2 0%, #0f4d90 100%);
+    border-color: #0b3d73;
+    color: #ffffff;
+}
+
+#users-admin-add-btn:hover {
+    background: linear-gradient(135deg, #2486dc 0%, #135da8 100%);
+    border-color: #0d4a89;
+    color: #ffffff;
 }
 
 .users-admin-icon-btn:disabled {
@@ -378,6 +423,42 @@
     display: none;
 }
 
+.users-admin-icon-btn.users-admin-btn-role {
+    background: #eef6ff;
+    border-color: #90b9e6;
+    color: #0f4d90;
+}
+
+.users-admin-icon-btn.users-admin-btn-role:hover {
+    background: #dbeeff;
+    border-color: #5f97d6;
+    color: #0c3f77;
+}
+
+.users-admin-icon-btn.users-admin-btn-reset {
+    background: #fff7ed;
+    border-color: #fdba74;
+    color: #9a3412;
+}
+
+.users-admin-icon-btn.users-admin-btn-reset:hover {
+    background: #ffedd5;
+    border-color: #fb923c;
+    color: #7c2d12;
+}
+
+.users-admin-icon-btn.users-admin-btn-delete {
+    background: #fff1f2;
+    border-color: #fda4af;
+    color: #be123c;
+}
+
+.users-admin-icon-btn.users-admin-btn-delete:hover {
+    background: #ffe4e6;
+    border-color: #fb7185;
+    color: #9f1239;
+}
+
 .users-admin-field-readonly {
     background: #f1f6fc !important;
     color: #4f6b85 !important;
@@ -385,9 +466,15 @@
 }
 
 .users-admin-status-inline {
-    margin-top: 0.3rem;
     color: #3d5b79;
     font-size: 0.82rem;
+    grid-row: 2;
+    align-self: end;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
 }
 
 .users-admin-row-self {
@@ -395,6 +482,29 @@
     font-weight: 650;
     font-size: 0.8rem;
     margin-top: 0.2rem;
+}
+
+.users-admin-reset-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.18rem 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 650;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.users-admin-reset-badge.is-required {
+    background: #fff4e5;
+    color: #9a3412;
+    border-color: #fed7aa;
+}
+
+.users-admin-reset-badge.is-clear {
+    background: #ecfdf3;
+    color: #166534;
+    border-color: #bbf7d0;
 }
 
 @media (max-width: 760px) {

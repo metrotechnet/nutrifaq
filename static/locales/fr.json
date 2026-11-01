@@ -64,8 +64,26 @@
     "statusLoginFailed": "Connexion échouée: {error}",
     "statusLoginFailedSimple": "Échec de la connexion.",
     "statusTokenMissing": "Réponse invalide: token manquant.",
+    "statusPasswordChangeRequired": "Vous devez changer votre mot de passe avant de continuer.",
+    "statusPasswordChangeFailed": "La mise à jour du mot de passe a échoué.",
+    "statusPasswordPopupUnavailable": "La fenêtre de changement de mot de passe est indisponible. Contactez un administrateur.",
+    "statusPasswordChanged": "Mot de passe mis à jour. Redirection...",
     "unknownRole": "rôle inconnu",
-    "unknownError": "Erreur inconnue"
+    "unknownError": "Erreur inconnue",
+    "firstLoginPassword": {
+      "title": "Changer votre mot de passe",
+      "description": "Pour des raisons de sécurité, définissez un nouveau mot de passe avant d'accéder à l'application.",
+      "temporaryPasswordLabel": "Mot de passe temporaire",
+      "temporaryPasswordPlaceholder": "Entrez le mot de passe temporaire",
+      "newPasswordLabel": "Nouveau mot de passe",
+      "newPasswordPlaceholder": "Entrez un nouveau mot de passe",
+      "confirmPasswordLabel": "Confirmer le nouveau mot de passe",
+      "confirmPasswordPlaceholder": "Saisissez à nouveau le nouveau mot de passe",
+      "confirmAction": "Mettre à jour le mot de passe",
+      "temporaryPasswordRequired": "Le mot de passe temporaire est requis.",
+      "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères.",
+      "passwordMismatch": "Les mots de passe ne correspondent pas."
+    }
   },
   "sidebar": {
     "title": "IMX - NutriFAQ",

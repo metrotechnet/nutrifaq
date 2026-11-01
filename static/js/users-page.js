@@ -8,11 +8,41 @@
     const tableBody = document.getElementById("users-admin-table-body");
     const gateEl = document.getElementById("users-admin-gate");
     const shellEl = document.getElementById("users-admin-shell");
+    const gateMessageEl = gateEl ? gateEl.querySelector("p") : null;
 
     let currentUserId = "";
+    const EDITABLE_ROLES = ["collaborator", "admin"];
+
+    function normalizeManagedRole(role) {
+        const normalized = String(role || "").trim().toLowerCase();
+        if (normalized === "client") {
+            return "collaborator";
+        }
+        if (EDITABLE_ROLES.includes(normalized)) {
+            return normalized;
+        }
+        return "collaborator";
+    }
+
+    function applyResetStateBadge(element, isRequired) {
+        element.className = "users-admin-reset-badge";
+        element.classList.add(isRequired ? "is-required" : "is-clear");
+        element.textContent = isRequired ? "Requis au prochain login" : "Non requis";
+    }
 
     function redirectToApp() {
         window.location.replace("/index.html");
+    }
+
+    function getTokenFromQuery() {
+        const url = new URL(window.location.href);
+        const token = String(url.searchParams.get("token") || "").trim();
+        if (!token) {
+            return "";
+        }
+        url.searchParams.delete("token");
+        window.history.replaceState({}, "", url.toString());
+        return token;
     }
 
     function setStatus(message, isError) {
@@ -31,6 +61,13 @@
             shellEl.classList.toggle("users-admin-shell-hidden", !ready);
             shellEl.setAttribute("aria-hidden", ready ? "false" : "true");
         }
+    }
+
+    function setGateMessage(message) {
+        if (!gateMessageEl) {
+            return;
+        }
+        gateMessageEl.textContent = message;
     }
 
     function hasSwal() {
@@ -66,7 +103,12 @@
     }
 
     function getTokenOrRedirect() {
-        const token = localStorage.getItem(TOKEN_KEY) || "";
+        let token = getTokenFromQuery();
+        if (token) {
+            localStorage.setItem(TOKEN_KEY, token);
+        } else {
+            token = localStorage.getItem(TOKEN_KEY) || "";
+        }
         if (!token) {
             window.location.replace("/login.html");
             return "";
@@ -88,9 +130,26 @@
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(payload.detail || payload.message || response.statusText || "Request failed.");
+            const error = new Error(payload.detail || payload.message || response.statusText || "Request failed.");
+            error.status = response.status;
+            throw error;
         }
         return payload;
+    }
+
+    function handleAccessError(error) {
+        const status = Number(error && error.status ? error.status : 0);
+        if (status === 401) {
+            setGateMessage("Session expirée. Redirection vers la connexion...");
+            window.location.replace("/login.html");
+            return true;
+        }
+        if (status === 403) {
+            setGateMessage("Accès réservé aux administrateurs. Redirection...");
+            window.location.replace("/index.html");
+            return true;
+        }
+        return false;
     }
 
     function createIconButton(iconClass, title, onClick) {
@@ -130,55 +189,35 @@
 
             const roleCell = document.createElement("td");
             const roleSelect = document.createElement("select");
-            ["client", "collaborator", "admin"].forEach((role) => {
+            EDITABLE_ROLES.forEach((role) => {
                 const option = document.createElement("option");
                 option.value = role;
                 option.textContent = role;
                 roleSelect.appendChild(option);
             });
-            roleSelect.value = String(user.role || "client").toLowerCase();
+            roleSelect.value = normalizeManagedRole(user.role);
             roleSelect.disabled = true;
             roleSelect.classList.add("users-admin-field-readonly");
             roleCell.appendChild(roleSelect);
 
             const passwordCell = document.createElement("td");
-            const passwordField = document.createElement("div");
-            passwordField.className = "users-admin-password-field";
-            const passwordInput = document.createElement("input");
-            passwordInput.type = "password";
-            passwordInput.minLength = 8;
-            passwordInput.placeholder = "********";
-            passwordInput.disabled = true;
-            passwordInput.classList.add("users-admin-field-readonly");
-            let passwordDraft = "";
-            passwordInput.addEventListener("input", () => {
-                passwordDraft = String(passwordInput.value || "");
-            });
-            const passwordToggleBtn = createIconButton("bi bi-eye", "Afficher le mot de passe", () => {
-                const showing = passwordInput.type === "text";
-                passwordInput.type = showing ? "password" : "text";
-                passwordToggleBtn.innerHTML = showing ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
-                passwordToggleBtn.title = showing ? "Afficher le mot de passe" : "Masquer le mot de passe";
-                passwordToggleBtn.setAttribute("aria-label", passwordToggleBtn.title);
-            });
-            passwordToggleBtn.classList.add("users-admin-password-toggle");
-            passwordToggleBtn.disabled = true;
-            passwordField.appendChild(passwordInput);
-            passwordField.appendChild(passwordToggleBtn);
-            passwordCell.appendChild(passwordField);
+            const resetStateLabel = document.createElement("span");
+            const isResetRequired = Boolean(user.must_change_password);
+            applyResetStateBadge(resetStateLabel, isResetRequired);
+            passwordCell.appendChild(resetStateLabel);
 
             const actionsCell = document.createElement("td");
+            actionsCell.className = "users-admin-actions-cell";
             const actionsWrap = document.createElement("div");
             actionsWrap.className = "users-admin-row-actions";
             const inlineStatus = document.createElement("div");
             inlineStatus.className = "users-admin-status-inline";
 
             let roleEditing = false;
-            let passwordEditing = false;
-            let savedRoleValue = String(user.role || "client").toLowerCase();
+            let savedRoleValue = normalizeManagedRole(user.role);
 
             const refreshCancelVisibility = () => {
-                if (roleEditing || passwordEditing) {
+                if (roleEditing) {
                     cancelEditBtn.classList.remove("is-hidden");
                 } else {
                     cancelEditBtn.classList.add("is-hidden");
@@ -196,36 +235,8 @@
                 refreshCancelVisibility();
             };
 
-            const setPasswordEditMode = (editing) => {
-                passwordEditing = editing;
-                passwordInput.disabled = !editing;
-                passwordToggleBtn.disabled = !editing;
-                passwordInput.classList.toggle("users-admin-field-readonly", !editing);
-                passwordInput.placeholder = editing ? "Nouveau mot de passe" : "********";
-                editPasswordBtn.classList.toggle("is-saving", editing);
-                editPasswordBtn.title = editing ? "Enregistrer le mot de passe" : "Modifier le mot de passe";
-                editPasswordBtn.setAttribute("aria-label", editPasswordBtn.title);
-                editPasswordBtn.innerHTML = editing ? '<i class="bi bi-check2"></i>' : '<i class="bi bi-key"></i>';
-
-                if (editing) {
-                    passwordInput.value = passwordDraft;
-                    passwordInput.focus();
-                } else {
-                    passwordInput.type = "password";
-                    passwordToggleBtn.innerHTML = '<i class="bi bi-eye"></i>';
-                    passwordToggleBtn.title = "Afficher le mot de passe";
-                    passwordToggleBtn.setAttribute("aria-label", "Afficher le mot de passe");
-                }
-                refreshCancelVisibility();
-            };
-
             const editRoleBtn = createIconButton("bi bi-person-gear", "Modifier le rôle", async () => {
                 if (!roleEditing) {
-                    if (passwordEditing) {
-                        inlineStatus.textContent = "Enregistrez ou annulez le mot de passe avant de modifier le rôle.";
-                        await showPopup("warning", "Action en cours", "Terminez d'abord l'édition du mot de passe.");
-                        return;
-                    }
                     setRoleEditMode(true);
                     inlineStatus.textContent = "Mode édition du rôle activé.";
                     roleSelect.focus();
@@ -234,7 +245,7 @@
 
                 inlineStatus.textContent = "Mise à jour du rôle...";
                 try {
-                    const nextRole = String(roleSelect.value || "client").toLowerCase();
+                    const nextRole = normalizeManagedRole(roleSelect.value);
                     await apiRequest(`/api/users/${encodeURIComponent(user.object_id)}/role`, {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
@@ -250,53 +261,34 @@
                     await showPopup("error", "Échec de mise à jour", error.message || "Une erreur est survenue.");
                 }
             });
+            editRoleBtn.classList.add("users-admin-btn-role");
 
-            const editPasswordBtn = createIconButton("bi bi-key", "Modifier le mot de passe", async () => {
-                if (!passwordEditing) {
-                    if (roleEditing) {
-                        inlineStatus.textContent = "Enregistrez ou annulez le rôle avant de modifier le mot de passe.";
-                        await showPopup("warning", "Action en cours", "Terminez d'abord l'édition du rôle.");
-                        return;
-                    }
-                    setPasswordEditMode(true);
-                    inlineStatus.textContent = "Mode édition du mot de passe activé.";
-                    return;
-                }
-
-                const nextPassword = String(passwordInput.value || "");
-                if (nextPassword.length < 8) {
-                    inlineStatus.textContent = "Le mot de passe doit contenir au moins 8 caractères.";
-                    await showPopup("warning", "Mot de passe invalide", "Le mot de passe doit contenir au moins 8 caractères.");
-                    return;
-                }
-
-                inlineStatus.textContent = "Mise à jour du mot de passe...";
+            const forceResetBtn = createIconButton("bi bi-key-fill", "Forcer la réinitialisation du mot de passe", async () => {
+                inlineStatus.textContent = "Activation de la réinitialisation du mot de passe...";
                 try {
-                    await apiRequest(`/api/users/${encodeURIComponent(user.object_id)}/password`, {
+                    const payload = await apiRequest(`/api/users/${encodeURIComponent(user.object_id)}/password/reset-required`, {
                         method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ password: nextPassword }),
                     });
-                    passwordDraft = "";
-                    passwordInput.value = "";
-                    setPasswordEditMode(false);
-                    inlineStatus.textContent = "Mot de passe mis à jour.";
-                    await showPopup("success", "Mot de passe mis à jour", `Le mot de passe de ${user.email || user.object_id} a été modifié.`);
+                    user.must_change_password = true;
+                    applyResetStateBadge(resetStateLabel, true);
+                    inlineStatus.textContent = "Réinitialisation requise au prochain login.";
+                    const temporaryPassword = String(payload.temporary_password || "");
+                    await showPopup(
+                        "success",
+                        "Réinitialisation activée",
+                        `Mot de passe temporaire: ${temporaryPassword}\n\nTransmettez-le à ${user.email || user.object_id}. L'utilisateur devra le changer à sa prochaine connexion.`
+                    );
                 } catch (error) {
                     inlineStatus.textContent = `Erreur: ${error.message}`;
-                    await showPopup("error", "Échec du changement", error.message || "Une erreur est survenue.");
+                    await showPopup("error", "Échec de l'opération", error.message || "Une erreur est survenue.");
                 }
             });
+            forceResetBtn.classList.add("users-admin-btn-reset");
 
             const cancelEditBtn = createIconButton("bi bi-x-lg", "Annuler", async () => {
                 if (roleEditing) {
                     roleSelect.value = savedRoleValue;
                     setRoleEditMode(false);
-                }
-                if (passwordEditing) {
-                    passwordDraft = "";
-                    passwordInput.value = "";
-                    setPasswordEditMode(false);
                 }
                 inlineStatus.textContent = "Modification annulée.";
             });
@@ -321,6 +313,7 @@
                     await apiRequest(`/api/users/${encodeURIComponent(user.object_id)}`, {
                         method: "DELETE",
                     });
+                    deleteBtn.classList.add("users-admin-btn-delete");
                     inlineStatus.textContent = "Utilisateur supprimé.";
                     await showPopup("success", "Utilisateur supprimé", `${user.email || user.object_id} a été supprimé.`);
                     await loadUsers();
@@ -332,7 +325,7 @@
 
             actionsWrap.appendChild(editRoleBtn);
             actionsWrap.appendChild(cancelEditBtn);
-            actionsWrap.appendChild(editPasswordBtn);
+            actionsWrap.appendChild(forceResetBtn);
             actionsWrap.appendChild(deleteBtn);
             actionsCell.appendChild(actionsWrap);
             actionsCell.appendChild(inlineStatus);
@@ -376,13 +369,10 @@
                 <div style="display:flex; flex-direction:column; gap:0.55rem; text-align:left;">
                     <label for="swal-user-email">Courriel</label>
                     <input id="swal-user-email" class="swal2-input" type="email" placeholder="user@exemple.com" style="margin:0;" />
-                    <label for="swal-user-password">Mot de passe initial</label>
-                    <input id="swal-user-password" class="swal2-input" type="password" placeholder="Au moins 8 caractères" style="margin:0;" />
                     <label for="swal-user-role">Rôle</label>
                     <select id="swal-user-role" class="swal2-select" style="margin:0;">
-                        <option value="client">Client</option>
                         <option value="collaborator">Collaborateur</option>
-                        <option value="admin">Admin</option>
+                        <option value="admin" selected>Admin</option>
                     </select>
                 </div>
             `,
@@ -393,18 +383,13 @@
             focusConfirm: false,
             preConfirm: () => {
                 const email = String(document.getElementById("swal-user-email")?.value || "").trim();
-                const password = String(document.getElementById("swal-user-password")?.value || "");
-                const role = String(document.getElementById("swal-user-role")?.value || "client");
+                const role = normalizeManagedRole(document.getElementById("swal-user-role")?.value || "admin");
 
-                if (!email || !password) {
-                    window.Swal.showValidationMessage("Le courriel et le mot de passe sont requis.");
+                if (!email) {
+                    window.Swal.showValidationMessage("Le courriel est requis.");
                     return null;
                 }
-                if (password.length < 8) {
-                    window.Swal.showValidationMessage("Le mot de passe doit contenir au moins 8 caractères.");
-                    return null;
-                }
-                return { email, password, role };
+                return { email, role };
             },
         });
 
@@ -412,16 +397,21 @@
             return;
         }
 
-        const { email, password, role } = result.value;
+        const { email, role } = result.value;
         setStatus("Création de l'utilisateur...", false);
         try {
-            await apiRequest("/api/users", {
+            const payload = await apiRequest("/api/users", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password, role }),
+                body: JSON.stringify({ email, role }),
             });
             setStatus("Utilisateur créé avec succès.", false);
-            await showPopup("success", "Utilisateur créé", `${email} a été ajouté avec succès.`);
+            const temporaryPassword = String(payload.temporary_password || "");
+            await showPopup(
+                "success",
+                "Utilisateur créé",
+                `${email} a été ajouté avec succès.\n\nMot de passe temporaire: ${temporaryPassword}\nTransmettez-le à l'utilisateur.`
+            );
             await loadUsers();
         } catch (error) {
             setStatus(`Création échouée: ${error.message}`, true);
@@ -439,12 +429,20 @@
         });
         refreshBtn.addEventListener("click", () => {
             loadUsers().catch((error) => {
+                if (handleAccessError(error)) {
+                    return;
+                }
                 setStatus(`Erreur: ${error.message}`, true);
+                setGateMessage(`Erreur: ${error.message}`);
                 setPageReady(false);
             });
         });
         loadUsers().catch((error) => {
+            if (handleAccessError(error)) {
+                return;
+            }
             setStatus(`Erreur: ${error.message}`, true);
+            setGateMessage(`Erreur: ${error.message}`);
             setPageReady(false);
         });
     }

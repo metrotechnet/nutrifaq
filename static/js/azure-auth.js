@@ -13,6 +13,7 @@
     const startupForgotPasswordBtn = document.getElementById("startup-forgot-password-btn");
     const authGateOverlay = document.getElementById("auth-gate-overlay");
     const sidebarUserEmailEl = document.getElementById("sidebar-user-email");
+    const usersNavLoadingOverlayEl = document.getElementById("users-nav-loading-overlay");
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
     const USER_PROFILE_KEY = "nutrifaq_user_profile";
@@ -122,6 +123,13 @@
             sidebarUserEmailEl ||
             logoutBtn
         );
+    }
+
+    function showUsersNavLoadingOverlay() {
+        if (!usersNavLoadingOverlayEl) {
+            return;
+        }
+        usersNavLoadingOverlayEl.hidden = false;
     }
 
     // Purpose: Updates UI or local state so downstream interactions stay consistent.
@@ -690,6 +698,19 @@
                 } catch (error) {
                     setStatus(tr("azureAuth.statusLogoutFailed", "Sign-out failed: {error}", { error: error.message }), true);
                 }
+            });
+        }
+
+        if (sidebarManageUsersLink) {
+            sidebarManageUsersLink.addEventListener("click", (event) => {
+                event.preventDefault();
+                const token = String(localStorage.getItem(TOKEN_KEY) || "").trim();
+                if (!token) {
+                    window.alert("Not authenticated. Please log in.");
+                    return;
+                }
+                showUsersNavLoadingOverlay();
+                window.location.assign(`/users.html?token=${encodeURIComponent(token)}`);
             });
         }
 

@@ -64,8 +64,26 @@
     "statusLoginFailed": "Sign-in failed: {error}",
     "statusLoginFailedSimple": "Sign-in failed.",
     "statusTokenMissing": "Invalid response: missing token.",
+    "statusPasswordChangeRequired": "You must change your password before continuing.",
+    "statusPasswordChangeFailed": "Password update failed.",
+    "statusPasswordPopupUnavailable": "Password reset popup is unavailable. Please contact an administrator.",
+    "statusPasswordChanged": "Password updated. Redirecting...",
     "unknownRole": "unknown role",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "firstLoginPassword": {
+      "title": "Change your password",
+      "description": "For security reasons, please set a new password before accessing the application.",
+      "temporaryPasswordLabel": "Temporary password",
+      "temporaryPasswordPlaceholder": "Enter temporary password",
+      "newPasswordLabel": "New password",
+      "newPasswordPlaceholder": "Enter a new password",
+      "confirmPasswordLabel": "Confirm new password",
+      "confirmPasswordPlaceholder": "Re-enter the new password",
+      "confirmAction": "Update password",
+      "temporaryPasswordRequired": "Temporary password is required.",
+      "passwordTooShort": "Password must be at least 8 characters.",
+      "passwordMismatch": "Passwords do not match."
+    }
   },
   "sidebar": {
     "title": "IMX - NutriFAQ",

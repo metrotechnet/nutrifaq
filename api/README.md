@@ -66,6 +66,22 @@ Notes:
 - The backend auto-creates auth tables at startup (`initialize_auth`).
 - Ensure the App Service runtime includes ODBC Driver 18 for SQL Server.
 
+### SQLite auth backup to Azure Blob
+
+When auth runs on SQLite, the backend can persist the auth DB to Azure Blob:
+
+- Restores the latest backup from Blob at startup (before auth init)
+- Uploads an initial backup at startup
+- Uploads a backup after each user mutation (create/delete/password/role changes)
+
+Environment settings:
+
+- `AUTH_SQLITE_BLOB_BACKUP_ENABLED=1` (default enabled)
+- `AUTH_SQLITE_RESTORE_ON_STARTUP=1` (default enabled)
+- `AUTH_BACKUP_BLOB_CONTAINER=<container-name>` (optional; defaults to `AZURE_STORAGE_CONTAINER`)
+- `AUTH_BACKUP_BLOB_PREFIX=auth-backups` (optional)
+- `AUTH_BACKUP_BLOB_FILE=auth.sqlite3` (optional)
+
 ## Main route groups
 
 Query and chat:
@@ -108,12 +124,20 @@ Database indexing:
 User and roles:
 
 - `GET /api/users/me`
+- `PUT /api/users/me/password`
 - `GET /api/users`
 - `POST /api/users`
-- `PUT /api/users/{user_object_id}/password`
+- `PUT /api/users/{user_object_id}/password/reset-required`
 - `PUT /api/users/{user_object_id}/role`
 - `DELETE /api/users/{user_object_id}`
 - `DELETE /api/users/{user_object_id}/role`
+
+Notes:
+- New users are created with a server-generated `temporary_password` and flagged with `must_change_password=true`.
+- `GET /api/users/me` returns the `must_change_password` state for the authenticated user.
+- `PUT /api/users/me/password` updates the authenticated user's password and clears the first-login password-change flag. It expects `temporary_password` and `new_password`.
+- `PUT /api/users/{user_object_id}/password/reset-required` generates a server-side `temporary_password` and forces password reset at next login.
+- Auth SQLite backup upload after user mutations runs in a non-blocking background thread.
 
 ## Key services
 

@@ -8,6 +8,7 @@ import socketserver
 import os
 import socket
 import json
+import re
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from pathlib import Path
@@ -28,6 +29,18 @@ BASE_DIR = Path(__file__).parent
 
 
 def _backend_base_url() -> str:
+    frontend_config = BASE_DIR / "static" / "js" / "auth-config.js"
+    try:
+        raw_config = frontend_config.read_text(encoding="utf-8")
+        for line in raw_config.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("//"):
+                continue
+            match = re.search(r'window\.BACKEND_URL\s*=\s*"([^"]+)"', stripped)
+            if match and match.group(1).strip():
+                return match.group(1).strip().rstrip("/")
+    except Exception:
+        pass
     return (os.getenv("BACKEND_URL", "http://localhost:8080") or "http://localhost:8080").rstrip("/")
 
 
@@ -40,6 +53,11 @@ def _first_available_port(candidates: list[int]) -> int:
     raise RuntimeError("No available port found for frontend server.")
 
 class CustomHandler(http.server.SimpleHTTPRequestHandler):
+    def _redirect(self, target: str) -> None:
+        self.send_response(302)
+        self.send_header("Location", target)
+        self.end_headers()
+
     def translate_path(self, path):
         """Translate URL path to filesystem path."""
         # Decode URL encoding
@@ -129,7 +147,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 token = (query.get("token") or [""])[0].strip()
 
             if not token:
-                self.send_error(401, "Unauthorized: missing token.")
+                self._redirect("/login.html")
                 return
 
             me_req = Request(
@@ -142,12 +160,12 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                     raw_body = me_response.read().decode("utf-8", errors="replace")
                     me_payload = json.loads(raw_body) if raw_body else {}
             except (HTTPError, URLError, json.JSONDecodeError):
-                self.send_error(401, "Unauthorized: invalid session token.")
+                self._redirect("/login.html")
                 return
 
             role = str(me_payload.get("role", "")).strip().lower()
             if role != "admin":
-                self.send_error(403, "Forbidden: admin role required.")
+                self._redirect("/index.html")
                 return
 
             template_path = BASE_DIR / 'templates' / 'users.html'

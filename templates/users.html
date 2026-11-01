@@ -7,7 +7,7 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/css/01-foundation.css">
     <link rel="stylesheet" href="/static/css/05-download-publish-auth.css">
-    <link rel="stylesheet" href="/static/css/09-users-admin.css">
+    <link rel="stylesheet" href="/static/css/09-users-admin.css?v=20261101-1020">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
@@ -24,7 +24,6 @@
             <div class="users-admin-hero-content">
                 <p class="users-admin-eyebrow">Administration</p>
                 <h1>Gestion des utilisateurs</h1>
-                <p class="users-admin-subtitle">Créez des comptes, gérez les rôles, réinitialisez les mots de passe et supprimez les utilisateurs inactifs.</p>
             </div>
             <div class="users-admin-actions users-admin-hero-actions">
                 <a href="/index.html" class="dm-btn secondary users-admin-btn">
@@ -51,11 +50,17 @@
                 </div>
                 <div class="users-admin-table-wrap">
                     <table class="users-admin-table">
+                        <colgroup>
+                            <col class="users-col-email" style="width: 30%;" />
+                            <col class="users-col-role" style="width: 15%;" />
+                            <col class="users-col-reset" style="width: 20%;" />
+                            <col class="users-col-actions" style="width: 35%;" />
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th>Courriel</th>
                                 <th>Rôle</th>
-                                <th>Nouveau mot de passe</th>
+                                <th>Réinitialisation du mot de passe</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>

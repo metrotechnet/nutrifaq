@@ -25,10 +25,21 @@
         return scoped || fallback || {};
     }
 
+    function getNestedTranslation(dict, key) {
+        return String(key || "")
+            .split(".")
+            .reduce((value, segment) => {
+                if (!value || typeof value !== "object") {
+                    return undefined;
+                }
+                return value[segment];
+            }, dict);
+    }
+
     function tr(key, params) {
         const dict = getLoginTranslation(currentLang);
         const fallbackDict = getLoginTranslation("fr");
-        const template = dict[key] || fallbackDict[key] || key;
+        const template = getNestedTranslation(dict, key) || getNestedTranslation(fallbackDict, key) || key;
         if (!params || typeof template !== "string") {
             return template;
         }
@@ -111,6 +122,10 @@
         statusEl.classList.toggle("error", Boolean(isError));
     }
 
+    function hasSwal() {
+        return Boolean(window.Swal && typeof window.Swal.fire === "function");
+    }
+
     function decodeJwt(token) {
         try {
             const parts = token.split(".");
@@ -150,8 +165,8 @@
     async function fetchCurrentUserProfile(token) {
         const response = await fetch(`${BACKEND_URL}/api/users/me`, {
             headers: {
-                Authorization: `Bearer ${token}`
-            }
+                Authorization: `Bearer ${token}`,
+            },
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -163,8 +178,8 @@
     async function fetchUserAssignments(token) {
         const response = await fetch(`${BACKEND_URL}/api/users`, {
             headers: {
-                Authorization: `Bearer ${token}`
-            }
+                Authorization: `Bearer ${token}`,
+            },
         });
         const payload = await response.json().catch(() => ({}));
         if (response.status === 403) {
@@ -174,6 +189,84 @@
             throw new Error(payload.detail || payload.message || response.statusText);
         }
         return payload;
+    }
+
+    async function updateOwnPassword(token, temporaryPassword, newPassword) {
+        const response = await fetch(`${BACKEND_URL}/api/users/me/password`, {
+            method: "PUT",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                temporary_password: temporaryPassword,
+                new_password: newPassword,
+            }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.detail || payload.message || response.statusText || tr("statusPasswordChangeFailed"));
+        }
+        return payload;
+    }
+
+    async function enforceFirstLoginPasswordChange(token, profile) {
+        if (!profile || !profile.must_change_password) {
+            return;
+        }
+        if (!hasSwal()) {
+            throw new Error(tr("statusPasswordPopupUnavailable"));
+        }
+
+        setStatus(tr("statusPasswordChangeRequired"), false);
+        const result = await window.Swal.fire({
+            title: tr("firstLoginPassword.title"),
+            html: `
+                <div style="display:flex; flex-direction:column; gap:0.6rem; text-align:left;">
+                    <p style="margin:0;">${tr("firstLoginPassword.description")}</p>
+                    <label for="first-login-temporary-password">${tr("firstLoginPassword.temporaryPasswordLabel")}</label>
+                    <input id="first-login-temporary-password" class="swal2-input" type="password" placeholder="${tr("firstLoginPassword.temporaryPasswordPlaceholder")}" style="margin:0;" />
+                    <label for="first-login-password">${tr("firstLoginPassword.newPasswordLabel")}</label>
+                    <input id="first-login-password" class="swal2-input" type="password" placeholder="${tr("firstLoginPassword.newPasswordPlaceholder")}" style="margin:0;" />
+                    <label for="first-login-password-confirm">${tr("firstLoginPassword.confirmPasswordLabel")}</label>
+                    <input id="first-login-password-confirm" class="swal2-input" type="password" placeholder="${tr("firstLoginPassword.confirmPasswordPlaceholder")}" style="margin:0;" />
+                </div>
+            `,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showCancelButton: false,
+            confirmButtonText: tr("firstLoginPassword.confirmAction"),
+            confirmButtonColor: "#1d75c2",
+            preConfirm: () => {
+                const temporaryPassword = String(document.getElementById("first-login-temporary-password")?.value || "");
+                const nextPassword = String(document.getElementById("first-login-password")?.value || "");
+                const confirmPassword = String(document.getElementById("first-login-password-confirm")?.value || "");
+                if (!temporaryPassword) {
+                    window.Swal.showValidationMessage(tr("firstLoginPassword.temporaryPasswordRequired"));
+                    return null;
+                }
+                if (nextPassword.length < 8) {
+                    window.Swal.showValidationMessage(tr("firstLoginPassword.passwordTooShort"));
+                    return null;
+                }
+                if (nextPassword !== confirmPassword) {
+                    window.Swal.showValidationMessage(tr("firstLoginPassword.passwordMismatch"));
+                    return null;
+                }
+                return { temporaryPassword, newPassword: nextPassword };
+            },
+        });
+
+        const temporaryPassword = result && result.value ? String(result.value.temporaryPassword || "") : "";
+        const newPassword = result && result.value ? String(result.value.newPassword || "") : "";
+        if (!temporaryPassword || !newPassword) {
+            throw new Error(tr("statusPasswordChangeRequired"));
+        }
+
+        await updateOwnPassword(token, temporaryPassword, newPassword);
+        profile.must_change_password = false;
+        localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profile));
+        setStatus(tr("statusPasswordChanged"), false);
     }
 
     async function resolveUserContext(token) {
@@ -230,6 +323,11 @@
         if (tokenLooksValid(existingToken)) {
             try {
                 const { profile } = await resolveUserContext(existingToken);
+                if (profile && profile.must_change_password) {
+                    clearStaleSessionState();
+                    setStatus(tr("statusCredentialsRequired"), false);
+                    return;
+                }
                 setStatus(tr("statusSessionDetected", { role: profile.role || tr("unknownRole") }), false);
                 setTimeout(goToApp, 150);
                 return;
@@ -261,6 +359,7 @@
                 const token = await loginWithPassword(email, password);
                 localStorage.setItem(TOKEN_KEY, token);
                 const { profile } = await resolveUserContext(token);
+                await enforceFirstLoginPasswordChange(token, profile);
                 setStatus(tr("statusSessionDetected", { role: profile.role || tr("unknownRole") }), false);
                 setTimeout(goToApp, 150);
             } catch (error) {

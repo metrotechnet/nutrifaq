@@ -21,6 +21,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
+from api.services.auth_sqlite_backup_service import backup_auth_sqlite_to_blob, restore_auth_sqlite_from_blob
 from api.services.user_management_service import (
     ROLE_ADMIN,
     ROLE_CLIENT,
@@ -123,6 +124,17 @@ def _prepare_sqlite_database_url(raw_url: str) -> str:
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return str(parsed.set(database=db_path.as_posix()))
+
+
+def get_auth_sqlite_db_path() -> Path | None:
+    if not DATABASE_URL.startswith("sqlite"):
+        return None
+
+    parsed = make_url(DATABASE_URL)
+    database = (parsed.database or "").strip()
+    if not database or database == ":memory:" or database.startswith("file:"):
+        return None
+    return Path(database).resolve()
 
 
 DATABASE_URL = _resolve_auth_database_url()
@@ -257,26 +269,32 @@ async def require_client_or_query_key(
 
 
 async def initialize_auth() -> None:
+    sqlite_path = get_auth_sqlite_db_path()
+    if sqlite_path is not None:
+        restore_auth_sqlite_from_blob(sqlite_path)
+
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
 
-    if not AUTH_CREATE_DEFAULT_ADMIN or not AUTH_DEFAULT_ADMIN_EMAIL or not AUTH_DEFAULT_ADMIN_PASSWORD:
-        return
+    should_create_default_admin = bool(AUTH_CREATE_DEFAULT_ADMIN and AUTH_DEFAULT_ADMIN_EMAIL and AUTH_DEFAULT_ADMIN_PASSWORD)
+    if should_create_default_admin:
+        async with async_session_maker() as session:
+            existing = await session.execute(select(User).where(User.email == AUTH_DEFAULT_ADMIN_EMAIL))
+            existing_admin = existing.scalar_one_or_none()
 
-    async with async_session_maker() as session:
-        existing = await session.execute(select(User).where(User.email == AUTH_DEFAULT_ADMIN_EMAIL))
-        if existing.scalar_one_or_none() is not None:
-            return
+        if existing_admin is None:
+            user_create = UserCreate(
+                email=AUTH_DEFAULT_ADMIN_EMAIL,
+                password=AUTH_DEFAULT_ADMIN_PASSWORD,
+                is_active=True,
+                is_superuser=True,
+                is_verified=True,
+            )
 
-    user_create = UserCreate(
-        email=AUTH_DEFAULT_ADMIN_EMAIL,
-        password=AUTH_DEFAULT_ADMIN_PASSWORD,
-        is_active=True,
-        is_superuser=True,
-        is_verified=True,
-    )
+            async with async_session_maker() as session:
+                user_db = SQLAlchemyUserDatabase(session, User)
+                manager = UserManager(user_db)
+                await manager.create(user_create, safe=False)
 
-    async with async_session_maker() as session:
-        user_db = SQLAlchemyUserDatabase(session, User)
-        manager = UserManager(user_db)
-        await manager.create(user_create, safe=False)
+    if sqlite_path is not None:
+        backup_auth_sqlite_to_blob(sqlite_path, reason="startup-initialization")
