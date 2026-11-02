@@ -25,7 +25,7 @@ load_dotenv(REPO_ROOT / ".env", override=False)
 
 from api.services.logging import configure_logging  # noqa: E402
 from api.services.llm_service import create_chat_completion_text, get_gateway_client  # noqa: E402
-from api.services.indexation_service import _write_progress_snapshot  # noqa: E402
+from api.services.indexation_service import _raise_if_cancel_requested, _write_progress_snapshot  # noqa: E402
 
 configure_logging()
 
@@ -297,6 +297,7 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
 
     processed_documents = 0
     for doc in documents:
+        _raise_if_cancel_requested("generate_questions")
         document_index = processed_documents + 1
         try:
             generated_document, documented_failures = _generate_questions_for_document(
@@ -313,6 +314,7 @@ def generate_questions_json(kb_root: Path, question_count: int = 3, llm_model: s
         finally:
             processed_documents += 1
             _write_progress_snapshot("generate_questions", processed_documents, total_documents, "files")
+
 
     output_data = {
         "status": "ok",

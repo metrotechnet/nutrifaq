@@ -30,7 +30,7 @@ from api.services.blob_storage_service import (  # noqa: E402
 )
 from api.services.logging import configure_logging  # noqa: E402
 from api.services.llm_service import create_embeddings  # noqa: E402
-from api.services.indexation_service import _write_progress_snapshot  # noqa: E402
+from api.services.indexation_service import _raise_if_cancel_requested, _write_progress_snapshot  # noqa: E402
 
 configure_logging()
 
@@ -238,6 +238,7 @@ def index_chromadb_json(kb_path):
     _write_progress_snapshot("index_chromadb_json", 0, progress_total, "tokens")
 
     for doc in documents:
+        _raise_if_cancel_requested("index_chromadb_json")
         doc_id = doc["id"]
         text = doc["text"]
         metadata = doc["metadata"]
@@ -251,6 +252,7 @@ def index_chromadb_json(kb_path):
         chunk_embeddings = get_embeddings(chunks)
 
         for i, chunk in enumerate(chunks):
+            _raise_if_cancel_requested("index_chromadb_json")
             chunk_id = f"{doc_id}_chunk{i}"
             all_ids.append(chunk_id)
             all_documents.append(chunk)

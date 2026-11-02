@@ -7,7 +7,9 @@ from pathlib import Path
 from datetime import datetime
 import json
 import logging
+import logging.handlers
 import os
+import queue
 import threading
 
 from api.services.blob_storage_service import has_blob_storage_config, upload_file_to_blob
@@ -19,6 +21,8 @@ REPO_ROOT = PROJECT_ROOT.parent
 DEFAULT_DEBUG_KB_ROOT = REPO_ROOT / "nutrifaq-dbase-main"
 QUESTION_LOG_PATH = DEFAULT_DEBUG_KB_ROOT / "question_log.json"
 question_log_lock = threading.Lock()
+_azure_sync_dispatch_lock = threading.Lock()
+_azure_sync_in_flight: set[str] = set()
 
 
 def _azure_sync_is_enabled() -> bool:
@@ -52,32 +56,71 @@ def _build_blob_path(relative_path: str) -> str:
 
 
 def _sync_local_file_to_azure(local_path: Path, blob_name: str) -> None:
-    if not _azure_sync_is_enabled() or not has_blob_storage_config():
-        return
-    if not local_path.exists():
-        return
-    try:
-        upload_file_to_blob(
-            _build_blob_path(blob_name),
-            local_path,
-            overwrite=True,
-            container_name=_config_blob_container_name(),
-        )
-    except Exception as exc:
-        logger.warning("[Azure Sync] Failed to sync %s to %s: %s", local_path, blob_name, exc)
+    path_key = f"{str(local_path.resolve())}|{blob_name}"
+    with _azure_sync_dispatch_lock:
+        if path_key in _azure_sync_in_flight:
+            return
+        _azure_sync_in_flight.add(path_key)
+
+    def _worker() -> None:
+        try:
+            if not _azure_sync_is_enabled() or not has_blob_storage_config():
+                return
+            if not local_path.exists():
+                return
+            try:
+                upload_file_to_blob(
+                    _build_blob_path(blob_name),
+                    local_path,
+                    overwrite=True,
+                    container_name=_config_blob_container_name(),
+                )
+            except Exception as exc:
+                logger.warning("[Azure Sync] Failed to sync %s to %s: %s", local_path, blob_name, exc)
+        finally:
+            with _azure_sync_dispatch_lock:
+                _azure_sync_in_flight.discard(path_key)
+
+    thread = threading.Thread(
+        target=_worker,
+        name=f"azure-file-sync-{local_path.name}",
+        daemon=True,
+    )
+    thread.start()
 
 
 class AzureSyncFileHandler(logging.FileHandler):
-    """File handler that mirrors the file content to Azure Blob storage when enabled."""
+    """File handler that writes locally and syncs to Azure only when triggered explicitly."""
 
     def emit(self, record: logging.LogRecord) -> None:
         super().emit(record)
+
+    def sync_to_azure(self) -> None:
         try:
             log_path = Path(self.baseFilename)
             rel_blob_name = "logs/" + log_path.name if log_path.name != "question_log.json" else "question_log.json"
             _sync_local_file_to_azure(log_path, rel_blob_name)
         except Exception as exc:  # pragma: no cover - defensive logging guard
             logger.warning("[Azure Sync] Log file sync hook failed for %s: %s", self.baseFilename, exc)
+
+
+def sync_log_file_to_azure(log_path: str | Path | None = None) -> None:
+    """Upload the current app log file to Azure asynchronously (non-blocking)."""
+    if log_path is None:
+        configured_path = os.getenv("LOG_FILE_PATH", "logs/nutrifaq.log").strip()
+        if not configured_path:
+            configured_path = "logs/nutrifaq.log"
+        candidate = Path(configured_path)
+        if not candidate.is_absolute():
+            candidate = (REPO_ROOT / candidate).resolve()
+        log_path = candidate
+
+    resolved_path = Path(log_path)
+    if not resolved_path.exists():
+        return
+
+    rel_blob_name = "logs/" + resolved_path.name if resolved_path.name != "question_log.json" else "question_log.json"
+    _sync_local_file_to_azure(resolved_path, rel_blob_name)
 
 
 def configure_logging() -> Path:
@@ -114,26 +157,34 @@ def configure_logging() -> Path:
 
     logging.getLogger("api").setLevel(logging.INFO)
     logging.getLogger("app").setLevel(logging.INFO)
-    
-    file_handler_exists = any(
-        isinstance(handler, logging.FileHandler) and getattr(handler, "baseFilename", None) == str(log_path)
-        for handler in root_logger.handlers
-    )
-    if not file_handler_exists:
-        file_handler = AzureSyncFileHandler(log_path, encoding="utf-8")
-        file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-        root_logger.addHandler(file_handler)
 
-    stream_handler_exists = any(
-        isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler)
-        for handler in root_logger.handlers
-    )
-    if not stream_handler_exists:
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(logging.INFO)
-        stream_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-        root_logger.addHandler(stream_handler)
+    existing_listener = getattr(root_logger, "_nutrifaq_queue_listener", None)
+    if existing_listener is not None:
+        existing_listener.stop()
+    for handler in list(root_logger.handlers):
+        root_logger.removeHandler(handler)
+        try:
+            handler.close()
+        except Exception:
+            pass
+
+    log_queue = queue.Queue(-1)
+    queue_handler = logging.handlers.QueueHandler(log_queue)
+    queue_handler.setLevel(logging.INFO)
+    root_logger.addHandler(queue_handler)
+    root_logger._nutrifaq_queue_handler = queue_handler
+
+    file_handler = AzureSyncFileHandler(log_path, encoding="utf-8")
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.INFO)
+    stream_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+
+    listener = logging.handlers.QueueListener(log_queue, file_handler, stream_handler, respect_handler_level=True)
+    listener.start()
+    root_logger._nutrifaq_queue_listener = listener
 
     return log_path
 

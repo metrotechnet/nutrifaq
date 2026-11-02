@@ -142,13 +142,13 @@
                         </a>
                         <a href="#chat-container" class="sidebar-link" id="tester-link">
                             <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8v2c5.52 0 10-4.48 10-10S17.52 2 12 2zm-1 5v6l5.25 3.15.75-1.23-4.5-2.67V7H11z"/>
-                            </svg>
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg> 
                             <span data-i18n="sidebar.test">Valider</span>
                         </a>
                         <a href="#" class="sidebar-link" id="validate-link">
                             <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                <path d="M12 2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8v2c5.52 0 10-4.48 10-10S17.52 2 12 2zm-1 5v6l5.25 3.15.75-1.23-4.5-2.67V7H11z"/>
                             </svg>
                             <span data-i18n="sidebar.validate">Publier</span>
                         </a>
@@ -297,6 +297,16 @@
                                 </label>
                                 <button id="start-indexing" class="dm-btn indexing" data-i18n="instructions.startIndexing">Démarrer un indexage</button>
                             </div>
+                        </section>
+
+                        <section id="indexing-progress-wrap" class="indexing-progress-wrap" aria-live="polite">
+                            <div class="indexing-progress-main">
+                                <div class="indexing-progress-track">
+                                    <div id="indexing-progress-bar" class="indexing-progress-bar" style="width:0%;"></div>
+                                </div>
+                                <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
+                            </div>
+                            <button id="cancel-indexing" class="dm-btn danger" type="button">Annuler</button>
                         </section>
 
                         <section class="download-files-list" aria-live="polite" style="display:none;">
@@ -451,7 +461,6 @@
                                 <div class="publish-schedule-list-wrap">
                                     <div class="publish-schedule-list-header">
                                         <span data-i18n="publish.schedule.listTitle">Planifications actives</span>
-                                        <button id="publish-schedule-refresh" class="dm-btn secondary publish-schedule-refresh" type="button" data-i18n="publish.schedule.refresh">Rafraichir</button>
                                     </div>
                                     <div id="publish-schedule-list" class="publish-schedule-list">
                                         <p class="publish-schedule-empty" data-i18n="publish.schedule.loading">Chargement...</p>
@@ -459,12 +468,12 @@
                                 </div>
                             </div>
 
-                            <section id="indexing-progress-wrap" class="indexing-progress-wrap" aria-live="polite">
+                            <section id="indexing-progress-wrap-publish" class="indexing-progress-wrap" aria-live="polite">
                                 <div class="indexing-progress-main">
                                     <div class="indexing-progress-track">
-                                        <div id="indexing-progress-bar" class="indexing-progress-bar" style="width:0%;"></div>
+                                        <div id="indexing-progress-bar-publish" class="indexing-progress-bar" style="width:0%;"></div>
                                     </div>
-                                    <p id="indexing-progress-text" class="indexing-progress-text">0%</p>
+                                    <p id="indexing-progress-text-publish" class="indexing-progress-text">0%</p>
                                 </div>
                             </section>
 
@@ -474,6 +483,7 @@
                                         <div id="publish-progress-bar" class="publish-progress-bar" style="width:0%;"></div>
                                     </div>
                                     <div id="publish-progress-text" class="publish-progress-text">0%</div>
+                                    <div id="publish-progress-message" class="publish-progress-message" hidden></div>
                                 </div>
                             </div>
 

@@ -45,11 +45,16 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        sync_blob_databases_on_startup(app)
-        await initialize_auth()
+        # Perform startup synchronization and initialization tasks
+        # sync_blob_databases_on_startup(app)
+        # # Initialize authentication system
+        # await initialize_auth()
+        # Initialize the publish scheduler
         from api.services.publish_scheduler import _ensure_scheduler
         _ensure_scheduler()
+        # Ensure the scheduler is running
         restore_persisted_publish_schedules()
+        # Configure default auto-publish settings
         configure_default_auto_publish()
     except Exception:
         logger.exception("Failed to start the publish scheduler.")
@@ -167,7 +172,7 @@ ROUTE_MODULES = [
     ("api.routes.config", "config"),
     ("api.routes.sessions", "sessions"),
     ("api.routes.blob", "blob"),
-    ("api.routes.database", "database"),
+    ("api.routes.indexing", "indexing"),
     ("api.routes.publish", "publish"),
 ]
 

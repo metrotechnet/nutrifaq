@@ -16,7 +16,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from api.services.logging import configure_logging  # noqa: E402
-from api.services.indexation_service import _write_progress_snapshot  # noqa: E402
+from api.services.indexation_service import _raise_if_cancel_requested, _write_progress_snapshot  # noqa: E402
 
 configure_logging()
 
@@ -138,6 +138,7 @@ def extract_all_documents(folder_path, output_folder=None):
     processed_files = 0
     processed_map = _load_pipeline_state(folder_path)
     for file_path in supported_files:
+        _raise_if_cancel_requested("extract_docx")
         filename = file_path.name
 
         try:

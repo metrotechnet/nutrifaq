@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, IO, List
+import importlib
 import json
 import logging
 import os
@@ -291,6 +292,10 @@ _regen_state: Dict[str, object] = {
 }
 
 
+class IndexationCancelledError(RuntimeError):
+    """Raised when a user requests cancellation during an in-process pipeline step."""
+
+
 @dataclass
 class StepDefinition:
     key: str
@@ -321,6 +326,7 @@ def _reset_progress_snapshot() -> None:
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _start_indexation() -> bool:
     _reset_progress_snapshot()
+    preload_pipeline_modules()
     with _regen_state_lock:
         if bool(_regen_state.get("running")):
             return False
@@ -443,6 +449,11 @@ def _is_cancel_requested() -> bool:
         return bool(_regen_state.get("cancel_requested"))
 
 
+def _raise_if_cancel_requested(step_key: str | None = None) -> None:
+    if _is_cancel_requested():
+        raise IndexationCancelledError(step_key or "indexing")
+
+
 # Purpose: Implement a focused unit of backend behavior used by routes or services.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def request_indexation_cancel() -> Dict[str, object]:
@@ -477,24 +488,33 @@ def request_indexation_cancel() -> Dict[str, object]:
 def _write_progress_snapshot(step_key: str, value: int, total: int, kind: str) -> None:
     import time as time_module
     write_start = time_module.time()
-    
+
+    normalized_value = int(value)
+    normalized_total = int(total)
+
     target_path = REGEN_PROGRESS_PATH
     target_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "step": step_key,
         "kind": kind,
-        "value": int(value),
-        "total": int(total),
+        "value": normalized_value,
+        "total": normalized_total,
         "updated_at": time_module.time(),
     }
     try:
         with target_path.open("w", encoding="utf-8") as handle:
             json.dump(payload, handle, ensure_ascii=False)
+        with _regen_state_lock:
+            _regen_state["running"] = True
+            _regen_state["current_step"] = step_key
+            _regen_state["progress_value"] = normalized_value
+            _regen_state["progress_total"] = normalized_total
+            _regen_state["progress_kind"] = kind
         write_duration = time_module.time() - write_start
         if write_duration > 0.1:  # Log if write takes more than 100ms
             logger = logging.getLogger(__name__)
-            logger.warning("[progress_snapshot] Slow write detected: %.3f seconds for %s (%.1f%%)", 
-                         write_duration, step_key, 100 * value / max(1, total))
+            logger.warning("[progress_snapshot] Slow write detected: %.3f seconds for %s (%.1f%%)",
+                         write_duration, step_key, 100 * normalized_value / max(1, normalized_total))
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.warning("[progress_snapshot] Error writing progress snapshot: %s", str(e))
@@ -856,6 +876,7 @@ def _save_chromadb_to_blob_and_local_copy(
             local_chroma_root,
             destination_prefix,
             overwrite=True,
+            clear_destination_first=True,
             container_name=resolved_container,
         )
 
@@ -936,46 +957,149 @@ def _has_readable_documents(local_kb_root: Path) -> bool:
     return False
 
 
+_PIPELINE_STEP_MODULES: Dict[str, object] = {}
+
+
+def _pipeline_step_module_map() -> Dict[str, str]:
+    return {
+        "extract_docx": "api.db_pipeline.extract_docx",
+        "extract_references": "api.db_pipeline.extract_references",
+        "review_document_text": "api.db_pipeline.review_document_text",
+        "index_chromadb_json": "api.db_pipeline.index_chromadb_json",
+        "generate_questions": "api.db_pipeline.generate_questions_json",
+    }
+
+
+def preload_pipeline_modules() -> Dict[str, object]:
+    """Load every pipeline module once so calls during the run hit Python's import cache."""
+    for module_name in _pipeline_step_module_map().values():
+        if module_name not in _PIPELINE_STEP_MODULES:
+            _PIPELINE_STEP_MODULES[module_name] = importlib.import_module(module_name)
+    return _PIPELINE_STEP_MODULES.copy()
+
+
+def _get_pipeline_module(step_key: str):
+    module_name = _pipeline_step_module_map().get(step_key)
+    if module_name is None:
+        raise KeyError(f"Unknown pipeline step '{step_key}'.")
+
+    if module_name not in _PIPELINE_STEP_MODULES:
+        _PIPELINE_STEP_MODULES[module_name] = importlib.import_module(module_name)
+    return _PIPELINE_STEP_MODULES[module_name]
+
+
+# Warm the module cache once so the runtime does not pay the import cost again during the run.
+preload_pipeline_modules()
+
+
+def _invoke_pipeline_step(
+    step_key: str,
+    *,
+    kb_root: Path,
+    question_count: int,
+    llm_model: str | None,
+) -> Dict[str, object]:
+    """Execute a pipeline step in-process to avoid the startup cost of a fresh subprocess."""
+    try:
+        module = _get_pipeline_module(step_key)
+        if step_key == "extract_docx":
+            result = module.extract_all_documents(str(kb_root / "documents"), output_folder=str(kb_root / "transcripts"))
+            return {
+                "status": "ok",
+                "step": step_key,
+                "description": "Extract text from DOCX files into transcripts.",
+                "result": result,
+            }
+        if step_key == "extract_references":
+            result = module.process_documents(kb_root / "documents")
+            return {
+                "status": "ok",
+                "step": step_key,
+                "description": "Extract bibliography and PMID references.",
+                "result": result,
+            }
+        if step_key == "review_document_text":
+            result = module.review_document_text(kb_root, llm_model=llm_model)
+            return {
+                "status": "ok",
+                "step": step_key,
+                "description": "Filter extracted text to relevant nutrition content.",
+                "result": result,
+            }
+        if step_key == "index_chromadb_json":
+            result = module.index_chromadb_json(kb_root)
+            return {
+                "status": "ok",
+                "step": step_key,
+                "description": "Index reviewed documents into ChromaDB.",
+                "result": result,
+            }
+        if step_key == "generate_questions":
+            result = module.generate_questions_json(kb_root, question_count=question_count, llm_model=llm_model)
+            return {
+                "status": "ok",
+                "step": step_key,
+                "description": "Generate per-document questions from reviewed content.",
+                "result": str(result),
+            }
+
+        return {
+            "status": "error",
+            "step": step_key,
+            "message": f"No runner available for '{step_key}'.",
+        }
+    except IndexationCancelledError:
+        return {
+            "status": "cancelled",
+            "step": step_key,
+            "message": "Indexing cancelled by user.",
+        }
+    except Exception as exc:
+        return {
+            "status": "error",
+            "step": step_key,
+            "message": str(exc),
+        }
+    finally:
+        # Intentionally sync once at the end of the whole run rather than after every step.
+        pass
+
+
 def start_background_indexation(
     *,
     include_extract_docx: bool = False,
     include_extract_references: bool = False,
+    include_generate_questions: bool = True,
     root_folder: str | None = None,
     container_name: str | None = None,
     llm_model: str | None = None,
     question_count: int = DEFAULT_QUESTION_COUNT,
     process_only_new_files: bool = False,
 ) -> Dict[str, object]:
-    """Launch a full indexing run in the background and return immediately."""
-    if bool(_regen_state.get("running")):
-        return {
-            "status": "busy",
-            "message": "An indexing run is already running.",
-        }
-
+    """Launch a full indexing run in a daemon thread and return immediately."""
     if not _start_indexation():
         return {
             "status": "busy",
             "message": "An indexing run is already running.",
+            "running": True,
         }
 
-    def worker() -> None:
-        try:
-            result = run_full_indexation(
-                include_extract_docx=include_extract_docx,
-                include_extract_references=include_extract_references,
-                root_folder=root_folder,
-                container_name=container_name,
-                llm_model=llm_model,
-                question_count=question_count,
-                process_only_new_files=process_only_new_files,
-                skip_start_guard=True,
-            )
-            logging.getLogger(__name__).info("Background indexing finished with status: %s", result.get("status"))
-        except Exception:
-            logging.getLogger(__name__).exception("Background indexing crashed")
-
-    thread = threading.Thread(target=worker, daemon=True)
+    thread = threading.Thread(
+        target=run_full_indexation,
+        kwargs={
+            "include_extract_docx": include_extract_docx,
+            "include_extract_references": include_extract_references,
+            "include_generate_questions": include_generate_questions,
+            "root_folder": root_folder,
+            "container_name": container_name,
+            "llm_model": llm_model,
+            "question_count": question_count,
+            "process_only_new_files": process_only_new_files,
+            "skip_start_guard": True,
+        },
+        name="indexing-runner",
+        daemon=True,
+    )
     thread.start()
     return {
         "status": "started",
@@ -987,6 +1111,7 @@ def start_background_indexation(
 def run_full_indexation(
     include_extract_docx: bool = False,
     include_extract_references: bool = False,
+    include_generate_questions: bool = True,
     root_folder: str | None = None,
     container_name: str | None = None,
     llm_model: str | None = None,
@@ -996,10 +1121,10 @@ def run_full_indexation(
 ) -> Dict[str, object]:
     """Run the end-to-end indexing sequence.
 
-    The core sequence mirrors build-database.bat with question generation:
+    The core sequence mirrors build-database.bat:
     1) review_document_text
     2) index_chromadb_json
-    3) generate_questions
+    3) generate_questions (optional)
 
     Optional preprocessing steps can be added before it. When
     process_only_new_files is enabled, indexing is skipped and the run is kept
@@ -1062,6 +1187,8 @@ def run_full_indexation(
             pipeline.remove("extract_docx")
         if not include_extract_references:
             pipeline.remove("extract_references")
+        if not include_generate_questions and "generate_questions" in pipeline:
+            pipeline.remove("generate_questions")
 
         results: List[Dict[str, object]] = []
         regen_env = {
@@ -1076,35 +1203,34 @@ def run_full_indexation(
         }
 
         step_services = {
-            "extract_docx": lambda: _run_step_with_env(
+            "extract_docx": lambda: _invoke_pipeline_step(
                 "extract_docx",
-                env_overrides=regen_env,
-                step_args_override=[str(resolved_local_kb_root)],
-                cwd_override=resolved_local_kb_root,
-            ),
-            "extract_references": lambda: _run_step_with_env(
-                "extract_references",
-                env_overrides=regen_env,
-                step_args_override=[str(resolved_local_kb_root)],
-                cwd_override=resolved_local_kb_root,
-            ),
-            "review_document_text": lambda: _run_step_with_env(
-                "review_document_text",
-                env_overrides=regen_env,
-                step_args_override=[str(resolved_local_kb_root), str(llm_model or os.getenv("CHAT_MODEL") or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or os.getenv("LLM_MODEL") or "")],
-                cwd_override=resolved_local_kb_root,
-            ),
-            "index_chromadb_json": lambda: _run_step_with_env(
-                "index_chromadb_json",
-                env_overrides=regen_env,
-                step_args_override=[str(resolved_local_kb_root)],
-                cwd_override=resolved_local_kb_root,
-            ),
-            "generate_questions": lambda: run_generate_questions_step(
+                kb_root=resolved_local_kb_root,
                 question_count=question_count,
-                source_root_folder=resolved_root_folder,
-                target_container_name=resolved_container_name,
-                target_root_folder=resolved_root_folder,
+                llm_model=llm_model,
+            ),
+            "extract_references": lambda: _invoke_pipeline_step(
+                "extract_references",
+                kb_root=resolved_local_kb_root,
+                question_count=question_count,
+                llm_model=llm_model,
+            ),
+            "review_document_text": lambda: _invoke_pipeline_step(
+                "review_document_text",
+                kb_root=resolved_local_kb_root,
+                question_count=question_count,
+                llm_model=llm_model,
+            ),
+            "index_chromadb_json": lambda: _invoke_pipeline_step(
+                "index_chromadb_json",
+                kb_root=resolved_local_kb_root,
+                question_count=question_count,
+                llm_model=llm_model,
+            ),
+            "generate_questions": lambda: _invoke_pipeline_step(
+                "generate_questions",
+                kb_root=resolved_local_kb_root,
+                question_count=question_count,
                 llm_model=llm_model,
             ),
         }
@@ -1156,6 +1282,11 @@ def run_full_indexation(
         }
         return result
     finally:
+        try:
+            from api.services.logging import sync_log_file_to_azure
+            sync_log_file_to_azure()
+        except Exception:
+            pass
         try:
             append_publish_log_entry({
                 "timestamp": datetime.now().astimezone().isoformat(),

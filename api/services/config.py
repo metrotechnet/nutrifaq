@@ -5,12 +5,16 @@ This module provides functions for loading and merging configuration files in th
 """
 from pathlib import Path
 import json
+import logging
 import os
+import queue
 import shutil
+import threading
 from threading import RLock
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 from api.services.blob_storage_service import get_container_client, has_blob_storage_config
 
+logger = logging.getLogger(__name__)
 
 API_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = API_ROOT.parent
@@ -23,6 +27,11 @@ DBASE_PROD_TARGET_ROOT = REPO_ROOT / os.getenv("AZURE_KB_PROD_LOCAL_ROOT", "nutr
 
 _PROD_CONFIG_LOCK = RLock()
 _GLOBAL_PROD_CONFIG: dict[str, Any] = {}
+_PUBLISH_LOG_LOCK = RLock()
+_PUBLISH_LOG_CACHE: list[dict[str, Any]] | None = None
+_BLOB_SYNC_QUEUE: queue.Queue[tuple[str, str, bytes]] = queue.Queue()
+_BLOB_SYNC_WORKER_LOCK = threading.Lock()
+_BLOB_SYNC_WORKER: threading.Thread | None = None
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -56,6 +65,37 @@ def _publish_log_blob_name() -> str:
 def _publish_schedules_blob_name() -> str:
     prefix = _config_blob_prefix()
     return f"{prefix}/publish_schedules.json" if prefix else "publish_schedules.json"
+
+
+def _blob_sync_worker_loop() -> None:
+    while True:
+        container_name, blob_name, payload = _BLOB_SYNC_QUEUE.get()
+        try:
+            blob_client = get_container_client(container_name).get_blob_client(blob_name)
+            blob_client.upload_blob(payload, overwrite=True)
+        except Exception as exc:
+            logger.warning("Failed async blob sync for %s/%s: %s", container_name, blob_name, exc)
+        finally:
+            _BLOB_SYNC_QUEUE.task_done()
+
+
+def _ensure_blob_sync_worker() -> None:
+    global _BLOB_SYNC_WORKER
+    with _BLOB_SYNC_WORKER_LOCK:
+        if _BLOB_SYNC_WORKER is not None and _BLOB_SYNC_WORKER.is_alive():
+            return
+        worker = threading.Thread(
+            target=_blob_sync_worker_loop,
+            name="config-blob-sync-worker",
+            daemon=True,
+        )
+        worker.start()
+        _BLOB_SYNC_WORKER = worker
+
+
+def _enqueue_blob_sync_upload(blob_name: str, payload: bytes) -> None:
+    _ensure_blob_sync_worker()
+    _BLOB_SYNC_QUEUE.put((_config_blob_container_name(), blob_name, payload))
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -203,8 +243,7 @@ def save_prod_config(data: dict[str, Any]) -> dict[str, Any]:
 
         blob_name = _prod_config_blob_name()
         payload = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
-        blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
-        blob_client.upload_blob(payload, overwrite=True)
+        _enqueue_blob_sync_upload(blob_name, payload)
 
         _GLOBAL_PROD_CONFIG = data.copy()
         return _GLOBAL_PROD_CONFIG.copy()
@@ -254,6 +293,7 @@ def resolve_chroma_copy_paths(
 def sync_next_prod_chroma_from_main(
     provider: str | None = None,
     model: str | None = None,
+    is_cancel_requested: Callable[[], bool] | None = None,
 ) -> tuple[Path, Path, str, str]:
     """Copy next Chroma folder from main to prod using the active global project roots."""
 
@@ -268,11 +308,24 @@ def sync_next_prod_chroma_from_main(
     if not source_chroma.exists():
         raise FileNotFoundError(f"Source Chroma path not found: {source_chroma}")
 
+    if callable(is_cancel_requested) and is_cancel_requested():
+        raise RuntimeError("Operation cancelled by user.")
+
     DBASE_PROD_TARGET_ROOT.mkdir(parents=True, exist_ok=True)
     if target_chroma.exists():
         shutil.rmtree(target_chroma)
 
-    shutil.copytree(source_chroma, target_chroma)
+    target_chroma.mkdir(parents=True, exist_ok=True)
+    for source_path in source_chroma.rglob("*"):
+        if callable(is_cancel_requested) and is_cancel_requested():
+            raise RuntimeError("Operation cancelled by user.")
+        relative_path = source_path.relative_to(source_chroma)
+        destination_path = target_chroma / relative_path
+        if source_path.is_dir():
+            destination_path.mkdir(parents=True, exist_ok=True)
+            continue
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, destination_path)
 
     new_prod_sqlite = f"{target_chroma.name}"
     if (new_prod_sqlite != "" and new_prod_sqlite is not None):
@@ -287,52 +340,85 @@ def sync_next_prod_chroma_from_main(
 
 def load_publish_log_entries() -> list[dict[str, Any]]:
     """Load publish log entries from Azure Blob config container."""
+    return load_publish_log_entries_cached(force_reload=False)
+
+
+def load_publish_log_entries_cached(force_reload: bool = False) -> list[dict[str, Any]]:
+    """Load publish log entries with in-memory cache to avoid repeated blob reads."""
+    global _PUBLISH_LOG_CACHE
+
     if not has_blob_storage_config():
         raise RuntimeError("Azure Blob Storage is required to load publish logs.")
 
-    blob_name = _publish_log_blob_name()
-    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
+    with _PUBLISH_LOG_LOCK:
+        if _PUBLISH_LOG_CACHE is not None and not force_reload:
+            return list(_PUBLISH_LOG_CACHE)
 
-    try:
-        raw_content = blob_client.download_blob().readall()
-    except Exception as exc:
-        message = str(exc)
-        if "BlobNotFound" in message or "The specified blob does not exist" in message:
-            return []
-        raise
+        blob_name = _publish_log_blob_name()
+        blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
 
-    payload = json.loads(raw_content.decode("utf-8"))
-    if isinstance(payload, dict):
-        entries = payload.get("entries", [])
-    elif isinstance(payload, list):
-        entries = payload
-    else:
-        entries = []
+        try:
+            raw_content = blob_client.download_blob().readall()
+        except Exception as exc:
+            message = str(exc)
+            if "BlobNotFound" in message or "The specified blob does not exist" in message:
+                _PUBLISH_LOG_CACHE = []
+                return []
+            raise
 
-    return [item for item in entries if isinstance(item, dict)]
+        payload = json.loads(raw_content.decode("utf-8"))
+        if isinstance(payload, dict):
+            entries = payload.get("entries", [])
+        elif isinstance(payload, list):
+            entries = payload
+        else:
+            entries = []
+
+        _PUBLISH_LOG_CACHE = [item for item in entries if isinstance(item, dict)]
+        return list(_PUBLISH_LOG_CACHE)
 
 
 def save_publish_log_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Persist publish log entries to Azure Blob config container."""
+    global _PUBLISH_LOG_CACHE
+
     if not has_blob_storage_config():
         raise RuntimeError("Azure Blob Storage is required to save publish logs.")
 
-    cleaned_entries = [item for item in entries if isinstance(item, dict)]
-    payload = {"entries": cleaned_entries}
-    blob_name = _publish_log_blob_name()
-    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
-    blob_client.upload_blob(json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"), overwrite=True)
-    return cleaned_entries
+    with _PUBLISH_LOG_LOCK:
+        cleaned_entries = [item for item in entries if isinstance(item, dict)]
+        _PUBLISH_LOG_CACHE = list(cleaned_entries)
+        payload = {"entries": cleaned_entries}
+        blob_name = _publish_log_blob_name()
+        _enqueue_blob_sync_upload(
+            blob_name,
+            json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+        )
+        return list(cleaned_entries)
 
 
 def append_publish_log_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """Append one publish log entry and persist it in blob."""
+    global _PUBLISH_LOG_CACHE
+
     if not isinstance(entry, dict):
         raise TypeError("append_publish_log_entry expects a dictionary.")
+    if not has_blob_storage_config():
+        raise RuntimeError("Azure Blob Storage is required to save publish logs.")
 
-    entries = load_publish_log_entries()
-    entries.append(entry)
-    save_publish_log_entries(entries)
+    with _PUBLISH_LOG_LOCK:
+        if _PUBLISH_LOG_CACHE is None:
+            _PUBLISH_LOG_CACHE = load_publish_log_entries_cached(force_reload=False)
+
+        _PUBLISH_LOG_CACHE.append(entry)
+        cleaned_entries = [item for item in _PUBLISH_LOG_CACHE if isinstance(item, dict)]
+        _PUBLISH_LOG_CACHE = list(cleaned_entries)
+        payload = {"entries": cleaned_entries}
+        blob_name = _publish_log_blob_name()
+        _enqueue_blob_sync_upload(
+            blob_name,
+            json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+        )
     return entry
 
 
@@ -369,8 +455,10 @@ def save_publish_schedule_entries(entries: list[dict[str, Any]]) -> list[dict[st
     cleaned_entries = [item for item in entries if isinstance(item, dict)]
     payload = {"entries": cleaned_entries}
     blob_name = _publish_schedules_blob_name()
-    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
-    blob_client.upload_blob(json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"), overwrite=True)
+    _enqueue_blob_sync_upload(
+        blob_name,
+        json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+    )
     return cleaned_entries
 
 

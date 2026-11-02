@@ -8,7 +8,7 @@ import mimetypes
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 try:
     from azure.storage.blob import BlobServiceClient
@@ -207,17 +207,38 @@ def sync_local_directory_to_blob(
     destination_prefix: str,
     *,
     overwrite: bool = True,
+    clear_destination_first: bool = True,
     container_name: str | None = None,
+    is_cancel_requested: Callable[[], bool] | None = None,
+    on_file_transferred: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[str]:
     uploaded: list[str] = []
     prefix_clean = (destination_prefix or "").strip().strip("/")
-    for path in source_root.rglob("*"):
-        if not path.is_file():
-            continue
+    if clear_destination_first:
+        container_client = get_container_client(container_name)
+        list_prefix = f"{prefix_clean}/" if prefix_clean else None
+        for blob in container_client.list_blobs(name_starts_with=list_prefix):
+            if callable(is_cancel_requested) and is_cancel_requested():
+                raise RuntimeError("Operation cancelled by user.")
+            container_client.delete_blob(blob.name)
+    files = [path for path in source_root.rglob("*") if path.is_file()]
+    total_files = len(files)
+    for index, path in enumerate(files, start=1):
+        if callable(is_cancel_requested) and is_cancel_requested():
+            raise RuntimeError("Operation cancelled by user.")
         relative = path.relative_to(source_root).as_posix()
         blob_name = f"{prefix_clean}/{relative}" if prefix_clean else relative
         upload_file_to_blob(blob_name, path, overwrite=overwrite, container_name=container_name)
         uploaded.append(blob_name)
+        if callable(on_file_transferred):
+            on_file_transferred(
+                {
+                    "index": index,
+                    "total": total_files,
+                    "source_path": str(path),
+                    "blob_name": blob_name,
+                }
+            )
     return uploaded
 
 
@@ -230,6 +251,8 @@ def copy_blobs_between_containers(
     overwrite: bool = True,
     wait_for_completion: bool = True,
     timeout_seconds: int = 120,
+    is_cancel_requested: Callable[[], bool] | None = None,
+    on_file_transferred: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict:
     """Copy blobs from one container to another, optionally scoped by prefix."""
     normalized_source = (source_container or "").strip()
@@ -246,14 +269,29 @@ def copy_blobs_between_containers(
     source_client = get_container_client(normalized_source)
     destination_client = get_container_client(normalized_destination)
 
-    copied: list[dict] = []
-    skipped: list[dict] = []
-    failed: list[dict] = []
-
+    blobs_to_copy: list[str] = []
     for blob in source_client.list_blobs(name_starts_with=source_prefix_with_sep or None):
         source_blob_name = blob.name
         if source_blob_name.endswith("/"):
             continue
+        relative_name = source_blob_name
+        if source_prefix_with_sep and source_blob_name.startswith(source_prefix_with_sep):
+            relative_name = source_blob_name[len(source_prefix_with_sep):]
+        if not relative_name:
+            continue
+        blobs_to_copy.append(source_blob_name)
+
+    total_blobs = len(blobs_to_copy)
+    copied: list[dict] = []
+    skipped: list[dict] = []
+    failed: list[dict] = []
+
+    cancelled = False
+
+    for source_blob_name in blobs_to_copy:
+        if callable(is_cancel_requested) and is_cancel_requested():
+            cancelled = True
+            break
 
         relative_name = source_blob_name
         if source_prefix_with_sep and source_blob_name.startswith(source_prefix_with_sep):
@@ -284,6 +322,14 @@ def copy_blobs_between_containers(
             last_status = "pending"
 
             while time.monotonic() < deadline:
+                if callable(is_cancel_requested) and is_cancel_requested():
+                    cancelled = True
+                    if copy_id:
+                        try:
+                            destination_blob.abort_copy(copy_id)
+                        except Exception:
+                            pass
+                    break
                 props = destination_blob.get_blob_properties()
                 copy_props = getattr(props, "copy", None)
                 status = getattr(copy_props, "status", None) or "success"
@@ -291,6 +337,9 @@ def copy_blobs_between_containers(
                 if last_status in {"success", "failed", "aborted"}:
                     break
                 time.sleep(0.2)
+
+            if cancelled:
+                break
 
             if last_status != "success":
                 failed.append(
@@ -310,6 +359,17 @@ def copy_blobs_between_containers(
                 "copy_id": copy_id,
             }
         )
+        if callable(on_file_transferred):
+            on_file_transferred(
+                {
+                    "index": len(copied),
+                    "total": total_blobs,
+                    "source_blob_name": source_blob_name,
+                    "destination_blob_name": destination_blob_name,
+                }
+            )
+
+
 
     return {
         "source_container": normalized_source,
@@ -318,6 +378,7 @@ def copy_blobs_between_containers(
         "destination_prefix": destination_prefix_clean or None,
         "overwrite": overwrite,
         "wait_for_completion": wait_for_completion,
+        "cancelled": cancelled,
         "copied_count": len(copied),
         "skipped_count": len(skipped),
         "failed_count": len(failed),

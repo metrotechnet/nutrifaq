@@ -28,7 +28,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from api.services.logging import configure_logging  # noqa: E402
-from api.services.indexation_service import _write_progress_snapshot  # noqa: E402
+from api.services.indexation_service import _raise_if_cancel_requested, _write_progress_snapshot  # noqa: E402
 
 configure_logging()
 
@@ -335,6 +335,7 @@ def process_documents(documents_dir: Path):
     processed_files = 0
     processed_map = _load_pipeline_state(documents_dir.parent)
     for fpath in files:
+        _raise_if_cancel_requested("extract_references")
         try:
             if fpath.suffix.lower() == ".docx":
                 text = read_docx(str(fpath))

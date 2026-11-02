@@ -614,6 +614,17 @@
     word-break: break-word;
 }
 
+.publish-schedule-item-meta.is-recurring {
+    display: inline-block;
+    margin-top: 0.35rem;
+    padding: 0.18rem 0.45rem;
+    border-radius: 999px;
+    background: #e8f6f3;
+    border: 1px solid #b7ddd5;
+    color: #0f4d42;
+    font-weight: 700;
+}
+
 .publish-schedule-empty {
     margin: 0;
     color: #5d7a75;
@@ -783,6 +794,13 @@
     color: #1f514a;
     font-size: 0.8rem;
     font-weight: 700;
+}
+
+.publish-progress-message {
+    margin: 0.55rem 0 0;
+    color: #1f514a;
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
 .publish-finish-message {

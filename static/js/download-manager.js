@@ -80,6 +80,10 @@
         indexingProgressWrap: document.getElementById("indexing-progress-wrap"),
         indexingProgressBar: document.getElementById("indexing-progress-bar"),
         indexingProgressText: document.getElementById("indexing-progress-text"),
+        cancelIndexing: document.getElementById("cancel-indexing"),
+        indexingProgressWrapPublish: document.getElementById("indexing-progress-wrap-publish"),
+        indexingProgressBarPublish: document.getElementById("indexing-progress-bar-publish"),
+        indexingProgressTextPublish: document.getElementById("indexing-progress-text-publish"),
         filesTbody: document.getElementById("files-tbody"),
         statusMessage: document.getElementById("status-message"),
         publishSubmit: document.getElementById("publish-submit"),
@@ -89,6 +93,7 @@
         publishProgressWrap: document.getElementById("publish-progress-wrap"),
         publishProgressBar: document.getElementById("publish-progress-bar"),
         publishProgressText: document.getElementById("publish-progress-text"),
+        publishProgressMessage: document.getElementById("publish-progress-message"),
         publishLogsList: document.getElementById("publish-logs-list"),
         publishRefreshLogs: document.getElementById("publish-refresh-logs"),
         publishResetLogs: document.getElementById("publish-reset-logs"),
@@ -108,7 +113,11 @@
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function hydratePublishElements() {
         els.instructionsSection = document.getElementById("instructions-section");
+        els.cancelIndexing = document.getElementById("cancel-indexing");
         els.publishSection = document.getElementById("publish-section");
+        els.indexingProgressWrapPublish = document.getElementById("indexing-progress-wrap-publish");
+        els.indexingProgressBarPublish = document.getElementById("indexing-progress-bar-publish");
+        els.indexingProgressTextPublish = document.getElementById("indexing-progress-text-publish");
         els.publishSubmit = document.getElementById("publish-submit");
         els.publishCancel = document.getElementById("publish-cancel");
         els.publishStatus = document.getElementById("publish-status");
@@ -116,6 +125,7 @@
         els.publishProgressWrap = document.getElementById("publish-progress-wrap");
         els.publishProgressBar = document.getElementById("publish-progress-bar");
         els.publishProgressText = document.getElementById("publish-progress-text");
+        els.publishProgressMessage = document.getElementById("publish-progress-message");
         els.publishLogsList = document.getElementById("publish-logs-list");
         els.publishRefreshLogs = document.getElementById("publish-refresh-logs");
         els.publishResetLogs = document.getElementById("publish-reset-logs");
@@ -155,6 +165,79 @@
         }
     }
 
+    function setPublishProgressMessage(message) {
+        if (!els.publishProgressMessage) {
+            return;
+        }
+        const text = String(message || "").trim();
+        els.publishProgressMessage.textContent = text;
+        els.publishProgressMessage.hidden = !text;
+    }
+
+    function setPublishProgressWithMessage(value, message) {
+        const progressValue = Math.max(0, Math.min(100, Number(value) || 0));
+        const normalizedMessage = String(message || "").trim();
+        const progressText = normalizedMessage
+            ? `${normalizedMessage} (${Math.round(progressValue)}%)`
+            : `${Math.round(progressValue)}%`;
+        setPublishProgress(progressValue, progressText);
+        setPublishProgressMessage("");
+    }
+
+    function applyImmediateCancelUi() {
+        suppressImmediateScheduleBadge = true;
+        lastKnownActiveSchedule = null;
+        if (els.publishScheduleList) {
+            els.publishScheduleList.innerHTML = `<p class="publish-schedule-empty">${escapeHtml(tr("publish.schedule.empty", "Aucune planification active."))}</p>`;
+        }
+        hidePublishProgress();
+        setPublishFinishMessage("");
+    }
+
+    function getPublishTransferProgressMessage(data, fallbackMessage) {
+        const details = data && typeof data.details === "object" ? data.details : null;
+        if (!details) {
+            return fallbackMessage;
+        }
+
+        const current = Number(details.transfer_current || 0);
+        const total = Number(details.transfer_total || 0);
+        const transferFile = String(details.transfer_file || "").trim();
+        const transferPhase = String(details.transfer_phase || "").trim();
+
+        if (!transferFile || !Number.isFinite(current) || !Number.isFinite(total) || total <= 0) {
+            return fallbackMessage;
+        }
+
+        const params = {
+            current: Math.max(0, Math.round(current)),
+            total: Math.max(0, Math.round(total)),
+            file: transferFile,
+        };
+
+        if (transferPhase === "backup") {
+            return tr(
+                "publish.status.backingUpFile",
+                "Sauvegarde ({current}/{total}) : {file}",
+                params
+            );
+        }
+
+        if (transferPhase === "saving_database") {
+            return tr(
+                "publish.status.savingDatabaseFile",
+                "Transfert ({current}/{total}) : {file}",
+                params
+            );
+        }
+
+        return tr(
+            "publish.status.transferringFile",
+            "Transfert ({current}/{total}) : {file}",
+            params
+        );
+    }
+
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function hidePublishProgress() {
@@ -167,6 +250,7 @@
         if (els.publishProgressText) {
             els.publishProgressText.textContent = "0%";
         }
+        setPublishProgressMessage("");
     }
 
     // Purpose: Updates UI or local state so downstream interactions stay consistent.
@@ -542,15 +626,50 @@
     }
 
     function getPublishScheduleDisplayType(job) {
+        const scheduleKind = getPublishScheduleKind(job);
+        if (scheduleKind === "immediate") {
+            return tr("publish.schedule.immediateBadge", "Immédiat");
+        }
+        if (scheduleKind === "weekly") {
+            return tr("publish.schedule.weekly", "Chaque semaine");
+        }
+        if (scheduleKind === "daily") {
+            return tr("publish.schedule.daily", "Tous les jours");
+        }
+        if (scheduleKind === "once") {
+            return tr("publish.schedule.once", "Une fois");
+        }
+        if (scheduleKind === "interval") {
+            return tr("publish.schedule.interval", "Intervalle");
+        }
+        return tr("publish.schedule.planification", "Planification");
+    }
+
+    function getPublishScheduleKind(job) {
+        if (job && (job.immediate === true || String(job.immediate || "").toLowerCase() === "true")) {
+            return "immediate";
+        }
         const recurrence = job && job.recurrence ? String(job.recurrence).toLowerCase() : "";
         const trigger = job && job.trigger ? String(job.trigger).toLowerCase() : "";
         const scheduleText = job && job.schedule ? String(job.schedule).trim() : "";
+        const cronMatch = scheduleText.match(/^\S+\s+\S+\s+\*\s+\*\s+(\S+)$/);
+        const cronDayOfWeek = cronMatch && cronMatch[1] ? String(cronMatch[1]).toLowerCase() : "";
+        const triggerDayOfWeekMatch = trigger.match(/day_of_week='([^']+)'/);
+        const triggerDayOfWeek = triggerDayOfWeekMatch && triggerDayOfWeekMatch[1] ? String(triggerDayOfWeekMatch[1]).toLowerCase() : "";
+        const resolvedDayOfWeek = triggerDayOfWeek || cronDayOfWeek;
 
-        if (recurrence.includes("weekly") || /\*\s+\*\s+\*\s+\*\s+\d+/.test(scheduleText) || trigger.includes("day_of_week") && trigger.includes("0") && trigger.includes("cron")) {
-            return tr("publish.schedule.weekly", "Chaque semaine");
+        if (
+            recurrence.includes("weekly")
+            || (resolvedDayOfWeek && !["*", "0-6", "1-7", "mon-sun"].includes(resolvedDayOfWeek))
+        ) {
+            return "weekly";
         }
-        if (recurrence.includes("daily") || /^\d+\s+\d+\s+\*\s+\*\s+\*$/.test(scheduleText) || trigger.includes("cron") && trigger.includes("day_of_week='*'") && trigger.includes("hour='") && trigger.includes("minute='")) {
-            return tr("publish.schedule.daily", "Tous les jours");
+        if (
+            recurrence.includes("daily")
+            || ["*", "0-6", "1-7", "mon-sun"].includes(resolvedDayOfWeek)
+            || /^\d+\s+\d+\s+\*\s+\*\s+\*$/.test(scheduleText)
+        ) {
+            return "daily";
         }
         if (
             recurrence.includes("once") ||
@@ -563,18 +682,29 @@
             trigger.includes("manual") ||
             trigger.includes("immediate")
         ) {
-            return tr("publish.schedule.once", "Une fois");
+            return "once";
         }
         if (trigger.includes("interval") || recurrence.includes("interval")) {
-            return tr("publish.schedule.interval", "Intervalle");
+            return "interval";
         }
-        return tr("publish.schedule.planification", "Planification");
+        return "generic";
+    }
+
+    function getPublishScheduleMetaText(job, scheduleKind) {
+        const nextRun = job && job.next_run_time ? String(job.next_run_time) : (job && job.schedule ? String(job.schedule) : "—");
+        const formattedDate = formatSimpleScheduleDate(nextRun);
+        if (scheduleKind === "daily" || scheduleKind === "weekly") {
+            return tr("publish.schedule.nextRun", "Prochaine exécution") + " : " + formattedDate;
+        }
+        return formattedDate;
     }
 
     let publishScheduleJobsAutoRefreshTimer = null;
     let schedulerProcessingSyncInFlight = false;
     let lastSchedulerProcessingRunning = false;
     let isScheduleCancellationInFlight = false;
+    let lastKnownActiveSchedule = null;
+    let suppressImmediateScheduleBadge = false;
 
     function stopAllProcessingStatusPolling() {
         stopPublishStatusPolling();
@@ -582,14 +712,16 @@
     }
 
     async function fetchPublishSchedulerStatus() {
-        return fetchJson(`${BACKEND_URL}/api/publish/schedule/status`, {
+        const payload = await fetchJson(`${BACKEND_URL}/api/publish/schedule/status`, {
             headers: {
                 ...authHeaders()
             }
         });
+        // console.log("[publish/schedule/status]", payload);
+        return payload;
     }
 
-    async function syncScheduledProcessingState() {
+    async function syncScheduledProcessingState(schedulerStatusInput = null) {
         if (isScheduleCancellationInFlight) {
             return;
         }
@@ -598,19 +730,42 @@
         }
         schedulerProcessingSyncInFlight = true;
         try {
-            const schedulerStatus = await fetchPublishSchedulerStatus();
+            const schedulerStatus = schedulerStatusInput || await fetchPublishSchedulerStatus();
+            const publishRunning = Boolean(schedulerStatus && schedulerStatus.publish_running);
+            const indexingRunning = Boolean(schedulerStatus && schedulerStatus.indexing_running);
+            const transitionRunning = Boolean(schedulerStatus && schedulerStatus.transition_running);
             const processingRunning = Boolean(schedulerStatus && schedulerStatus.processing_running);
-            const shouldPollProcessing = processingRunning || lastSchedulerProcessingRunning;
+            const wasProcessingRunning = lastSchedulerProcessingRunning;
+            const shouldPollProcessing = processingRunning || wasProcessingRunning;
             lastSchedulerProcessingRunning = processingRunning;
 
-            if (!shouldPollProcessing) {
+            if (!processingRunning && wasProcessingRunning) {
+                await restorePublishUiFromServer();
+                stopAllProcessingStatusPolling();
                 return;
             }
 
-            await Promise.allSettled([
-                restorePublishUiFromServer(),
-                resumeIndexingIfRunning(),
-            ]);
+            if (!shouldPollProcessing) {
+                stopAllProcessingStatusPolling();
+                return;
+            }
+
+            if (publishRunning) {
+                stopIndexingStatusPolling();
+                setPublishStatus(tr("publish.status.inProgress", "Publication en cours..."), false);
+                await restorePublishUiFromServer();
+                return;
+            }
+
+            if (indexingRunning) {
+                stopPublishStatusPolling();
+                await resumeIndexingIfRunning();
+                return;
+            }
+
+            if (transitionRunning || processingRunning) {
+                startPublishStatusPolling();
+            }
         } finally {
             schedulerProcessingSyncInFlight = false;
         }
@@ -622,14 +777,15 @@
         }
         publishScheduleJobsAutoRefreshTimer = window.setInterval(async () => {
             try {
+                const schedulerStatus = await fetchPublishSchedulerStatus();
                 await Promise.allSettled([
-                    loadScheduledPublishJobs(),
-                    syncScheduledProcessingState(),
+                    loadScheduledPublishJobs(schedulerStatus),
+                    syncScheduledProcessingState(schedulerStatus),
                 ]);
             } catch (error) {
                 // Ignore background refresh failures; the list will retry on the next tick.
             }
-        }, 5000);
+        }, INDEXING_STATUS_POLL_MS);
     }
 
     function stopPublishScheduleAutoRefresh() {
@@ -640,15 +796,59 @@
         publishScheduleJobsAutoRefreshTimer = null;
     }
 
-    async function loadScheduledPublishJobs() {
+    function isPublishViewActive() {
+        if (!els.publishSection) {
+            return false;
+        }
+        const style = window.getComputedStyle(els.publishSection);
+        return style.display !== "none" && style.visibility !== "hidden";
+    }
+
+    function bindPageVisibilitySync() {
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                stopPublishScheduleAutoRefresh();
+                return;
+            }
+
+            if (!isPublishViewActive()) {
+                return;
+            }
+
+            startPublishScheduleAutoRefresh();
+            fetchPublishSchedulerStatus().then((schedulerStatus) => {
+                return Promise.allSettled([
+                    loadScheduledPublishJobs(schedulerStatus),
+                    syncScheduledProcessingState(schedulerStatus),
+                ]);
+            }).catch(() => {
+                // Ignore transient refresh failures.
+            });
+        });
+    }
+
+    async function loadScheduledPublishJobs(schedulerStatusInput = null) {
         if (!els.publishScheduleList) {
             return;
         }
 
         try {
-            const data = await fetchPublishSchedulerStatus();
-            const activeSchedule = data && data.active_schedule ? data.active_schedule : null;
-            const activeJobs = activeSchedule ? [activeSchedule] : [];
+            const data = schedulerStatusInput || await fetchPublishSchedulerStatus();
+            const processingRunning = Boolean(data && data.processing_running);
+            const rawActiveSchedule = data && data.active_schedule ? data.active_schedule : null;
+            const rawActiveScheduleKind = rawActiveSchedule ? getPublishScheduleKind(rawActiveSchedule) : "";
+            if (!processingRunning && !rawActiveSchedule) {
+                suppressImmediateScheduleBadge = false;
+            }
+            const shouldHideImmediateActiveSchedule = suppressImmediateScheduleBadge && rawActiveScheduleKind === "immediate";
+            const activeSchedule = shouldHideImmediateActiveSchedule ? null : rawActiveSchedule;
+            if (activeSchedule) {
+                lastKnownActiveSchedule = activeSchedule;
+            } else if (!processingRunning) {
+                lastKnownActiveSchedule = null;
+            }
+            const displaySchedule = activeSchedule || (processingRunning ? lastKnownActiveSchedule : null);
+            const activeJobs = displaySchedule ? [displaySchedule] : [];
 
             if (!activeJobs.length) {
                 els.publishScheduleList.innerHTML = '<p class="publish-schedule-empty">Aucune planification active.</p>';
@@ -656,16 +856,19 @@
             }
 
             els.publishScheduleList.innerHTML = activeJobs.map((job) => {
+                const scheduleKind = getPublishScheduleKind(job);
                 const title = getPublishScheduleDisplayType(job);
-                const nextRun = job && job.next_run_time ? String(job.next_run_time) : (job && job.schedule ? String(job.schedule) : "—");
-                const formattedDate = formatSimpleScheduleDate(nextRun);
+                const metaText = getPublishScheduleMetaText(job, scheduleKind);
+                const metaClass = scheduleKind === "daily" || scheduleKind === "weekly"
+                    ? "publish-schedule-item-meta is-recurring"
+                    : "publish-schedule-item-meta";
                 return `
                     <div class="publish-schedule-item">
                         <div class="publish-schedule-item-main">
                             <span class="publish-schedule-item-title">${escapeHtml(title)}</span>
-                            <div class="publish-schedule-item-meta">${escapeHtml(formattedDate)}</div>
+                            <div class="${metaClass}">${escapeHtml(metaText)}</div>
                         </div>
-                        <button type="button" class="dm-btn secondary publish-schedule-delete" data-job-id="${escapeHtml(String(job.id || ""))}">Supprimer</button>
+                        <button type="button" class="dm-btn danger publish-schedule-delete" data-job-id="${escapeHtml(String(job.id || ""))}" data-schedule-kind="${escapeHtml(scheduleKind)}">${escapeHtml(tr("publish.cancel.action", "Annuler"))}</button>
                     </div>
                 `;
             }).join("");
@@ -673,6 +876,8 @@
             els.publishScheduleList.querySelectorAll(".publish-schedule-delete").forEach((button) => {
                 button.addEventListener("click", async () => {
                     const jobId = button.getAttribute("data-job-id");
+                    const scheduleKind = String(button.getAttribute("data-schedule-kind") || "").toLowerCase();
+                    const isImmediateSchedule = scheduleKind === "immediate";
                     if (!jobId) {
                         return;
                     }
@@ -705,6 +910,9 @@
                             throw new Error(payload.detail || payload.message || response.statusText || tr("publish.schedule.deleteError", "Impossible de supprimer la planification."));
                         }
                         setPublishStatus(tr("publish.schedule.deleted", "Planification supprimée."), false);
+                        if (isImmediateSchedule) {
+                            applyImmediateCancelUi();
+                        }
                         await loadScheduledPublishJobs();
                     } catch (error) {
                         const message = error && error.message ? error.message : tr("publish.schedule.deleteError", "Impossible de supprimer la planification.");
@@ -748,6 +956,7 @@
     async function onPublishScheduleSubmit() {
         const selectedModel = getSelectedPublishModel();
         const selectedProvider = "azure";
+        suppressImmediateScheduleBadge = false;
 
         if (!selectedModel) {
             setPublishStatus(tr("publish.status.modelRequired", "Veuillez selectionner un modele."), true);
@@ -789,7 +998,7 @@
         try {
             if (recurrence === "manual") {
                 body.run_at = new Date().toISOString();
-                body.recurrence = "once";
+                body.recurrence = "immediate";
                 body.user_time = null;
                 body.cron = null;
                 body.job_id = "active-publish-schedule";
@@ -800,6 +1009,7 @@
                 const [hour, minute] = String(timeValue).split(":").map((part) => Number(part) || 0);
                 const dayOfWeek = Number(weekdayValue) || 0;
                 body.cron = `${minute} ${hour} * * ${dayOfWeek}`;
+                body.recurrence = "weekly";
             } else if (recurrence === "once") {
                 const scheduledDate = dateValue || new Date().toISOString().slice(0, 10);
                 body.run_at = `${scheduledDate}T${timeValue}:00`;
@@ -825,7 +1035,10 @@
                 : (typeof payload.code === "string" && payload.code.trim() ? payload.code : "publish.schedule.saved");
             const successFallback = typeof payload.message === "string" && payload.message.trim() ? payload.message : tr("publish.schedule.saved", "Planification enregistrée.");
             setPublishStatus(localizeMessageWithKey(successKey, successFallback), false);
-            await loadScheduledPublishJobs();
+            await Promise.allSettled([
+                loadScheduledPublishJobs(),
+                syncScheduledProcessingState(),
+            ]);
         } catch (error) {
             const message = error && error.message ? error.message : tr("publish.schedule.error", "Erreur lors de la planification.");
             setPublishStatus(message, true);
@@ -1215,6 +1428,7 @@
                             <div id="publish-progress-bar" class="publish-progress-bar" style="width:0%;"></div>
                         </div>
                         <div id="publish-progress-text" class="publish-progress-text">0%</div>
+                        <div id="publish-progress-message" class="publish-progress-message" hidden></div>
                     </div>
                 </div>
 
@@ -1261,11 +1475,10 @@
     let indexingAbortController = null;
     let statusRequestInFlight = false;
     let isIndexingRunning = false;
+    let indexingProgressSource = "manual";
     let currentStepKey = null;
     let currentStepPercent = 0;
-    let isStepTransitioning = false;
-    let stepSwitchTimer = null;
-    let hasReceivedValidStep = false;
+    let hasObservedRunningStatus = false;
     let currentFiles = [];
 
     const STEP_LABELS = {
@@ -1344,6 +1557,36 @@
         if (els.indexingProgressText) {
             els.indexingProgressText.textContent = text || `${clamped}%`;
         }
+        if (els.indexingProgressBarPublish) {
+            els.indexingProgressBarPublish.style.width = `${clamped}%`;
+        }
+        if (els.indexingProgressTextPublish) {
+            els.indexingProgressTextPublish.textContent = text || `${clamped}%`;
+        }
+    }
+
+    function setIndexingProgressVisible(isVisible) {
+        const visible = Boolean(isVisible);
+        const showIndexer = visible && indexingProgressSource === "manual";
+        const showPublish = visible && indexingProgressSource === "scheduled";
+        if (els.indexingProgressWrap) {
+            els.indexingProgressWrap.classList.toggle("is-visible", showIndexer);
+        }
+        if (els.indexingProgressWrapPublish) {
+            els.indexingProgressWrapPublish.classList.toggle("is-visible", showPublish);
+        }
+    }
+
+    function hideIndexingProgressForPublishingPhase() {
+        stopIndexingStatusPolling();
+        setIndexingProgressVisible(false);
+    }
+
+    function setIndexingCancelEnabled(isEnabled) {
+        if (!els.cancelIndexing) {
+            return;
+        }
+        els.cancelIndexing.disabled = !Boolean(isEnabled);
     }
 
     // Purpose: Updates UI or local state so downstream interactions stay consistent.
@@ -1361,17 +1604,13 @@
 
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
-    function beginIndexingProgress() {
+    function beginIndexingProgress(source) {
+        indexingProgressSource = source === "scheduled" ? "scheduled" : "manual";
         isIndexingRunning = true;
-        hasReceivedValidStep = false;
+        hasObservedRunningStatus = false;
         setDownloadStatusRowDisabled(true);
         currentStepKey = null;
         currentStepPercent = 0;
-        isStepTransitioning = false;
-        if (stepSwitchTimer) {
-            window.clearTimeout(stepSwitchTimer);
-            stepSwitchTimer = null;
-        }
 
         const preparingText = tr("downloadManager.progress.preparing", "Préparation...");
         if (els.indexingProgressBar) {
@@ -1380,15 +1619,20 @@
         if (els.indexingProgressText) {
             els.indexingProgressText.textContent = preparingText;
         }
-        if (els.indexingProgressWrap) {
-            els.indexingProgressWrap.classList.remove("is-visible");
-        }
+        setIndexingProgressVisible(true);
         if (els.startIndexing) {
             els.startIndexing.disabled = true;
             els.startIndexing.textContent = tr("downloadManager.buttons.indexingInProgress", "Indexage en cours...");
         }
+        setIndexingCancelEnabled(true);
 
         setIndexingProgress(0, preparingText);
+        if (indexingProgressSource === "scheduled") {
+            setPublishStatus(
+                tr("downloadManager.status.indexingInProgress", "Indexation en cours... cela peut prendre plusieurs minutes."),
+                false
+            );
+        }
 
         startIndexingStatusPolling();
     }
@@ -1397,15 +1641,10 @@
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function finishIndexingProgress(success) {
         isIndexingRunning = false;
-        hasReceivedValidStep = false;
+        hasObservedRunningStatus = false;
         setDownloadStatusRowDisabled(false);
         currentStepKey = null;
         currentStepPercent = 0;
-        isStepTransitioning = false;
-        if (stepSwitchTimer) {
-            window.clearTimeout(stepSwitchTimer);
-            stepSwitchTimer = null;
-        }
         stopIndexingStatusPolling();
 
         setIndexingProgress(100, success
@@ -1416,11 +1655,10 @@
             els.startIndexing.disabled = false;
             els.startIndexing.textContent = tr("downloadManager.buttons.startIndexing", "Démarrer un indexage");
         }
+        setIndexingCancelEnabled(false);
 
         window.setTimeout(() => {
-            if (els.indexingProgressWrap) {
-                els.indexingProgressWrap.classList.remove("is-visible");
-            }
+            setIndexingProgressVisible(false);
             setIndexingProgress(0, "0%");
         }, success ? 1200 : 2000);
     }
@@ -1451,47 +1689,47 @@
             if (wasCancelled) {
                 stopIndexingStatusPolling();
                 finishIndexingProgress(false);
-                setStatus(tr("downloadManager.status.indexingCancelled", "Indexage annulé."), true);
+                const cancelledText = tr("downloadManager.status.indexingCancelled", "Indexage annulé.");
+                setStatus(cancelledText, true);
+                if (indexingProgressSource === "scheduled") {
+                    setPublishStatus(cancelledText, true);
+                }
                 return;
             }
 
+            if (regen.running) {
+                hasObservedRunningStatus = true;
+            }
+
             if (!regen.running) {
+                if (!hasObservedRunningStatus) {
+                    return;
+                }
                 stopIndexingStatusPolling();
-                setStatus(tr("downloadManager.status.indexingCompleted", "Indexage terminé."), false);
+                const completedStatus = tr("downloadManager.progress.completed", "Terminé");
+                setStatus(
+                    tr(
+                        "downloadManager.status.indexingCompleted",
+                        "Indexation terminée. Statut : {status}",
+                        { status: completedStatus }
+                    ),
+                    false
+                );
+                if (indexingProgressSource === "scheduled") {
+                    setPublishStatus(
+                        tr(
+                            "downloadManager.status.indexingCompleted",
+                            "Indexation terminée. Statut : {status}",
+                            { status: completedStatus }
+                        ),
+                        false
+                    );
+                }
                 finishIndexingProgress(true);
                 return;
             }
 
             const stepKey = regen.current_step || null;
-            if (!stepKey) {
-                if (!regen.running) {
-                    setStatus(tr("downloadManager.status.indexingCompleted", "Indexage terminé."), false);
-                    finishIndexingProgress(true);
-                    return;
-                }
-                const fallbackProgress = Number.isFinite(Number(regen.progress_percent))
-                    ? Number(regen.progress_percent)
-                    : 0;
-                if (els.indexingProgressWrap) {
-                    els.indexingProgressWrap.classList.add("is-visible");
-                }
-                setStatus(tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."), false);
-                setIndexingProgress(fallbackProgress, `${tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes.")} (${Math.round(fallbackProgress)}%)`);
-                return;
-            }
-
-            if (!regen.current_step || !regen.step_index || !regen.total_steps) {
-                if (els.indexingProgressWrap) {
-                    els.indexingProgressWrap.classList.add("is-visible");
-                }
-                setStatus(tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."), false);
-                setIndexingProgress(0, tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."));
-                return;
-            }
-
-            const label = regen.current_step_label || getStepLabel(stepKey);
-            const stepIndex = Number(regen.step_index || 0);
-            const totalSteps = Number(regen.total_steps || 0);
             const liveProgressPercent = Number.isFinite(Number(regen.progress_percent))
                 ? Number(regen.progress_percent)
                 : null;
@@ -1503,60 +1741,39 @@
                 : null;
             const liveProgressKind = regen.progress_kind || "";
 
-            if (isStepTransitioning) {
-                return;
-            }
-
-            if (!Number.isFinite(stepIndex) || stepIndex < 1) {
-                if (els.indexingProgressWrap) {
-                    els.indexingProgressWrap.classList.add("is-visible");
-                }
-                setIndexingProgress(0, tr("downloadManager.progress.preparing", "Préparation..."));
-                return;
-            }
-            if (stepIndex !== 1 && !hasReceivedValidStep) {
-                if (els.indexingProgressWrap) {
-                    els.indexingProgressWrap.classList.add("is-visible");
-                }
-                setIndexingProgress(0, tr("downloadManager.progress.preparing", "Préparation..."));
-                return;
-            }
-            if (stepIndex === 1) {
-                hasReceivedValidStep = true;
-                if (els.indexingProgressWrap) {
-                    els.indexingProgressWrap.classList.add("is-visible");
-                }
-            }
-
             currentStepKey = stepKey;
             if (liveProgressPercent !== null) {
                 currentStepPercent = Math.max(0, Math.min(100, liveProgressPercent));
             } else if (liveProgressTotal && liveProgressValue !== null) {
                 currentStepPercent = Math.max(0, Math.min(100, (liveProgressValue / liveProgressTotal) * 100));
             } else {
-                return;
+                currentStepPercent = 0;
             }
 
-            const countText = stepIndex > 0 && totalSteps > 0
-                ? ` (${stepIndex}/${totalSteps})`
-                : "";
+            const label = stepKey
+                ? (regen.current_step_label || getStepLabel(stepKey))
+                : tr("downloadManager.status.indexingInProgress", "Indexage en cours...");
+            const metricUnit = liveProgressKind === "tokens"
+                ? "tokens"
+                : (liveProgressKind === "files" ? "fichiers" : "questions");
             const metricText = liveProgressTotal && liveProgressValue !== null
-                ? ` (${Math.round(liveProgressValue)}/${Math.round(liveProgressTotal)} ${liveProgressKind === "tokens" ? "tokens" : "questions"})`
+                ? ` (${Math.round(liveProgressValue)}/${Math.round(liveProgressTotal)} ${metricUnit})`
                 : "";
-            // console.log(`Step: ${countText}, Label: ${label}, Metric: ${metricText}, Progress: ${currentStepPercent}%`);
-            setIndexingProgress(
-                currentStepPercent,
-                tr(
-                    "downloadManager.progress.step",
-                    `Etape${countText}: ${label}${metricText} (${Math.round(currentStepPercent)}%)`,
-                    {
-                        countText,
-                        label,
-                        metricText,
-                        percent: Math.round(currentStepPercent)
-                    }
-                )
-            );
+            const displayText = `${label}${metricText} (${Math.round(currentStepPercent)}%)`;
+            setIndexingProgressVisible(true);
+            if (indexingProgressSource !== "scheduled") {
+                setStatus(
+                    tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."),
+                    false
+                );
+            }
+            if (indexingProgressSource === "scheduled") {
+                setPublishStatus(
+                    tr("downloadManager.status.indexingInProgress", "Indexation en cours... cela peut prendre plusieurs minutes."),
+                    false
+                );
+            }
+            setIndexingProgress(currentStepPercent, displayText);
         } catch (_) {
             // Ignore transient status polling errors while indexing is running.
         } finally {
@@ -1587,7 +1804,7 @@
                 return;
             }
             if (!isIndexingRunning) {
-                beginIndexingProgress();
+                beginIndexingProgress("scheduled");
             }
             if (indexingStatusTimer !== null) {
                 await refreshIndexingStatus();
@@ -1608,9 +1825,13 @@
                 : `${tr("downloadManager.status.indexingInProgress", "Indexage en cours...")} (${Math.round(percent)}%)`;
             setIndexingProgress(percent, displayText);
             setStatus(displayText, false);
-            if (els.indexingProgressWrap) {
-                els.indexingProgressWrap.classList.add("is-visible");
+            if (indexingProgressSource === "scheduled") {
+                setPublishStatus(
+                    tr("downloadManager.status.indexingInProgress", "Indexation en cours... cela peut prendre plusieurs minutes."),
+                    false
+                );
             }
+            setIndexingProgressVisible(true);
             await refreshIndexingStatus();
         } catch (_) {
             // Ignore status bootstrap errors on page load.
@@ -2304,7 +2525,7 @@
             const resultDetails = entry && typeof entry.result === "object" ? entry.result : {};
             const scheduledFor = details.scheduled_for || details.run_at || details.triggered_at || entry.scheduled_for || resultDetails.scheduled_for || resultDetails.run_at || resultDetails.triggered_at || entry.timestamp || "-";
             const timestampRaw = String(scheduledFor);
-            console.log("Scheduled for raw value:", scheduledFor);
+            // console.log("Scheduled for raw value:", scheduledFor);
             const modelRaw = String(entry.model_used || entry.model || details.model_used || details.model || tr("publish.logs.modelUnknown", "inconnu"));
             const providerRaw = String(entry.provider_used || entry.provider || details.provider_used || details.provider || tr("publish.logs.providerUnknown", "inconnu"));
             const filesCountRaw = Number(entry.files_count || details.files_count || details.uploaded_files_count || 0);
@@ -2373,6 +2594,9 @@
         if (isScheduleCancellationInFlight) {
             return;
         }
+        if (publishStatusTimer) {
+            return;
+        }
         stopPublishStatusPolling();
         publishStatusPollInFlight = false;
         publishTerminalStateHandled = false;
@@ -2393,16 +2617,45 @@
                 });
                 const progress = Number(data.progress || 0);
                 const running = Boolean(data.running);
+                const indexingRunning = Boolean(data && data.indexation && data.indexation.running);
+                const isCancelling = Boolean(data.cancel_requested) || String(data.status || "").toLowerCase() === "cancelling";
                 const message = data.message || "";
                 const messageKey = typeof data.message_key === "string" && data.message_key.trim() ? data.message_key : null;
 
                 setPublishControlsDisabled(running);
 
+                if (isCancelling) {
+                    applyImmediateCancelUi();
+                    setPublishStatus(tr("publish.status.cancelRequested", "Annulation demandée..."), false);
+                    return;
+                }
+
                 if (running || progress > 0) {
-                    setPublishProgress(progress, `${Math.round(progress)}%`);
-                    if (message || messageKey) {
-                        setPublishStatus(localizeMessageWithKey(messageKey, message || tr("publish.status.inProgress", "Publication en cours...")), false);
+                    const localizedMessage = localizeMessageWithKey(
+                        messageKey,
+                        message || tr("publish.status.preparing", "Préparation de la publication...")
+                    );
+                    const progressMessage = getPublishTransferProgressMessage(data, localizedMessage);
+                    setPublishProgressWithMessage(progress, progressMessage);
+                    if (running) {
+                        hideIndexingProgressForPublishingPhase();
+                        const operation = String(data.operation || "publish");
+                        const workflowMessage = operation === "revert"
+                            ? tr("publish.revert.inProgress", "Restauration en cours...")
+                            : tr("publish.status.inProgress", "Publication en cours...");
+                        setPublishStatus(workflowMessage, false);
                     }
+                }
+
+                if (!running && indexingRunning) {
+                    stopPublishStatusPolling();
+                    setPublishStatus(
+                        tr("downloadManager.status.indexingInProgress", "Indexation en cours... cela peut prendre plusieurs minutes."),
+                        false
+                    );
+                    setPublishControlsDisabled(true);
+                    await resumeIndexingIfRunning();
+                    return;
                 }
 
                 if (!running && data.status === "completed") {
@@ -2427,7 +2680,7 @@
                         );
                         setPublishStatus(finishedText, false);
                     }
-                    setPublishProgress(100, "100%");
+                    hidePublishProgress();
                     setPublishFinishMessage("");
                     await showAlertMessage(
                         tr(
@@ -2446,7 +2699,7 @@
                     stopPublishStatusPolling();
                     setPublishControlsDisabled(false);
                     setPublishStatus(tr("publish.status.cancelRequested", "Publication annulée."), false);
-                    setPublishProgress(100, "100%");
+                    applyImmediateCancelUi();
                     await loadActivePublishLogs();
                     return;
                 }
@@ -2461,6 +2714,7 @@
                     setPublishStatus(localizeMessageWithKey(errorKey, data.error || defaultError), true);
                     setPublishFinishMessage("");
                     setPublishProgress(100, "100%");
+                    setPublishProgressMessage("");
                     await loadActivePublishLogs();
                     return;
                 }
@@ -2472,7 +2726,7 @@
         };
 
         poll();
-        publishStatusTimer = window.setInterval(poll, 1500);
+        publishStatusTimer = window.setInterval(poll, INDEXING_STATUS_POLL_MS);
     }
 
     async function onPublishCancel() {
@@ -2481,6 +2735,7 @@
                 return;
             }
             setPublishStatus(tr("publish.status.cancelRequested", "Annulation demandée..."), false);
+            hidePublishProgress();
             await fetchJson(`${BACKEND_URL}/api/publish/cancel`, {
                 method: "POST",
                 headers: {
@@ -2501,33 +2756,83 @@
                 headers: { ...authHeaders() }
             });
             const running = Boolean(data && data.running);
+            const indexingRunning = Boolean(data && data.indexation && data.indexation.running);
             const status = String((data && data.status) || "idle");
+            const isCancelling = Boolean(data && data.cancel_requested) || status.toLowerCase() === "cancelling";
             const message = (data && data.message) ? String(data.message) : "";
+            const messageKey = typeof data?.message_key === "string" && data.message_key.trim() ? data.message_key : null;
             const progress = Number((data && data.progress) || 0);
 
-            if (running) {
-                setPublishProgress(progress || 0, `${Math.round(progress || 0)}%`);
-                setPublishStatus(message || tr("publish.status.inProgress", "Publication en cours..."), false);
+            if (isCancelling) {
+                setPublishStatus(tr("publish.status.cancelRequested", "Annulation demandée..."), false);
+                applyImmediateCancelUi();
                 setPublishControlsDisabled(true);
                 startPublishStatusPolling();
                 return;
             }
 
+            if (running) {
+                const localizedMessage = localizeMessageWithKey(
+                    messageKey,
+                    message || tr("publish.status.preparing", "Préparation de la publication...")
+                );
+                const progressMessage = getPublishTransferProgressMessage(data, localizedMessage);
+                setPublishProgressWithMessage(progress || 0, progressMessage);
+                hideIndexingProgressForPublishingPhase();
+                const operation = String((data && data.operation) || "publish");
+                const workflowMessage = operation === "revert"
+                    ? tr("publish.revert.inProgress", "Restauration en cours...")
+                    : tr("publish.status.inProgress", "Publication en cours...");
+                setPublishStatus(workflowMessage, false);
+                setPublishControlsDisabled(true);
+                startPublishStatusPolling();
+                return;
+            }
+
+            if (indexingRunning) {
+                stopPublishStatusPolling();
+                setPublishStatus(
+                    tr("downloadManager.status.indexingInProgress", "Indexation en cours... cela peut prendre plusieurs minutes."),
+                    false
+                );
+                setPublishControlsDisabled(true);
+                await resumeIndexingIfRunning();
+                return;
+            }
+
             if (status === "cancelled") {
                 setPublishStatus(tr("publish.status.cancelRequested", "Publication annulée."), false);
-                setPublishProgress(100, "100%");
+                applyImmediateCancelUi();
                 return;
             }
 
             if (status === "completed") {
-                setPublishStatus(tr("publish.status.completed", "Publication terminée."), false);
-                setPublishProgress(100, "100%");
+                const filesCount = Number((data && data.uploaded_files_count) || 0);
+                const completedAtRaw = data && data.updated_at ? String(data.updated_at) : "";
+                const completedAt = completedAtRaw
+                    ? (Number.isNaN(new Date(completedAtRaw).getTime()) ? completedAtRaw : new Date(completedAtRaw).toLocaleString())
+                    : new Date().toLocaleString();
+                const operation = String((data && data.operation) || "publish");
+                const completedText = operation === "revert"
+                    ? localizeMessageWithKey(
+                        "publish.revert.done",
+                        "Restauration terminée ({count} fichiers): {timestamp}",
+                        { count: filesCount, timestamp: completedAt }
+                    )
+                    : localizeMessageWithKey(
+                        "publish.status.completed",
+                        "Publication terminée ({count} fichiers): {timestamp}",
+                        { count: filesCount, timestamp: completedAt }
+                    );
+                setPublishStatus(completedText, false);
+                hidePublishProgress();
                 return;
             }
 
             if (status === "error") {
                 setPublishStatus(data && data.error ? String(data.error) : tr("publish.status.error", "Publication failed."), true);
                 setPublishProgress(100, "100%");
+                setPublishProgressMessage("");
                 return;
             }
 
@@ -2560,8 +2865,9 @@
             return;
         }
 
-        setPublishProgress(5, "5%")
-        setPublishStatus(tr("publish.status.inProgress", "Publication en cours..."), false);
+        hideIndexingProgressForPublishingPhase();
+        setPublishProgressWithMessage(5, tr("publish.status.preparing", "Préparation de la publication..."));
+        setPublishStatus("", false);
         setPublishFinishMessage("");
         setPublishControlsDisabled(true);
 
@@ -2617,8 +2923,9 @@
             return;
         }
 
-        setPublishProgress(5, "5%");
-        setPublishStatus(tr("publish.revert.inProgress", "Restauration en cours..."), false);
+        hideIndexingProgressForPublishingPhase();
+        setPublishProgressWithMessage(5, tr("publish.revert.inProgress", "Restauration en cours..."));
+        setPublishStatus("", false);
         setPublishFinishMessage("");
         setPublishControlsDisabled(true);
 
@@ -3244,7 +3551,7 @@
         }
 
         try {
-            beginIndexingProgress();
+            beginIndexingProgress("manual");
             indexingAbortController = new AbortController();
             setStatus(tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."), false);
             const selectedModel = String(localStorage.getItem('nutrifaq_selected_model') || '').trim();
@@ -3300,6 +3607,41 @@
         } finally {
             indexingAbortController = null;
         }
+    }
+
+    async function onIndexingCancel() {
+        if (!isIndexingRunning || !els.cancelIndexing || els.cancelIndexing.disabled) {
+            return;
+        }
+        try {
+            setIndexingCancelEnabled(false);
+            setStatus(tr("downloadManager.status.indexingCancelRequested", "Annulation de l'indexage demandée..."), false);
+            await fetchJson(`${BACKEND_URL}/api/database/indexing/cancel`, {
+                method: "POST",
+                headers: {
+                    ...authHeaders(),
+                    "Content-Type": "application/json",
+                }
+            });
+        } catch (error) {
+            const message = error && error.message
+                ? error.message
+                : tr("downloadManager.status.indexingCancelError", "Erreur lors de l'annulation de l'indexage.");
+            setStatus(message, true);
+            if (isIndexingRunning) {
+                setIndexingCancelEnabled(true);
+            }
+        }
+    }
+
+    function initIndexingCancelButton() {
+        if (!els.cancelIndexing || els.cancelIndexing.dataset.bound === "1") {
+            return;
+        }
+        els.cancelIndexing.dataset.bound = "1";
+        els.cancelIndexing.textContent = tr("publish.cancel.action", "Annuler");
+        els.cancelIndexing.addEventListener("click", onIndexingCancel);
+        setIndexingCancelEnabled(false);
     }
 
     // Purpose: Attaches event listeners and links UI controls to their handlers.
@@ -3365,10 +3707,12 @@
     function init() {
         ensurePublishSectionMounted();
         ensurePublishRefreshControl();
+        initIndexingCancelButton();
         initPublishCancelButton();
         bindNavigationToggles();
         bindTokenSync();
         bindConfigLanguageSync();
+        bindPageVisibilitySync();
         initializeLandingView();
 
         if (els.refreshFiles) {

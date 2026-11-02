@@ -10,10 +10,11 @@ from api.services.config import load_publish_log_entries, reset_publish_log_entr
 from api.services.entra_auth_service import EntraUser, require_admin
 from api.services.publish_scheduler import (
     cancel_scheduled_publish,
+    clear_active_publish_schedule_on_cancel,
     get_publish_scheduler_status,
     schedule_publish,
 )
-from api.services.publish_service import cancel_publish, get_publish_status, start_publish, start_revert
+from api.services.publish_service import cancel_publish, get_publish_status, start_revert
 
 router = APIRouter()
 
@@ -99,9 +100,11 @@ def schedule_publish_api(
             job_id=payload.job_id or "active-publish-schedule",
         )
     except ValueError as exc:
+        status_code = 409 if "already running" in str(exc).lower() else 400
+        message_key = "publish.schedule.busy" if status_code == 409 else "publish.schedule.invalid"
         return JSONResponse(
-            status_code=400,
-            content={"status": "error", "message": str(exc), "message_key": "publish.schedule.invalid"},
+            status_code=status_code,
+            content={"status": "error", "message": str(exc), "message_key": message_key},
         )
 
 
@@ -120,7 +123,11 @@ def delete_publish_schedule(job_id: str, _: EntraUser = Depends(require_admin)):
 @router.post("/api/publish/cancel")
 def cancel_publish_api(_: EntraUser = Depends(require_admin)):
     """Request cancellation of the current publish or revert job."""
-    return cancel_publish()
+    cancel_result = cancel_publish()
+    schedule_cleanup = clear_active_publish_schedule_on_cancel()
+    if isinstance(cancel_result, dict):
+        cancel_result["schedule"] = schedule_cleanup
+    return cancel_result
 
 
 @router.post("/api/publish/revert")

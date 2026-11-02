@@ -52,7 +52,7 @@ load_dotenv(REPO_ROOT / ".env", override=False)
 
 from api.services.logging import configure_logging  # noqa: E402
 from api.services.llm_service import create_chat_completion_text, get_gateway_client  # noqa: E402
-from api.services.indexation_service import _write_progress_snapshot  # noqa: E402
+from api.services.indexation_service import _raise_if_cancel_requested, _write_progress_snapshot  # noqa: E402
 
 configure_logging()
 
@@ -163,6 +163,7 @@ def review_document_text(kb_dir: Path, llm_model: str | None = None):
     _write_progress_snapshot("review_document_text", 0, total_documents, "files")
 
     for index, doc in enumerate(docs, start=1):
+        _raise_if_cancel_requested("review_document_text")
         try:
             if not isinstance(doc, dict):
                 logger.info("Skipping invalid document entry %s/%s", index, total_documents)
@@ -226,6 +227,7 @@ def review_document_text(kb_dir: Path, llm_model: str | None = None):
             )
         finally:
             _write_progress_snapshot("review_document_text", index, total_documents, "files")
+
 
     payload = {
         "total_documents": len(reviewed_documents),

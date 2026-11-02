@@ -103,6 +103,103 @@ def test_schedule_publish_executes_debug_to_main_sync_and_indexing(tmp_path, mon
     assert ("sync", str(main_root), "nutrifaq-dbase", "nutrifaq-dbase-main") in events
 
 
+def test_final_publish_indexing_skips_generate_questions(monkeypatch):
+    captured_kwargs = {}
+
+    def fake_run_full_indexation(**kwargs):
+        captured_kwargs.update(kwargs)
+        return {"status": "success"}
+
+    monkeypatch.setattr(publish_scheduler, "run_full_indexation", fake_run_full_indexation)
+    monkeypatch.setattr(publish_scheduler, "_run_publish_job", lambda model, provider: None)
+    monkeypatch.setattr(publish_scheduler, "_append_schedule_log", lambda *args, **kwargs: {})
+
+    result = publish_scheduler.run_indexation_then_publish(model="gpt-4o-mini", provider="azure")
+
+    assert result["status"] == "ok"
+    assert captured_kwargs["include_extract_docx"] is True
+    assert captured_kwargs["include_extract_references"] is True
+    assert captured_kwargs["include_generate_questions"] is False
+
+
+def test_schedule_publish_immediate_uses_current_time():
+    job_id = "test-immediate-publish"
+    before = datetime.now(timezone.utc)
+    result = publish_scheduler.schedule_publish(
+        model="gpt-4o-mini",
+        provider="azure",
+        recurrence="immediate",
+        timezone_name="UTC",
+        job_id=job_id,
+    )
+    try:
+        assert result["status"] == "scheduled"
+        run_at = result.get("persisted", {}).get("run_at")
+        assert isinstance(run_at, str) and run_at
+        scheduled_at = datetime.fromisoformat(run_at)
+        delay_seconds = (scheduled_at - before).total_seconds()
+        assert 0 <= delay_seconds <= 5
+    finally:
+        publish_scheduler.cancel_scheduled_publish(job_id)
+
+
+def test_schedule_publish_once_near_time_is_not_marked_immediate():
+    job_id = "test-once-near-time"
+    run_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+    result = publish_scheduler.schedule_publish(
+        model="gpt-4o-mini",
+        provider="azure",
+        publish_at=run_at.isoformat(),
+        recurrence="once",
+        timezone_name="UTC",
+        job_id=job_id,
+    )
+    try:
+        persisted = result.get("persisted", {})
+        assert persisted.get("immediate") is False
+        assert persisted.get("recurrence") == "one_time"
+    finally:
+        publish_scheduler.cancel_scheduled_publish(job_id)
+
+
+def test_schedule_publish_immediate_rejected_while_processing(monkeypatch):
+    monkeypatch.setattr(publish_scheduler, "get_publish_status", lambda: {"running": True})
+    monkeypatch.setattr(publish_scheduler, "get_indexation_status", lambda: {"running": False})
+
+    try:
+        publish_scheduler.schedule_publish(
+            model="gpt-4o-mini",
+            provider="azure",
+            recurrence="immediate",
+            timezone_name="UTC",
+            job_id="test-immediate-while-running",
+        )
+    except ValueError as exc:
+        assert "already running" in str(exc).lower()
+    else:
+        raise AssertionError("Expected immediate scheduling to be rejected while processing is running.")
+
+
+def test_immediate_schedule_cleared_after_workflow(monkeypatch):
+    removed_job_ids = []
+
+    monkeypatch.setattr(publish_scheduler, "run_full_indexation", lambda **kwargs: {"status": "success"})
+    monkeypatch.setattr(publish_scheduler, "_run_publish_job", lambda model, provider: None)
+    monkeypatch.setattr(publish_scheduler, "get_publish_status", lambda: {"status": "completed"})
+    monkeypatch.setattr(publish_scheduler, "_append_schedule_log", lambda *args, **kwargs: {})
+    monkeypatch.setattr(publish_scheduler, "_remove_persisted_schedule", lambda job_id: removed_job_ids.append(job_id) or [])
+
+    result = publish_scheduler.run_indexation_then_publish(
+        model="gpt-4o-mini",
+        provider="azure",
+        immediate=True,
+        schedule_job_id="active-publish-schedule",
+    )
+
+    assert result["status"] == "ok"
+    assert removed_job_ids == ["active-publish-schedule"]
+
+
 def test_indexation_progress_uses_question_and_token_totals(monkeypatch):
     monkeypatch.setattr(regen_service, "_regen_state", {
         "running": True,
@@ -130,6 +227,34 @@ def test_indexation_progress_uses_question_and_token_totals(monkeypatch):
     })
 
     status = regen_service.get_indexation_status()
+    assert status["progress_kind"] == "tokens"
+    assert status["progress_total"] == 5000
+    assert status["progress_percent"] == 50.0
+
+
+def test_indexation_status_reads_latest_snapshot_progress(monkeypatch, tmp_path):
+    snapshot_path = tmp_path / "indexing_progress.json"
+    snapshot_path.write_text(json.dumps({
+        "step": "index_chromadb_json",
+        "kind": "tokens",
+        "value": 2500,
+        "total": 5000,
+        "updated_at": 12345,
+    }), encoding="utf-8")
+
+    monkeypatch.setattr(regen_service, "REGEN_PROGRESS_PATH", snapshot_path)
+    monkeypatch.setattr(regen_service, "_regen_state", {
+        "running": True,
+        "cancel_requested": False,
+        "current_step": None,
+        "progress_value": None,
+        "progress_total": None,
+        "progress_kind": None,
+        "active_process": None,
+    })
+
+    status = regen_service.get_indexation_status()
+    assert status["current_step"] == "index_chromadb_json"
     assert status["progress_kind"] == "tokens"
     assert status["progress_total"] == 5000
     assert status["progress_percent"] == 50.0

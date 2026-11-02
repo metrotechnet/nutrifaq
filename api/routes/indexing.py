@@ -145,6 +145,7 @@ async def index_database(
             process_only_new_files = incoming_new_files_only
         elif isinstance(incoming_new_files_only, str):
             process_only_new_files = incoming_new_files_only.strip().lower() in {"1", "true", "yes", "on"}
+            
     result = start_background_indexation(
         include_extract_docx=True,
         include_extract_references=True,

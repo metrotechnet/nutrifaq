@@ -24,7 +24,7 @@ from api.services.config import (
     upsert_publish_schedule_entry,
 )
 from api.services.indexation_service import get_indexation_status, request_indexation_cancel, run_full_indexation
-from api.services.publish_service import cancel_publish, get_publish_status, start_publish
+from api.services.publish_service import _run_publish_job, cancel_publish, get_publish_status
 
 logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -43,10 +43,55 @@ AUTO_PUBLISH_COOLDOWN_MINUTES = int(os.getenv("AUTO_PUBLISH_COOLDOWN_MINUTES", "
 
 _scheduler: BackgroundScheduler | None = None
 _scheduler_lock = threading.RLock()
+_schedule_transition_lock = threading.Lock()
+_schedule_transition_in_progress = 0
+_schedule_cancel_latch_lock = threading.Lock()
+_schedule_cancel_latched_job_ids: set[str] = set()
 _schedule_persist_lock = threading.Lock()
 _schedule_persist_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="publish-schedule-persist")
 _schedule_persist_sequence_by_job: dict[str, int] = {}
+_immediate_schedule_state_lock = threading.Lock()
+_immediate_schedule_cleared_at: str | None = None
+_immediate_schedule_cleared_job_id: str | None = None
 _FILE_CHANGE_SNAPSHOT_PATH = REPO_ROOT / ".publish_file_snapshot.json"
+
+
+def _set_schedule_transition_running(is_running: bool) -> None:
+    global _schedule_transition_in_progress
+    with _schedule_transition_lock:
+        if is_running:
+            _schedule_transition_in_progress += 1
+            return
+        _schedule_transition_in_progress = max(0, _schedule_transition_in_progress - 1)
+
+
+def _is_schedule_transition_running() -> bool:
+    with _schedule_transition_lock:
+        return _schedule_transition_in_progress > 0
+
+
+def _mark_schedule_cancel_requested(job_id: str | None) -> None:
+    normalized_job_id = str(job_id or "").strip()
+    if not normalized_job_id:
+        return
+    with _schedule_cancel_latch_lock:
+        _schedule_cancel_latched_job_ids.add(normalized_job_id)
+
+
+def _is_schedule_cancel_requested(job_id: str | None) -> bool:
+    normalized_job_id = str(job_id or "").strip()
+    if not normalized_job_id:
+        return False
+    with _schedule_cancel_latch_lock:
+        return normalized_job_id in _schedule_cancel_latched_job_ids
+
+
+def _clear_schedule_cancel_requested(job_id: str | None) -> None:
+    normalized_job_id = str(job_id or "").strip()
+    if not normalized_job_id:
+        return
+    with _schedule_cancel_latch_lock:
+        _schedule_cancel_latched_job_ids.discard(normalized_job_id)
 
 
 def _append_schedule_log(event: str, **details: Any) -> dict[str, Any]:
@@ -97,6 +142,26 @@ def _append_schedule_log(event: str, **details: Any) -> dict[str, Any]:
         return append_publish_log_entry(entry)
     except Exception:
         return entry
+
+
+def _mark_immediate_schedule_cleared(job_id: str | None) -> None:
+    normalized_job_id = str(job_id or "").strip() or "active-publish-schedule"
+    with _immediate_schedule_state_lock:
+        global _immediate_schedule_cleared_at, _immediate_schedule_cleared_job_id
+        _immediate_schedule_cleared_at = datetime.now(timezone.utc).isoformat()
+        _immediate_schedule_cleared_job_id = normalized_job_id
+
+
+def _reset_immediate_schedule_cleared_state() -> None:
+    with _immediate_schedule_state_lock:
+        global _immediate_schedule_cleared_at, _immediate_schedule_cleared_job_id
+        _immediate_schedule_cleared_at = None
+        _immediate_schedule_cleared_job_id = None
+
+
+def _get_immediate_schedule_cleared_state() -> tuple[str | None, str | None]:
+    with _immediate_schedule_state_lock:
+        return _immediate_schedule_cleared_at, _immediate_schedule_cleared_job_id
 
 
 def _snapshot_kb_files(root: Path | str) -> dict[str, str]:
@@ -150,75 +215,212 @@ def has_files_changed(root: Path | str | None = None) -> bool:
     return changed
 
 
-def run_indexation_then_publish(*, model: str, provider: str = "azure", scheduled_for: datetime | str | None = None) -> dict[str, Any]:
+def run_indexation_then_publish(
+    *,
+    model: str,
+    provider: str = "azure",
+    scheduled_for: datetime | str | None = None,
+    immediate: bool = False,
+    schedule_job_id: str | None = None,
+) -> dict[str, Any]:
     """Run indexation first and then trigger publish, but only when files changed."""
-    debug = False
-    if debug:
+    _set_schedule_transition_running(True)
+    try:
+        debug = False
+        if debug:
+            planned_value = _format_report_datetime(_normalize_datetime(scheduled_for, default_tz=timezone.utc), "UTC") if scheduled_for is not None else _actual_now_iso()
+            _append_schedule_log("publish_triggered", model=model, provider=provider, scheduled_for=planned_value, executed_at=_actual_now_iso())
+
+            return {
+                "status": "debug",
+                "code": "publish.schedule.debug",
+                "message_key": "publish.schedule.debug",
+                "message": "Debug short-circuit: indexing and publication were skipped.",
+                "user_message": "Debug short-circuit: indexing and publication were skipped.",
+                "model": model,
+                "provider": provider,
+                "scheduled_for": planned_value,
+            }
+
         planned_value = _format_report_datetime(_normalize_datetime(scheduled_for, default_tz=timezone.utc), "UTC") if scheduled_for is not None else _actual_now_iso()
-        _append_schedule_log("publish_triggered", model=model, provider=provider, scheduled_for=planned_value, executed_at=_actual_now_iso())
+        root_path = Path(MAIN_KB_ROOT)
 
-        return {
-            "status": "debug",
-            "code": "publish.schedule.debug",
-            "message_key": "publish.schedule.debug",
-            "message": "Debug short-circuit: indexing and publication were skipped.",
-            "user_message": "Debug short-circuit: indexing and publication were skipped.",
+        # if not has_files_changed(root_path):
+        #     no_change = {
+        #         "status": "no_changes",
+        #         "code": "publish.schedule.noChanges",
+        #         "message_key": "publish.schedule.noChanges",
+        #         "message": "No files changed; nothing to publish.",
+        #         "user_message": "No files changed; nothing to publish.",
+        #         "model": model,
+        #         "provider": provider,
+        #         "scheduled_for": planned_value,
+        #     }
+        #     _append_schedule_log("publish_skipped_no_changes", model=model, provider=provider, root=str(root_path), result=no_change, scheduled_for=planned_value, executed_at=_actual_now_iso())
+        #     return no_change
+
+        indexation_result = run_full_indexation(
+            include_extract_docx=True,
+            include_extract_references=True,
+            include_generate_questions=False,
+            root_folder=root_path.name,
+            container_name=os.getenv("AZURE_MAIN_KB_CONTAINER", "nutrifaq-dbase-main"),
+        )
+        if indexation_result.get("status") not in {"success"}:
+            failure = {
+                "status": indexation_result.get("status", "error"),
+                "code": "publish.schedule.indexationFailed",
+                "message_key": "publish.schedule.indexationFailed",
+                "message": "Indexation failed.",
+                "indexation": indexation_result,
+                "model": model,
+                "provider": provider,
+                "scheduled_for": planned_value,
+            }
+            _append_schedule_log("publish_indexation_failed", model=model, provider=provider, root=str(root_path), result=failure, scheduled_for=planned_value, executed_at=_actual_now_iso())
+            return failure
+
+        if _is_schedule_cancel_requested(schedule_job_id):
+            cancelled = {
+                "status": "cancelled",
+                "code": "publish.schedule.cancelled",
+                "message_key": "publish.schedule.cancelled",
+                "message": "Publication cancelled.",
+                "indexation": indexation_result,
+                "model": model,
+                "provider": provider,
+                "scheduled_for": planned_value,
+            }
+            _append_schedule_log(
+                "publish_cancelled_before_start",
+                model=model,
+                provider=provider,
+                root=str(root_path),
+                indexation=indexation_result,
+                result=cancelled,
+                scheduled_for=planned_value,
+                executed_at=_actual_now_iso(),
+            )
+            return cancelled
+
+        publish_result: dict[str, Any] = {"status": "unknown"}
+        try:
+            _run_publish_job(model=model, provider=provider)
+            publish_result = {
+                "status": "completed",
+                "model": model,
+                "provider": provider,
+            }
+        except Exception as exc:
+            failure = {
+                "status": "error",
+                "code": "publish.schedule.publishExecutionFailed",
+                "message_key": "publish.schedule.publishExecutionFailed",
+                "message": "Publication execution failed.",
+                "error": str(exc),
+                "indexation": indexation_result,
+                "model": model,
+                "provider": provider,
+                "scheduled_for": planned_value,
+            }
+            _append_schedule_log(
+                "publish_execution_failed",
+                model=model,
+                provider=provider,
+                root=str(root_path),
+                indexation=indexation_result,
+                result=failure,
+                scheduled_for=planned_value,
+                executed_at=_actual_now_iso(),
+            )
+            return failure
+
+        final_publish_state: dict[str, Any] = get_publish_status()
+
+        final_status_value = str(final_publish_state.get("status", "")).strip().lower()
+        if final_status_value == "cancelled":
+            cancelled = {
+                "status": "cancelled",
+                "code": "publish.schedule.cancelled",
+                "message_key": "publish.schedule.cancelled",
+                "message": "Publication cancelled.",
+                "publish": publish_result,
+                "publish_status": final_publish_state,
+                "indexation": indexation_result,
+                "model": model,
+                "provider": provider,
+                "scheduled_for": planned_value,
+            }
+            _append_schedule_log(
+                "publish_cancelled",
+                model=model,
+                provider=provider,
+                root=str(root_path),
+                indexation=indexation_result,
+                publish=publish_result,
+                result=cancelled,
+                scheduled_for=planned_value,
+                executed_at=_actual_now_iso(),
+            )
+            return cancelled
+
+        if final_status_value == "error":
+            failed = {
+                "status": "error",
+                "code": "publish.schedule.publishFailed",
+                "message_key": "publish.schedule.publishFailed",
+                "message": "Publication failed.",
+                "error": final_publish_state.get("error"),
+                "publish": publish_result,
+                "publish_status": final_publish_state,
+                "indexation": indexation_result,
+                "model": model,
+                "provider": provider,
+                "scheduled_for": planned_value,
+            }
+            _append_schedule_log(
+                "publish_failed",
+                model=model,
+                provider=provider,
+                root=str(root_path),
+                indexation=indexation_result,
+                publish=publish_result,
+                result=failed,
+                scheduled_for=planned_value,
+                executed_at=_actual_now_iso(),
+            )
+            return failed
+
+        successful = {
+            "status": "ok",
+            "code": "publish.schedule.triggered",
+            "message_key": "publish.schedule.triggered",
+            "message": "Indexation and publication completed.",
+            "user_message": "Indexation and publication completed.",
+            "publish": publish_result,
+            "publish_status": final_publish_state,
             "model": model,
             "provider": provider,
             "scheduled_for": planned_value,
         }
-
-    planned_value = _format_report_datetime(_normalize_datetime(scheduled_for, default_tz=timezone.utc), "UTC") if scheduled_for is not None else _actual_now_iso()
-    root_path = Path(MAIN_KB_ROOT)
-
-    # if not has_files_changed(root_path):
-    #     no_change = {
-    #         "status": "no_changes",
-    #         "code": "publish.schedule.noChanges",
-    #         "message_key": "publish.schedule.noChanges",
-    #         "message": "No files changed; nothing to publish.",
-    #         "user_message": "No files changed; nothing to publish.",
-    #         "model": model,
-    #         "provider": provider,
-    #         "scheduled_for": planned_value,
-    #     }
-    #     _append_schedule_log("publish_skipped_no_changes", model=model, provider=provider, root=str(root_path), result=no_change, scheduled_for=planned_value, executed_at=_actual_now_iso())
-    #     return no_change
-
-    indexation_result = run_full_indexation(
-        include_extract_docx=True,
-        include_extract_references=True,
-        root_folder=root_path.name,
-        container_name=os.getenv("AZURE_MAIN_KB_CONTAINER", "nutrifaq-dbase-main"),
-    )
-    if indexation_result.get("status") not in {"success"}:
-        failure = {
-            "status": indexation_result.get("status", "error"),
-            "code": "publish.schedule.indexationFailed",
-            "message_key": "publish.schedule.indexationFailed",
-            "message": "Indexation failed.",
-            "indexation": indexation_result,
-            "model": model,
-            "provider": provider,
-            "scheduled_for": planned_value,
-        }
-        _append_schedule_log("publish_indexation_failed", model=model, provider=provider, root=str(root_path), result=failure, scheduled_for=planned_value, executed_at=_actual_now_iso())
-        return failure
-
-    publish_result = start_publish(model=model, provider=provider)
-    successful = {
-        "status": "ok",
-        "code": "publish.schedule.triggered",
-        "message_key": "publish.schedule.triggered",
-        "message": "Indexation and publication started.",
-        "user_message": "Indexation and publication started.",
-        "publish": publish_result,
-        "model": model,
-        "provider": provider,
-        "scheduled_for": planned_value,
-    }
-    _append_schedule_log("publish_triggered", model=model, provider=provider, root=str(root_path), indexation=indexation_result, publish=publish_result, scheduled_for=planned_value, executed_at=_actual_now_iso())
-    return successful
+        _append_schedule_log("publish_triggered", model=model, provider=provider, root=str(root_path), indexation=indexation_result, publish=publish_result, scheduled_for=planned_value, executed_at=_actual_now_iso())
+        return successful
+    finally:
+        if immediate:
+            immediate_job_id = str(schedule_job_id or "").strip()
+            if immediate_job_id:
+                scheduler = _scheduler
+                if scheduler is not None:
+                    active_job = scheduler.get_job(immediate_job_id)
+                    if active_job is not None:
+                        try:
+                            scheduler.remove_job(immediate_job_id)
+                        except Exception:
+                            pass
+                _remove_persisted_schedule(immediate_job_id)
+                _mark_immediate_schedule_cleared(immediate_job_id)
+        _clear_schedule_cancel_requested(schedule_job_id)
+        _set_schedule_transition_running(False)
 
 
 def sync_debug_to_blob(*args: Any, **kwargs: Any) -> dict[str, Any]:
@@ -384,6 +586,7 @@ def _build_saved_schedule_record(
     cron: str | None,
     interval_minutes: int | None,
     timezone_name: str,
+    immediate: bool = False,
 ) -> dict[str, Any]:
     return {
         "id": job_id,
@@ -396,6 +599,7 @@ def _build_saved_schedule_record(
         "cron": cron,
         "interval_minutes": int(interval_minutes) if interval_minutes is not None else None,
         "timezone_name": timezone_name or "UTC",
+        "immediate": bool(immediate),
         "enabled": True,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -426,6 +630,7 @@ def restore_persisted_publish_schedules() -> list[dict[str, Any]]:
         interval_minutes = entry.get("interval_minutes")
         run_at = entry.get("run_at") or entry.get("schedule")
         timezone_name = str(entry.get("timezone_name") or AUTO_PUBLISH_TIMEZONE or "UTC").strip() or "UTC"
+        immediate = bool(entry.get("immediate"))
 
         added = False
         if cron_expression:
@@ -433,7 +638,7 @@ def restore_persisted_publish_schedules() -> list[dict[str, Any]]:
                 run_indexation_then_publish,
                 id=job_id,
                 trigger=CronTrigger.from_crontab(cron_expression, timezone=timezone_name),
-                kwargs={"model": model, "provider": provider, "scheduled_for": run_at},
+                kwargs={"model": model, "provider": provider, "scheduled_for": run_at, "immediate": immediate, "schedule_job_id": job_id},
                 replace_existing=True,
             )
             added = True
@@ -443,7 +648,7 @@ def restore_persisted_publish_schedules() -> list[dict[str, Any]]:
                 id=job_id,
                 trigger="interval",
                 minutes=int(interval_minutes),
-                kwargs={"model": model, "provider": provider, "scheduled_for": run_at},
+                kwargs={"model": model, "provider": provider, "scheduled_for": run_at, "immediate": immediate, "schedule_job_id": job_id},
                 replace_existing=True,
             )
             added = True
@@ -455,7 +660,7 @@ def restore_persisted_publish_schedules() -> list[dict[str, Any]]:
                     id=job_id,
                     trigger="date",
                     run_date=run_date,
-                    kwargs={"model": model, "provider": provider, "scheduled_for": run_at},
+                    kwargs={"model": model, "provider": provider, "scheduled_for": run_at, "immediate": immediate, "schedule_job_id": job_id},
                     replace_existing=True,
                 )
                 added = True
@@ -482,7 +687,7 @@ def configure_default_auto_publish() -> dict[str, Any]:
             run_indexation_then_publish,
             id="auto-publish",
             trigger=CronTrigger.from_crontab(AUTO_PUBLISH_CRON, timezone=AUTO_PUBLISH_TIMEZONE),
-            kwargs={"model": model, "provider": provider},
+            kwargs={"model": model, "provider": provider, "schedule_job_id": "auto-publish"},
             replace_existing=True,
         )
         return {"status": "scheduled", "job_id": "auto-publish", "cron": AUTO_PUBLISH_CRON}
@@ -493,7 +698,7 @@ def configure_default_auto_publish() -> dict[str, Any]:
             id="auto-publish",
             trigger="interval",
             minutes=AUTO_PUBLISH_INTERVAL_MINUTES,
-            kwargs={"model": model, "provider": provider},
+            kwargs={"model": model, "provider": provider, "schedule_job_id": "auto-publish"},
             replace_existing=True,
         )
         return {"status": "scheduled", "job_id": "auto-publish", "interval_minutes": AUTO_PUBLISH_INTERVAL_MINUTES}
@@ -557,16 +762,25 @@ def schedule_publish(
         cron = cron_expression
 
     recurrence_name = (recurrence or "").strip().lower()
-    immediate_mode = recurrence_name in {"manual", "immediate"} or (
-        run_date is not None and abs((run_date.astimezone(timezone.utc) - datetime.now(timezone.utc)).total_seconds()) <= 120
-    )
+    immediate_mode = recurrence_name in {"manual", "immediate"}
 
     if immediate_mode:
+        publish_status = get_publish_status()
+        indexing_status = get_indexation_status()
+        processing_running = (
+            bool(publish_status.get("running"))
+            or bool(indexing_status.get("running"))
+            or _is_schedule_transition_running()
+        )
+        if processing_running:
+            raise ValueError("A publish workflow is already running.")
         recurrence = "once"
-        run_date = datetime.now(timezone.utc) + timedelta(seconds=30)
+        run_date = datetime.now(timezone.utc)
+        _reset_immediate_schedule_cleared_state()
 
     scheduler = _ensure_scheduler()
     resolved_job_id = str(job_id or _build_job_id())
+    _clear_schedule_cancel_requested(resolved_job_id)
     schedule_for_value = run_date.isoformat() if run_date is not None else None
     job_kwargs: dict[str, Any] = {
         "id": resolved_job_id,
@@ -575,16 +789,19 @@ def schedule_publish(
             "model": str(model),
             "provider": str(provider or "azure"),
             "scheduled_for": schedule_for_value,
+            "immediate": bool(immediate_mode),
+            "schedule_job_id": resolved_job_id,
         },
     }
     if cron:
+        normalized_recurrence = str(recurrence or "").strip().lower()
         scheduler.add_job(
             run_indexation_then_publish,
             trigger=CronTrigger.from_crontab(cron, timezone=timezone_name),
             **job_kwargs,
         )
         when_value = cron
-        recurrence_kind = "cron"
+        recurrence_kind = normalized_recurrence if normalized_recurrence in {"daily", "weekly"} else "cron"
     elif interval_minutes is not None:
         scheduler.add_job(
             run_indexation_then_publish,
@@ -616,6 +833,7 @@ def schedule_publish(
         cron=cron,
         interval_minutes=interval_minutes,
         timezone_name=timezone_name,
+        immediate=immediate_mode,
     )
     _persist_schedule_entry(persisted_record)
 
@@ -695,6 +913,7 @@ def list_scheduled_publish_jobs() -> list[dict[str, Any]]:
                 "trigger": str(job.trigger),
                 "recurrence": recurrence,
                 "schedule": str(job.trigger),
+                "immediate": bool(getattr(job, "kwargs", {}).get("immediate", False)),
             })
 
     try:
@@ -705,6 +924,12 @@ def list_scheduled_publish_jobs() -> list[dict[str, Any]]:
     persisted_by_id = {str(item.get("job_id") or item.get("id") or ""): item for item in persisted_entries if str(item.get("job_id") or item.get("id") or "").strip()}
     for item in jobs:
         item_id = str(item.get("id") or "").strip()
+        persisted_entry = persisted_by_id.get(item_id)
+        if isinstance(persisted_entry, dict):
+            item["immediate"] = bool(persisted_entry.get("immediate"))
+            persisted_by_id.pop(item_id, None)
+        else:
+            item["immediate"] = False
         if item_id in persisted_by_id:
             persisted_by_id.pop(item_id)
 
@@ -720,6 +945,7 @@ def list_scheduled_publish_jobs() -> list[dict[str, Any]]:
             "trigger": recurrence,
             "recurrence": recurrence,
             "schedule": next_run_text,
+            "immediate": bool(entry.get("immediate")),
         })
 
     relevant_jobs = [job for job in jobs if str(job.get("id") or "").strip() == "active-publish-schedule"]
@@ -729,12 +955,49 @@ def list_scheduled_publish_jobs() -> list[dict[str, Any]]:
 
 
 def get_publish_scheduler_status() -> dict[str, Any]:
-    active_jobs = list_scheduled_publish_jobs()
     publish_status = get_publish_status()
     indexing_status = get_indexation_status()
 
     publish_running = bool(publish_status.get("running"))
     indexing_running = bool(indexing_status.get("running"))
+    transition_running = _is_schedule_transition_running()
+    processing_running = publish_running or indexing_running or transition_running
+
+    if not processing_running:
+        try:
+            persisted_entries = load_publish_schedule_entries()
+        except Exception:
+            persisted_entries = []
+        immediate_job_ids = {
+            str(item.get("job_id") or item.get("id") or "").strip()
+            for item in persisted_entries
+            if isinstance(item, dict) and bool(item.get("immediate"))
+        }
+        if _scheduler is not None:
+            for job in _scheduler.get_jobs():
+                try:
+                    if bool(getattr(job, "kwargs", {}).get("immediate", False)):
+                        immediate_job_ids.add(str(getattr(job, "id", "")).strip())
+                except Exception:
+                    continue
+        for immediate_job_id in immediate_job_ids:
+            if not immediate_job_id:
+                continue
+            active_job = _scheduler.get_job(immediate_job_id) if _scheduler is not None else None
+            has_next_run = bool(active_job is not None and getattr(active_job, "next_run_time", None) is not None)
+            if has_next_run:
+                continue
+            if _scheduler is not None and active_job is not None:
+                try:
+                    _scheduler.remove_job(immediate_job_id)
+                except Exception:
+                    pass
+            _remove_persisted_schedule(immediate_job_id)
+            _mark_immediate_schedule_cleared(immediate_job_id)
+
+    active_jobs = list_scheduled_publish_jobs()
+    immediate_schedule_cleared_at, immediate_schedule_cleared_job_id = _get_immediate_schedule_cleared_state()
+    immediate_cleared_visible = bool(immediate_schedule_cleared_at) and not bool(active_jobs)
 
     return {
         "status": "ok",
@@ -742,13 +1005,18 @@ def get_publish_scheduler_status() -> dict[str, Any]:
         "has_active_schedule": bool(active_jobs),
         "publish_running": publish_running,
         "indexing_running": indexing_running,
-        "processing_running": publish_running or indexing_running,
+        "transition_running": transition_running,
+        "processing_running": processing_running,
+        "immediate_schedule_cleared": immediate_cleared_visible,
+        "immediate_schedule_cleared_at": immediate_schedule_cleared_at if immediate_cleared_visible else None,
+        "immediate_schedule_cleared_job_id": immediate_schedule_cleared_job_id if immediate_cleared_visible else None,
     }
 
 
 def cancel_scheduled_publish(job_id: str) -> dict[str, Any]:
     scheduler = _scheduler
     target_id = str(job_id or "").strip()
+    _mark_schedule_cancel_requested(target_id)
 
     indexation_cancel_result = request_indexation_cancel()
     publish_cancel_result = cancel_publish()
@@ -792,6 +1060,36 @@ def cancel_scheduled_publish(job_id: str) -> dict[str, Any]:
     return result
 
 
+def clear_active_publish_schedule_on_cancel() -> dict[str, Any]:
+    target_id = "active-publish-schedule"
+    scheduler = _scheduler
+
+    _mark_schedule_cancel_requested(target_id)
+
+    persisted_before = []
+    try:
+        persisted_before = load_publish_schedule_entries()
+    except Exception:
+        persisted_before = []
+
+    has_persisted_job = any(str(item.get("job_id") or item.get("id") or "").strip() == target_id for item in persisted_before)
+    scheduler_has_job = scheduler is not None and scheduler.get_job(target_id) is not None
+
+    if scheduler_has_job:
+        try:
+            scheduler.remove_job(target_id)
+        except Exception:
+            pass
+
+    _remove_persisted_schedule(target_id)
+    _mark_immediate_schedule_cleared(target_id)
+
+    return {
+        "status": "cleared" if (scheduler_has_job or has_persisted_job) else "not_found",
+        "job_id": target_id,
+    }
+
+
 __all__ = [
     "schedule_publish",
     "schedule_file_change_publish",
@@ -800,6 +1098,7 @@ __all__ = [
     "list_scheduled_publish_jobs",
     "get_publish_scheduler_status",
     "cancel_scheduled_publish",
+    "clear_active_publish_schedule_on_cancel",
     "restore_persisted_publish_schedules",
     "shutdown_scheduler",
     "sync_debug_to_blob",
