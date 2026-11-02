@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import json
+from queue import Empty
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from api.services.config import load_publish_log_entries, reset_publish_log_entries
@@ -15,6 +18,7 @@ from api.services.publish_scheduler import (
     schedule_publish,
 )
 from api.services.publish_service import cancel_publish, get_publish_status, start_revert
+from api.services.workflow_events import subscribe_workflow_events, unsubscribe_workflow_events
 
 router = APIRouter()
 
@@ -134,6 +138,43 @@ def cancel_publish_api(_: EntraUser = Depends(require_admin)):
 def revert_publish_api(_: EntraUser = Depends(require_admin)):
     """Restore the previous container state into the main container and resync Chroma."""
     return start_revert()
+
+
+@router.get("/api/workflow/events")
+async def workflow_events_stream(
+    request: Request,
+    _: EntraUser = Depends(require_admin),
+):
+    """Stream real-time workflow events to the frontend."""
+
+    subscriber = subscribe_workflow_events()
+
+    async def _stream():
+        try:
+            hello = {"type": "workflow.connected", "ts": datetime.now(timezone.utc).isoformat(), "payload": {}}
+            yield f"event: {hello['type']}\ndata: {json.dumps(hello, ensure_ascii=False)}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.to_thread(subscriber.get, True, 15.0)
+                except Empty:
+                    yield ": keep-alive\n\n"
+                    continue
+                event_type = str(event.get("type") or "workflow.event")
+                yield f"event: {event_type}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+        finally:
+            unsubscribe_workflow_events(subscriber)
+
+    return StreamingResponse(
+        _stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/api/publish/status")

@@ -9,8 +9,10 @@ import json
 import logging
 import os
 import shutil
+import stat
 import sys
 import time
+import gc
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -109,8 +111,34 @@ def init_chromadb(kb_path):
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _reset_chroma_directory(kb_path: Path) -> None:
     chroma_path = kb_path / "chroma_db"
-    if chroma_path.exists():
-        shutil.rmtree(chroma_path, ignore_errors=True)
+    if not chroma_path.exists():
+        return
+
+    def _force_remove_readonly(func, path, _exc_info):
+        try:
+            os.chmod(path, stat.S_IWRITE)
+        except Exception:
+            pass
+        func(path)
+
+    gc.collect()
+    last_error: Exception | None = None
+    for attempt in range(1, 6):
+        try:
+            shutil.rmtree(chroma_path, onerror=_force_remove_readonly)
+        except Exception as exc:
+            last_error = exc
+
+        if not chroma_path.exists():
+            return
+
+        gc.collect()
+        time.sleep(0.2 * attempt)
+
+    raise RuntimeError(
+        f"Unable to clear ChromaDB directory '{chroma_path}'. "
+        f"The directory appears to be locked by another process."
+    ) from last_error
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.

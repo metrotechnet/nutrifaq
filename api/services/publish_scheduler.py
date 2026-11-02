@@ -25,6 +25,7 @@ from api.services.config import (
 )
 from api.services.indexation_service import get_indexation_status, request_indexation_cancel, run_full_indexation
 from api.services.publish_service import _run_publish_job, cancel_publish, get_publish_status
+from api.services.workflow_events import emit_workflow_event
 
 logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -146,10 +147,22 @@ def _append_schedule_log(event: str, **details: Any) -> dict[str, Any]:
 
 def _mark_immediate_schedule_cleared(job_id: str | None) -> None:
     normalized_job_id = str(job_id or "").strip() or "active-publish-schedule"
+    cleared_at = datetime.now(timezone.utc).isoformat()
     with _immediate_schedule_state_lock:
         global _immediate_schedule_cleared_at, _immediate_schedule_cleared_job_id
-        _immediate_schedule_cleared_at = datetime.now(timezone.utc).isoformat()
+        _immediate_schedule_cleared_at = cleared_at
         _immediate_schedule_cleared_job_id = normalized_job_id
+    try:
+        emit_workflow_event(
+            "schedule.cleared",
+            {
+                "job_id": normalized_job_id,
+                "immediate": True,
+                "cleared_at": cleared_at,
+            },
+        )
+    except Exception:
+        pass
 
 
 def _reset_immediate_schedule_cleared_state() -> None:
@@ -421,6 +434,7 @@ def run_indexation_then_publish(
                 _mark_immediate_schedule_cleared(immediate_job_id)
         _clear_schedule_cancel_requested(schedule_job_id)
         _set_schedule_transition_running(False)
+        _emit_scheduler_status_event()
 
 
 def sync_debug_to_blob(*args: Any, **kwargs: Any) -> dict[str, Any]:
@@ -836,6 +850,7 @@ def schedule_publish(
         immediate=immediate_mode,
     )
     _persist_schedule_entry(persisted_record)
+    _emit_scheduler_status_event()
 
     schedule_result = {
         "status": "scheduled",
@@ -1013,6 +1028,13 @@ def get_publish_scheduler_status() -> dict[str, Any]:
     }
 
 
+def _emit_scheduler_status_event() -> None:
+    try:
+        emit_workflow_event("schedule.state", get_publish_scheduler_status())
+    except Exception:
+        pass
+
+
 def cancel_scheduled_publish(job_id: str) -> dict[str, Any]:
     scheduler = _scheduler
     target_id = str(job_id or "").strip()
@@ -1057,6 +1079,7 @@ def cancel_scheduled_publish(job_id: str) -> dict[str, Any]:
         result["message"] = job_message
 
     _append_schedule_log("publish_schedule_cancelled", job_id=job_id, publish=publish_cancel_result, indexation=indexation_cancel_result)
+    _emit_scheduler_status_event()
     return result
 
 
@@ -1083,6 +1106,7 @@ def clear_active_publish_schedule_on_cancel() -> dict[str, Any]:
 
     _remove_persisted_schedule(target_id)
     _mark_immediate_schedule_cleared(target_id)
+    _emit_scheduler_status_event()
 
     return {
         "status": "cleared" if (scheduler_has_job or has_persisted_job) else "not_found",

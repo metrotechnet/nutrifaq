@@ -772,6 +772,9 @@
     }
 
     function startPublishScheduleAutoRefresh() {
+        if (USE_WORKFLOW_EVENTS) {
+            return;
+        }
         if (publishScheduleJobsAutoRefreshTimer !== null) {
             return;
         }
@@ -805,6 +808,9 @@
     }
 
     function bindPageVisibilitySync() {
+        if (USE_WORKFLOW_EVENTS) {
+            return;
+        }
         document.addEventListener("visibilitychange", () => {
             if (document.hidden) {
                 stopPublishScheduleAutoRefresh();
@@ -1470,6 +1476,7 @@
     }
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
+    const USE_WORKFLOW_EVENTS = true;
     const INDEXING_STATUS_POLL_MS = 1000;
     let indexingStatusTimer = null;
     let indexingAbortController = null;
@@ -1480,6 +1487,10 @@
     let currentStepPercent = 0;
     let hasObservedRunningStatus = false;
     let currentFiles = [];
+    let workflowEventsAbortController = null;
+    let workflowEventsReconnectTimer = null;
+    let workflowEventsBuffer = "";
+    let lastPublishTerminalEventToken = null;
 
     const STEP_LABELS = {
         extract_docx: "downloadManager.steps.extract_docx",
@@ -1784,6 +1795,9 @@
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function startIndexingStatusPolling() {
+        if (USE_WORKFLOW_EVENTS) {
+            return;
+        }
         if (isScheduleCancellationInFlight) {
             return;
         }
@@ -2353,6 +2367,9 @@
             const token = (event.detail && event.detail.token) || "";
             if (token) {
                 localStorage.setItem(TOKEN_KEY, token);
+                startWorkflowEventsStream().catch(() => {
+                    // Ignore transient startup failures.
+                });
             }
         });
     }
@@ -2591,6 +2608,9 @@
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function startPublishStatusPolling() {
+        if (USE_WORKFLOW_EVENTS) {
+            return;
+        }
         if (isScheduleCancellationInFlight) {
             return;
         }
@@ -2981,6 +3001,335 @@
             throw new Error(detail);
         }
         return payload;
+    }
+
+    function scheduleWorkflowEventsReconnect() {
+        if (!USE_WORKFLOW_EVENTS || workflowEventsReconnectTimer !== null) {
+            return;
+        }
+        workflowEventsReconnectTimer = window.setTimeout(() => {
+            workflowEventsReconnectTimer = null;
+            startWorkflowEventsStream().catch(() => {
+                // Reconnect errors are handled internally.
+            });
+        }, 1500);
+    }
+
+    function stopWorkflowEventsStream() {
+        if (workflowEventsReconnectTimer !== null) {
+            window.clearTimeout(workflowEventsReconnectTimer);
+            workflowEventsReconnectTimer = null;
+        }
+        if (workflowEventsAbortController) {
+            workflowEventsAbortController.abort();
+            workflowEventsAbortController = null;
+        }
+        workflowEventsBuffer = "";
+    }
+
+    function handleRealtimeScheduleState(payload) {
+        const data = payload && typeof payload === "object" ? payload : {};
+        if (data.immediate_schedule_cleared) {
+            applyImmediateCancelUi();
+        }
+        loadScheduledPublishJobs(data).catch(() => {
+            // Ignore transient refresh failures.
+        });
+        syncScheduledProcessingState(data).catch(() => {
+            // Ignore transient refresh failures.
+        });
+    }
+
+    async function handleRealtimePublishState(payload) {
+        const data = payload && typeof payload === "object" ? payload : {};
+        const progress = Number(data.progress || 0);
+        const running = Boolean(data.running);
+        const status = String(data.status || "idle").toLowerCase();
+        const isCancelling = Boolean(data.cancel_requested) || status === "cancelling";
+        const message = data.message || "";
+        const messageKey = typeof data.message_key === "string" && data.message_key.trim() ? data.message_key : null;
+        const eventToken = `${status}:${String(data.updated_at || "")}`;
+
+        if (running) {
+            lastPublishTerminalEventToken = null;
+        }
+
+        setPublishControlsDisabled(running);
+
+        if (isCancelling) {
+            applyImmediateCancelUi();
+            setPublishStatus(tr("publish.status.cancelRequested", "Annulation demandée..."), false);
+            return;
+        }
+
+        if (running || progress > 0) {
+            const localizedMessage = localizeMessageWithKey(
+                messageKey,
+                message || tr("publish.status.preparing", "Préparation de la publication...")
+            );
+            const progressMessage = getPublishTransferProgressMessage(data, localizedMessage);
+            setPublishProgressWithMessage(progress, progressMessage);
+            if (running) {
+                hideIndexingProgressForPublishingPhase();
+                const operation = String(data.operation || "publish");
+                const workflowMessage = operation === "revert"
+                    ? tr("publish.revert.inProgress", "Restauration en cours...")
+                    : tr("publish.status.inProgress", "Publication en cours...");
+                setPublishStatus(workflowMessage, false);
+            }
+        }
+
+        if (!running && status === "completed") {
+            if (lastPublishTerminalEventToken === eventToken) {
+                return;
+            }
+            lastPublishTerminalEventToken = eventToken;
+            const filesCount = Number(data.uploaded_files_count || 0);
+            const timestamp = new Date().toLocaleString();
+            const operation = String(data.operation || "publish");
+            if (operation === "revert") {
+                setPublishStatus(
+                    localizeMessageWithKey(
+                        "publish.revert.done",
+                        "Restore completed ({count} files): {timestamp}",
+                        { count: filesCount, timestamp }
+                    ),
+                    false
+                );
+            } else {
+                setPublishStatus(
+                    localizeMessageWithKey(
+                        "publish.status.completed",
+                        "Publication completed ({count} files): {timestamp}",
+                        { count: filesCount, timestamp }
+                    ),
+                    false
+                );
+            }
+            hidePublishProgress();
+            setPublishFinishMessage("");
+            await showAlertMessage(
+                tr("publish.popup.completedText", "Publication terminee avec succes ({count} fichiers).", { count: filesCount }),
+                false
+            );
+            await loadActivePublishLogs();
+            return;
+        }
+
+        if (!running && status === "cancelled") {
+            if (lastPublishTerminalEventToken === eventToken) {
+                return;
+            }
+            lastPublishTerminalEventToken = eventToken;
+            setPublishStatus(tr("publish.status.cancelRequested", "Publication annulée."), false);
+            applyImmediateCancelUi();
+            await loadActivePublishLogs();
+            return;
+        }
+
+        if (!running && status === "error") {
+            if (lastPublishTerminalEventToken === eventToken) {
+                return;
+            }
+            lastPublishTerminalEventToken = eventToken;
+            const operation = String(data.operation || "publish");
+            const defaultError = operation === "revert" ? tr("publish.revert.error", "Restore failed.") : tr("publish.status.error", "Publication failed.");
+            const errorKey = typeof data.error_key === "string" && data.error_key.trim() ? data.error_key : (operation === "revert" ? "publish.revert.error" : "publish.status.error");
+            setPublishStatus(localizeMessageWithKey(errorKey, data.error || defaultError), true);
+            setPublishFinishMessage("");
+            setPublishProgress(100, "100%");
+            setPublishProgressMessage("");
+            await loadActivePublishLogs();
+        }
+    }
+
+    function handleRealtimeIndexingState(payload) {
+        const data = payload && typeof payload === "object" ? payload : {};
+        const running = Boolean(data.running);
+        const wasCancelled = Boolean(data.cancel_requested);
+
+        if (wasCancelled) {
+            stopIndexingStatusPolling();
+            finishIndexingProgress(false);
+            const cancelledText = tr("downloadManager.status.indexingCancelled", "Indexage annulé.");
+            setStatus(cancelledText, true);
+            if (indexingProgressSource === "scheduled") {
+                setPublishStatus(cancelledText, true);
+            }
+            return;
+        }
+
+        if (!running) {
+            if (!hasObservedRunningStatus && !isIndexingRunning) {
+                return;
+            }
+            stopIndexingStatusPolling();
+            const completedStatus = tr("downloadManager.progress.completed", "Terminé");
+            setStatus(
+                tr("downloadManager.status.indexingCompleted", "Indexation terminée. Statut : {status}", { status: completedStatus }),
+                false
+            );
+            if (indexingProgressSource === "scheduled") {
+                setPublishStatus(
+                    tr("downloadManager.status.indexingCompleted", "Indexation terminée. Statut : {status}", { status: completedStatus }),
+                    false
+                );
+            }
+            finishIndexingProgress(true);
+            return;
+        }
+
+        hasObservedRunningStatus = true;
+        if (!isIndexingRunning) {
+            beginIndexingProgress(isPublishViewActive() ? "scheduled" : "manual");
+        }
+
+        const stepKey = data.current_step || null;
+        const liveProgressPercent = Number.isFinite(Number(data.progress_percent))
+            ? Number(data.progress_percent)
+            : null;
+        const liveProgressValue = Number.isFinite(Number(data.progress_value))
+            ? Number(data.progress_value)
+            : null;
+        const liveProgressTotal = Number.isFinite(Number(data.progress_total))
+            ? Number(data.progress_total)
+            : null;
+        const liveProgressKind = data.progress_kind || "";
+
+        currentStepKey = stepKey;
+        if (liveProgressPercent !== null) {
+            currentStepPercent = Math.max(0, Math.min(100, liveProgressPercent));
+        } else if (liveProgressTotal && liveProgressValue !== null) {
+            currentStepPercent = Math.max(0, Math.min(100, (liveProgressValue / liveProgressTotal) * 100));
+        } else {
+            currentStepPercent = 0;
+        }
+
+        const label = stepKey
+            ? (data.current_step_label || getStepLabel(stepKey))
+            : tr("downloadManager.status.indexingInProgress", "Indexage en cours...");
+        const metricUnit = liveProgressKind === "tokens"
+            ? "tokens"
+            : (liveProgressKind === "files" ? "fichiers" : "questions");
+        const metricText = liveProgressTotal && liveProgressValue !== null
+            ? ` (${Math.round(liveProgressValue)}/${Math.round(liveProgressTotal)} ${metricUnit})`
+            : "";
+        const displayText = `${label}${metricText} (${Math.round(currentStepPercent)}%)`;
+        setIndexingProgressVisible(true);
+        if (indexingProgressSource !== "scheduled") {
+            setStatus(tr("downloadManager.status.indexingInProgress", "Indexage en cours... cela peut prendre plusieurs minutes."), false);
+        }
+        if (indexingProgressSource === "scheduled") {
+            setPublishStatus(tr("downloadManager.status.indexingInProgress", "Indexation en cours... cela peut prendre plusieurs minutes."), false);
+        }
+        setIndexingProgress(currentStepPercent, displayText);
+    }
+
+    function processWorkflowEventChunk(chunkText) {
+        const normalized = String(chunkText || "").replace(/\r/g, "");
+        const lines = normalized.split("\n");
+        let eventName = "message";
+        const dataLines = [];
+        for (const line of lines) {
+            if (!line || line.startsWith(":")) {
+                continue;
+            }
+            if (line.startsWith("event:")) {
+                eventName = line.slice(6).trim() || "message";
+                continue;
+            }
+            if (line.startsWith("data:")) {
+                dataLines.push(line.slice(5).trimStart());
+            }
+        }
+        if (!dataLines.length) {
+            return;
+        }
+
+        try {
+            const envelope = JSON.parse(dataLines.join("\n"));
+            const type = String((envelope && envelope.type) || eventName || "message");
+            const payload = envelope && typeof envelope.payload === "object" ? envelope.payload : {};
+            if (type === "publish.state") {
+                handleRealtimePublishState(payload).catch(() => {
+                    // Ignore transient UI update failures.
+                });
+                return;
+            }
+            if (type === "indexing.state") {
+                handleRealtimeIndexingState(payload);
+                return;
+            }
+            if (type === "schedule.state") {
+                handleRealtimeScheduleState(payload);
+                return;
+            }
+            if (type === "schedule.cleared") {
+                applyImmediateCancelUi();
+                loadScheduledPublishJobs().catch(() => {
+                    // Ignore transient refresh failures.
+                });
+            }
+        } catch (_) {
+            // Ignore malformed event chunks.
+        }
+    }
+
+    async function startWorkflowEventsStream() {
+        if (!USE_WORKFLOW_EVENTS || workflowEventsAbortController) {
+            return;
+        }
+        if (!getToken()) {
+            scheduleWorkflowEventsReconnect();
+            return;
+        }
+
+        const controller = new AbortController();
+        workflowEventsAbortController = controller;
+        workflowEventsBuffer = "";
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/workflow/events`, {
+                method: "GET",
+                headers: {
+                    ...authHeaders(),
+                    Accept: "text/event-stream",
+                },
+                cache: "no-store",
+                signal: controller.signal,
+            });
+
+            if (!response.ok || !response.body) {
+                throw new Error(response.statusText || "Workflow events stream failed.");
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+
+            while (true) {
+                const readResult = await reader.read();
+                if (readResult.done) {
+                    break;
+                }
+                workflowEventsBuffer += decoder.decode(readResult.value, { stream: true }).replace(/\r/g, "");
+                let delimiterIndex = workflowEventsBuffer.indexOf("\n\n");
+                while (delimiterIndex >= 0) {
+                    const chunk = workflowEventsBuffer.slice(0, delimiterIndex);
+                    workflowEventsBuffer = workflowEventsBuffer.slice(delimiterIndex + 2);
+                    processWorkflowEventChunk(chunk);
+                    delimiterIndex = workflowEventsBuffer.indexOf("\n\n");
+                }
+            }
+        } catch (_) {
+            // Reconnect is handled below.
+        } finally {
+            if (workflowEventsAbortController === controller) {
+                workflowEventsAbortController = null;
+            }
+            if (!controller.signal.aborted) {
+                scheduleWorkflowEventsReconnect();
+            }
+        }
     }
 
     // Purpose: Implements a focused frontend behavior used by this module.
@@ -3738,6 +4087,10 @@
         restorePublishUiFromServer();
         loadFiles();
         resumeIndexingIfRunning();
+        startWorkflowEventsStream().catch(() => {
+            // Ignore transient startup failures.
+        });
+        window.addEventListener("beforeunload", stopWorkflowEventsStream);
     }
 
     document.addEventListener("DOMContentLoaded", init);

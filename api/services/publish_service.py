@@ -21,6 +21,7 @@ from api.services.config import (
     update_prod_config,
 )
 from api.services.indexation_service import get_indexation_status, run_full_indexation
+from api.services.workflow_events import emit_workflow_event
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -97,9 +98,14 @@ def _next_scheduled_publication_at() -> str | None:
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _set_publish_state(**updates: Any) -> None:
+    snapshot: dict[str, Any]
     with _publish_state_lock:
         _publish_state.update(updates)
         _publish_state["updated_at"] = datetime.now(timezone.utc).isoformat()
+        snapshot = dict(_publish_state)
+        details = snapshot.get("details")
+        snapshot["details"] = details if isinstance(details, dict) else {}
+    emit_workflow_event("publish.state", snapshot)
 
 
 # Purpose: Retrieve data needed by callers and return it in a ready-to-use format.

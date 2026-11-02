@@ -35,6 +35,7 @@ from api.services.blob_storage_service import (
 )
 from api.services.config import append_publish_log_entry
 from api.services.query_chromadb import get_debug_local_kb_root_folder
+from api.services.workflow_events import emit_workflow_event
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -327,6 +328,7 @@ def _reset_progress_snapshot() -> None:
 def _start_indexation() -> bool:
     _reset_progress_snapshot()
     preload_pipeline_modules()
+    started = False
     with _regen_state_lock:
         if bool(_regen_state.get("running")):
             return False
@@ -338,7 +340,10 @@ def _start_indexation() -> bool:
         _regen_state["progress_value"] = None
         _regen_state["progress_total"] = None
         _regen_state["progress_kind"] = None
-        return True
+        started = True
+    if started:
+        _emit_indexation_state_event()
+    return started
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -356,6 +361,7 @@ def _finish_indexation() -> None:
         if not cancel_requested:
             _regen_state["cancel_requested"] = False
     _reset_progress_snapshot()
+    _emit_indexation_state_event()
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -363,6 +369,7 @@ def _finish_indexation() -> None:
 def _set_current_step(step_key: str | None) -> None:
     with _regen_state_lock:
         _regen_state["current_step"] = step_key
+    _emit_indexation_state_event()
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -476,11 +483,13 @@ def request_indexation_cancel() -> Dict[str, object]:
     if should_start_terminator:
         _terminate_active_process_async(process if isinstance(process, subprocess.Popen) else None)
 
-    return {
+    result = {
         "status": "cancelling",
         "message": "Cancellation requested.",
         "current_step": step,
     }
+    _emit_indexation_state_event()
+    return result
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
@@ -515,6 +524,7 @@ def _write_progress_snapshot(step_key: str, value: int, total: int, kind: str) -
             logger = logging.getLogger(__name__)
             logger.warning("[progress_snapshot] Slow write detected: %.3f seconds for %s (%.1f%%)",
                          write_duration, step_key, 100 * normalized_value / max(1, normalized_total))
+        _emit_indexation_state_event()
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.warning("[progress_snapshot] Error writing progress snapshot: %s", str(e))
@@ -582,6 +592,13 @@ def get_indexation_status() -> Dict[str, object]:
         "progress_kind": progress_kind,
         "progress_percent": progress_percent,
     }
+
+
+def _emit_indexation_state_event() -> None:
+    try:
+        emit_workflow_event("indexing.state", get_indexation_status())
+    except Exception:
+        pass
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
