@@ -6,6 +6,9 @@ import os
 import shutil
 import mimetypes
 import time
+import logging
+import queue
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
@@ -14,6 +17,13 @@ try:
     from azure.storage.blob import BlobServiceClient
 except ImportError:  # pragma: no cover - optional in local/test environments
     BlobServiceClient = None  # type: ignore[assignment]
+
+logger = logging.getLogger(__name__)
+
+_BLOB_UPLOAD_QUEUE_MAX_SIZE = max(1, int(os.getenv("BLOB_UPLOAD_QUEUE_MAX_SIZE", "1024")))
+_BLOB_UPLOAD_QUEUE: queue.Queue[tuple[str, str, bool, str | None]] = queue.Queue(maxsize=_BLOB_UPLOAD_QUEUE_MAX_SIZE)
+_BLOB_UPLOAD_WORKER_LOCK = threading.Lock()
+_BLOB_UPLOAD_WORKER: threading.Thread | None = None
 
 
 @dataclass(frozen=True)
@@ -149,10 +159,117 @@ def upload_file_to_blob(
     overwrite: bool = True,
     container_name: str | None = None,
 ) -> str:
+    normalized_blob_name = str(blob_name or "").strip()
+    if not normalized_blob_name:
+        raise ValueError("blob_name is required.")
+    _enqueue_blob_upload(
+        blob_name=normalized_blob_name,
+        source_path=Path(source_path),
+        overwrite=overwrite,
+        container_name=container_name,
+    )
+    return normalized_blob_name
+
+
+def _ensure_blob_upload_worker() -> None:
+    global _BLOB_UPLOAD_WORKER
+    with _BLOB_UPLOAD_WORKER_LOCK:
+        if _BLOB_UPLOAD_WORKER is not None and _BLOB_UPLOAD_WORKER.is_alive():
+            return
+
+        worker = threading.Thread(
+            target=_blob_upload_worker_loop,
+            name="blob-upload-worker",
+            daemon=True,
+        )
+        worker.start()
+        _BLOB_UPLOAD_WORKER = worker
+
+
+def _enqueue_blob_upload(
+    *,
+    blob_name: str,
+    source_path: Path,
+    overwrite: bool,
+    container_name: str | None,
+) -> None:
+    _ensure_blob_upload_worker()
+    payload = (blob_name, str(source_path), bool(overwrite), container_name)
+    try:
+        _BLOB_UPLOAD_QUEUE.put_nowait(payload)
+    except queue.Full:
+        try:
+            _BLOB_UPLOAD_QUEUE.get_nowait()
+            _BLOB_UPLOAD_QUEUE.task_done()
+        except queue.Empty:
+            pass
+        try:
+            _BLOB_UPLOAD_QUEUE.put_nowait(payload)
+        except queue.Full:
+            logger.warning("Blob upload queue is full; dropping upload for '%s'.", blob_name)
+
+
+def _blob_upload_worker_loop() -> None:
+    while True:
+        blob_name, source_path_text, overwrite, container_name = _BLOB_UPLOAD_QUEUE.get()
+        try:
+            _upload_file_to_blob_blocking(
+                blob_name=blob_name,
+                source_path=Path(source_path_text),
+                overwrite=overwrite,
+                container_name=container_name,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Async blob upload failed for '%s' from '%s': %s",
+                blob_name,
+                source_path_text,
+                exc,
+            )
+        finally:
+            _BLOB_UPLOAD_QUEUE.task_done()
+
+
+def _upload_file_to_blob_blocking(
+    *,
+    blob_name: str,
+    source_path: Path,
+    overwrite: bool,
+    container_name: str | None,
+) -> str:
     blob_client = get_container_client(container_name).get_blob_client(blob_name)
-    with open(source_path, "rb") as source_file:
-        blob_client.upload_blob(source_file, overwrite=overwrite)
-    return blob_name
+    max_retries = max(0, int(os.getenv("BLOB_FILE_LOCK_RETRIES", "12")))
+    base_delay_seconds = max(0.05, float(os.getenv("BLOB_FILE_LOCK_RETRY_BASE_SECONDS", "0.15")))
+    last_error: Exception | None = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            with open(source_path, "rb") as source_file:
+                blob_client.upload_blob(source_file, overwrite=overwrite)
+            return blob_name
+        except PermissionError as exc:
+            last_error = exc
+        except OSError as exc:
+            if getattr(exc, "winerror", None) != 32:
+                raise
+            last_error = exc
+
+        if attempt >= max_retries:
+            break
+
+        delay = base_delay_seconds * (attempt + 1)
+        logger.warning(
+            "File is locked during blob upload, retrying in %.2fs (%s/%s): %s",
+            delay,
+            attempt + 1,
+            max_retries,
+            source_path,
+        )
+        time.sleep(delay)
+
+    raise RuntimeError(
+        f"Unable to upload locked file '{source_path}' to blob '{blob_name}' after {max_retries + 1} attempts."
+    ) from last_error
 
 
 # Purpose: Delete the targeted resource and keep state consistent after removal.

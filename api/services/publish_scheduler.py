@@ -238,40 +238,11 @@ def run_indexation_then_publish(
 ) -> dict[str, Any]:
     """Run indexation first and then trigger publish, but only when files changed."""
     _set_schedule_transition_running(True)
+    planned_datetime = _normalize_datetime(scheduled_for, default_tz=timezone.utc)
+    planned_value = _format_report_datetime(planned_datetime, "UTC") if planned_datetime is not None else _actual_now_iso()
+    root_path = Path(MAIN_KB_ROOT)
     try:
-        debug = False
-        if debug:
-            planned_value = _format_report_datetime(_normalize_datetime(scheduled_for, default_tz=timezone.utc), "UTC") if scheduled_for is not None else _actual_now_iso()
-            _append_schedule_log("publish_triggered", model=model, provider=provider, scheduled_for=planned_value, executed_at=_actual_now_iso())
-
-            return {
-                "status": "debug",
-                "code": "publish.schedule.debug",
-                "message_key": "publish.schedule.debug",
-                "message": "Debug short-circuit: indexing and publication were skipped.",
-                "user_message": "Debug short-circuit: indexing and publication were skipped.",
-                "model": model,
-                "provider": provider,
-                "scheduled_for": planned_value,
-            }
-
-        planned_value = _format_report_datetime(_normalize_datetime(scheduled_for, default_tz=timezone.utc), "UTC") if scheduled_for is not None else _actual_now_iso()
-        root_path = Path(MAIN_KB_ROOT)
-
-        # if not has_files_changed(root_path):
-        #     no_change = {
-        #         "status": "no_changes",
-        #         "code": "publish.schedule.noChanges",
-        #         "message_key": "publish.schedule.noChanges",
-        #         "message": "No files changed; nothing to publish.",
-        #         "user_message": "No files changed; nothing to publish.",
-        #         "model": model,
-        #         "provider": provider,
-        #         "scheduled_for": planned_value,
-        #     }
-        #     _append_schedule_log("publish_skipped_no_changes", model=model, provider=provider, root=str(root_path), result=no_change, scheduled_for=planned_value, executed_at=_actual_now_iso())
-        #     return no_change
-
+        # Run full indexation before attempting to publish
         indexation_result = run_full_indexation(
             include_extract_docx=True,
             include_extract_references=True,
@@ -290,7 +261,15 @@ def run_indexation_then_publish(
                 "provider": provider,
                 "scheduled_for": planned_value,
             }
-            _append_schedule_log("publish_indexation_failed", model=model, provider=provider, root=str(root_path), result=failure, scheduled_for=planned_value, executed_at=_actual_now_iso())
+            _append_schedule_log(
+                "publish_indexation_failed",
+                model=model,
+                provider=provider,
+                root=str(root_path),
+                result=failure,
+                scheduled_for=planned_value,
+                executed_at=_actual_now_iso(),
+            )
             return failure
 
         if _is_schedule_cancel_requested(schedule_job_id):
@@ -316,14 +295,9 @@ def run_indexation_then_publish(
             )
             return cancelled
 
-        publish_result: dict[str, Any] = {"status": "unknown"}
         try:
+            # Attempt to publish the content after successful indexation
             _run_publish_job(model=model, provider=provider)
-            publish_result = {
-                "status": "completed",
-                "model": model,
-                "provider": provider,
-            }
         except Exception as exc:
             failure = {
                 "status": "error",
@@ -348,8 +322,12 @@ def run_indexation_then_publish(
             )
             return failure
 
+        publish_result: dict[str, Any] = {
+            "status": "completed",
+            "model": model,
+            "provider": provider,
+        }
         final_publish_state: dict[str, Any] = get_publish_status()
-
         final_status_value = str(final_publish_state.get("status", "")).strip().lower()
         if final_status_value == "cancelled":
             cancelled = {
@@ -864,6 +842,20 @@ def schedule_publish(
         "message": "Schedule saved.",
         "persisted": persisted_record,
     }
+    try:
+        emit_workflow_event(
+            "schedule.set",
+            {
+                "job_id": resolved_job_id,
+                "immediate": bool(immediate_mode),
+                "recurrence": recurrence_kind,
+                "schedule": when_value,
+                "message": "Schedule saved.",
+                "message_key": "publish.schedule.saved",
+            },
+        )
+    except Exception:
+        pass
     return schedule_result
 
 

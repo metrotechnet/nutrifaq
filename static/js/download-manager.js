@@ -699,12 +699,12 @@
         return formattedDate;
     }
 
-    let publishScheduleJobsAutoRefreshTimer = null;
     let schedulerProcessingSyncInFlight = false;
     let lastSchedulerProcessingRunning = false;
     let isScheduleCancellationInFlight = false;
     let lastKnownActiveSchedule = null;
     let suppressImmediateScheduleBadge = false;
+    let lastSchedulerStatusSnapshot = null;
 
     function stopAllProcessingStatusPolling() {
         stopPublishStatusPolling();
@@ -717,11 +717,27 @@
                 ...authHeaders()
             }
         });
-        // console.log("[publish/schedule/status]", payload);
+        if (payload && typeof payload === "object") {
+            lastSchedulerStatusSnapshot = payload;
+        }
         return payload;
     }
 
-    async function syncScheduledProcessingState(schedulerStatusInput = null) {
+    async function resolveSchedulerStatus(schedulerStatusInput = null, allowFetch = false) {
+        if (schedulerStatusInput && typeof schedulerStatusInput === "object") {
+            lastSchedulerStatusSnapshot = schedulerStatusInput;
+            return schedulerStatusInput;
+        }
+        if (lastSchedulerStatusSnapshot && typeof lastSchedulerStatusSnapshot === "object") {
+            return lastSchedulerStatusSnapshot;
+        }
+        if (allowFetch) {
+            return fetchPublishSchedulerStatus();
+        }
+        return null;
+    }
+
+    async function syncScheduledProcessingState(schedulerStatusInput = null, allowFetch = false) {
         if (isScheduleCancellationInFlight) {
             return;
         }
@@ -730,7 +746,10 @@
         }
         schedulerProcessingSyncInFlight = true;
         try {
-            const schedulerStatus = schedulerStatusInput || await fetchPublishSchedulerStatus();
+            const schedulerStatus = await resolveSchedulerStatus(schedulerStatusInput, allowFetch);
+            if (!schedulerStatus) {
+                return;
+            }
             const publishRunning = Boolean(schedulerStatus && schedulerStatus.publish_running);
             const indexingRunning = Boolean(schedulerStatus && schedulerStatus.indexing_running);
             const transitionRunning = Boolean(schedulerStatus && schedulerStatus.transition_running);
@@ -764,7 +783,7 @@
             }
 
             if (transitionRunning || processingRunning) {
-                startPublishStatusPolling();
+                await restorePublishUiFromServer();
             }
         } finally {
             schedulerProcessingSyncInFlight = false;
@@ -772,31 +791,11 @@
     }
 
     function startPublishScheduleAutoRefresh() {
-        if (USE_WORKFLOW_EVENTS) {
-            return;
-        }
-        if (publishScheduleJobsAutoRefreshTimer !== null) {
-            return;
-        }
-        publishScheduleJobsAutoRefreshTimer = window.setInterval(async () => {
-            try {
-                const schedulerStatus = await fetchPublishSchedulerStatus();
-                await Promise.allSettled([
-                    loadScheduledPublishJobs(schedulerStatus),
-                    syncScheduledProcessingState(schedulerStatus),
-                ]);
-            } catch (error) {
-                // Ignore background refresh failures; the list will retry on the next tick.
-            }
-        }, INDEXING_STATUS_POLL_MS);
+        // Polling removed: scheduler updates are pushed through workflow events.
     }
 
     function stopPublishScheduleAutoRefresh() {
-        if (publishScheduleJobsAutoRefreshTimer === null) {
-            return;
-        }
-        window.clearInterval(publishScheduleJobsAutoRefreshTimer);
-        publishScheduleJobsAutoRefreshTimer = null;
+        // Polling removed: no interval to stop.
     }
 
     function isPublishViewActive() {
@@ -812,16 +811,10 @@
             return;
         }
         document.addEventListener("visibilitychange", () => {
-            if (document.hidden) {
-                stopPublishScheduleAutoRefresh();
+            if (document.hidden || !isPublishViewActive()) {
                 return;
             }
 
-            if (!isPublishViewActive()) {
-                return;
-            }
-
-            startPublishScheduleAutoRefresh();
             fetchPublishSchedulerStatus().then((schedulerStatus) => {
                 return Promise.allSettled([
                     loadScheduledPublishJobs(schedulerStatus),
@@ -833,13 +826,16 @@
         });
     }
 
-    async function loadScheduledPublishJobs(schedulerStatusInput = null) {
+    async function loadScheduledPublishJobs(schedulerStatusInput = null, allowFetch = false) {
         if (!els.publishScheduleList) {
             return;
         }
 
         try {
-            const data = schedulerStatusInput || await fetchPublishSchedulerStatus();
+            const data = await resolveSchedulerStatus(schedulerStatusInput, allowFetch);
+            if (!data) {
+                return;
+            }
             const processingRunning = Boolean(data && data.processing_running);
             const rawActiveSchedule = data && data.active_schedule ? data.active_schedule : null;
             const rawActiveScheduleKind = rawActiveSchedule ? getPublishScheduleKind(rawActiveSchedule) : "";
@@ -919,13 +915,13 @@
                         if (isImmediateSchedule) {
                             applyImmediateCancelUi();
                         }
-                        await loadScheduledPublishJobs();
+                        await loadScheduledPublishJobs(null, !USE_WORKFLOW_EVENTS);
                     } catch (error) {
                         const message = error && error.message ? error.message : tr("publish.schedule.deleteError", "Impossible de supprimer la planification.");
                         setPublishStatus(message, true);
                     } finally {
                         isScheduleCancellationInFlight = false;
-                        await syncScheduledProcessingState();
+                        await syncScheduledProcessingState(null, !USE_WORKFLOW_EVENTS);
                         button.disabled = false;
                         button.textContent = originalLabel;
                     }
@@ -1041,10 +1037,12 @@
                 : (typeof payload.code === "string" && payload.code.trim() ? payload.code : "publish.schedule.saved");
             const successFallback = typeof payload.message === "string" && payload.message.trim() ? payload.message : tr("publish.schedule.saved", "Planification enregistrée.");
             setPublishStatus(localizeMessageWithKey(successKey, successFallback), false);
-            await Promise.allSettled([
-                loadScheduledPublishJobs(),
-                syncScheduledProcessingState(),
-            ]);
+            if (!USE_WORKFLOW_EVENTS) {
+                await Promise.allSettled([
+                    loadScheduledPublishJobs(null, true),
+                    syncScheduledProcessingState(null, true),
+                ]);
+            }
         } catch (error) {
             const message = error && error.message ? error.message : tr("publish.schedule.error", "Erreur lors de la planification.");
             setPublishStatus(message, true);
@@ -1071,7 +1069,10 @@
         if (els.publishScheduleRefresh && els.publishScheduleRefresh.dataset.bound !== "1") {
             els.publishScheduleRefresh.dataset.bound = "1";
             els.publishScheduleRefresh.addEventListener("click", async () => {
-                await loadScheduledPublishJobs();
+                await Promise.allSettled([
+                    loadScheduledPublishJobs(null, true),
+                    syncScheduledProcessingState(null, true),
+                ]);
             });
         }
 
@@ -1477,8 +1478,6 @@
 
     const TOKEN_KEY = "nutrifaq_admin_bearer_token";
     const USE_WORKFLOW_EVENTS = true;
-    const INDEXING_STATUS_POLL_MS = 1000;
-    let indexingStatusTimer = null;
     let indexingAbortController = null;
     let statusRequestInFlight = false;
     let isIndexingRunning = false;
@@ -1677,10 +1676,7 @@
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function stopIndexingStatusPolling() {
-        if (indexingStatusTimer) {
-            window.clearInterval(indexingStatusTimer);
-            indexingStatusTimer = null;
-        }
+        // Polling removed: no interval to stop.
     }
 
     async function refreshIndexingStatus() {
@@ -1795,15 +1791,13 @@
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function startIndexingStatusPolling() {
-        if (USE_WORKFLOW_EVENTS) {
-            return;
-        }
         if (isScheduleCancellationInFlight) {
             return;
         }
-        stopIndexingStatusPolling();
-        indexingStatusTimer = window.setInterval(refreshIndexingStatus, INDEXING_STATUS_POLL_MS);
-        refreshIndexingStatus();
+        // Polling removed. Keep a one-shot status refresh for transition windows.
+        refreshIndexingStatus().catch(() => {
+            // Ignore transient refresh failures.
+        });
     }
 
     async function resumeIndexingIfRunning() {
@@ -1820,11 +1814,6 @@
             if (!isIndexingRunning) {
                 beginIndexingProgress("scheduled");
             }
-            if (indexingStatusTimer !== null) {
-                await refreshIndexingStatus();
-                return;
-            }
-
             const stepKey = regen.current_step || null;
             const stepLabel = stepKey ? (regen.current_step_label || getStepLabel(stepKey)) : tr("downloadManager.status.indexingInProgress", "Indexage en cours...");
             const percent = Number.isFinite(Number(regen.progress_percent))
@@ -2136,12 +2125,14 @@
             emptyState.style.display = "none";
         }
         startPublishScheduleAutoRefresh();
-        loadScheduledPublishJobs().catch(() => {
-            // Ignore transient refresh failures.
-        });
-        syncScheduledProcessingState().catch(() => {
-            // Ignore transient refresh failures.
-        });
+        if (!USE_WORKFLOW_EVENTS) {
+            loadScheduledPublishJobs(null, true).catch(() => {
+                // Ignore transient refresh failures.
+            });
+            syncScheduledProcessingState(null, true).catch(() => {
+                // Ignore transient refresh failures.
+            });
+        }
     }
 
     // Purpose: Keeps frontend state synchronized with server or shared UI state.
@@ -2594,159 +2585,20 @@
         await loadQuestionLogs();
     }
 
-    let publishStatusTimer = null;
-    let publishStatusPollInFlight = false;
-    let publishTerminalStateHandled = false;
-
     function stopPublishStatusPolling() {
-        if (publishStatusTimer) {
-            window.clearInterval(publishStatusTimer);
-            publishStatusTimer = null;
-        }
+        // Polling removed: no interval to stop.
     }
 
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function startPublishStatusPolling() {
-        if (USE_WORKFLOW_EVENTS) {
-            return;
-        }
         if (isScheduleCancellationInFlight) {
             return;
         }
-        if (publishStatusTimer) {
-            return;
-        }
-        stopPublishStatusPolling();
-        publishStatusPollInFlight = false;
-        publishTerminalStateHandled = false;
-
-        // Purpose: Implements a focused frontend behavior used by this module.
-        // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
-        const poll = async () => {
-            if (publishStatusPollInFlight || publishTerminalStateHandled) {
-                return;
-            }
-
-            publishStatusPollInFlight = true;
-            try {
-                const data = await fetchJson(`${BACKEND_URL}/api/publish/status`, {
-                    headers: {
-                        ...authHeaders()
-                    }
-                });
-                const progress = Number(data.progress || 0);
-                const running = Boolean(data.running);
-                const indexingRunning = Boolean(data && data.indexation && data.indexation.running);
-                const isCancelling = Boolean(data.cancel_requested) || String(data.status || "").toLowerCase() === "cancelling";
-                const message = data.message || "";
-                const messageKey = typeof data.message_key === "string" && data.message_key.trim() ? data.message_key : null;
-
-                setPublishControlsDisabled(running);
-
-                if (isCancelling) {
-                    applyImmediateCancelUi();
-                    setPublishStatus(tr("publish.status.cancelRequested", "Annulation demandée..."), false);
-                    return;
-                }
-
-                if (running || progress > 0) {
-                    const localizedMessage = localizeMessageWithKey(
-                        messageKey,
-                        message || tr("publish.status.preparing", "Préparation de la publication...")
-                    );
-                    const progressMessage = getPublishTransferProgressMessage(data, localizedMessage);
-                    setPublishProgressWithMessage(progress, progressMessage);
-                    if (running) {
-                        hideIndexingProgressForPublishingPhase();
-                        const operation = String(data.operation || "publish");
-                        const workflowMessage = operation === "revert"
-                            ? tr("publish.revert.inProgress", "Restauration en cours...")
-                            : tr("publish.status.inProgress", "Publication en cours...");
-                        setPublishStatus(workflowMessage, false);
-                    }
-                }
-
-                if (!running && indexingRunning) {
-                    stopPublishStatusPolling();
-                    setPublishStatus(
-                        tr("downloadManager.status.indexingInProgress", "Indexation en cours... cela peut prendre plusieurs minutes."),
-                        false
-                    );
-                    setPublishControlsDisabled(true);
-                    await resumeIndexingIfRunning();
-                    return;
-                }
-
-                if (!running && data.status === "completed") {
-                    publishTerminalStateHandled = true;
-                    stopPublishStatusPolling();
-                    setPublishControlsDisabled(false);
-                    const filesCount = Number(data.uploaded_files_count || 0);
-                    const timestamp = new Date().toLocaleString();
-                    const operation = String(data.operation || "publish");
-                    if (operation === "revert") {
-                        const finishedText = localizeMessageWithKey(
-                            "publish.revert.done",
-                            "Restore completed ({count} files): {timestamp}",
-                            { count: filesCount, timestamp }
-                        );
-                        setPublishStatus(finishedText, false);
-                    } else {
-                        const finishedText = localizeMessageWithKey(
-                            "publish.status.completed",
-                            "Publication completed ({count} files): {timestamp}",
-                            { count: filesCount, timestamp }
-                        );
-                        setPublishStatus(finishedText, false);
-                    }
-                    hidePublishProgress();
-                    setPublishFinishMessage("");
-                    await showAlertMessage(
-                        tr(
-                            "publish.popup.completedText",
-                            "Publication terminee avec succes ({count} fichiers).",
-                            { count: filesCount }
-                        ),
-                        false
-                    );
-                    await loadActivePublishLogs();
-                    return;
-                }
-
-                if (!running && data.status === "cancelled") {
-                    publishTerminalStateHandled = true;
-                    stopPublishStatusPolling();
-                    setPublishControlsDisabled(false);
-                    setPublishStatus(tr("publish.status.cancelRequested", "Publication annulée."), false);
-                    applyImmediateCancelUi();
-                    await loadActivePublishLogs();
-                    return;
-                }
-
-                if (!running && data.status === "error") {
-                    publishTerminalStateHandled = true;
-                    stopPublishStatusPolling();
-                    setPublishControlsDisabled(false);
-                    const operation = String(data.operation || "publish");
-                    const defaultError = operation === "revert" ? tr("publish.revert.error", "Restore failed.") : tr("publish.status.error", "Publication failed.");
-                    const errorKey = typeof data.error_key === "string" && data.error_key.trim() ? data.error_key : (operation === "revert" ? "publish.revert.error" : "publish.status.error");
-                    setPublishStatus(localizeMessageWithKey(errorKey, data.error || defaultError), true);
-                    setPublishFinishMessage("");
-                    setPublishProgress(100, "100%");
-                    setPublishProgressMessage("");
-                    await loadActivePublishLogs();
-                    return;
-                }
-            } catch (_) {
-                // Ignore transient polling errors while publish is running.
-            } finally {
-                publishStatusPollInFlight = false;
-            }
-        };
-
-        poll();
-        publishStatusTimer = window.setInterval(poll, INDEXING_STATUS_POLL_MS);
+        // Polling removed. Keep a one-shot status refresh for transition windows.
+        restorePublishUiFromServer().catch(() => {
+            // Ignore transient refresh failures.
+        });
     }
 
     async function onPublishCancel() {
@@ -2787,7 +2639,6 @@
                 setPublishStatus(tr("publish.status.cancelRequested", "Annulation demandée..."), false);
                 applyImmediateCancelUi();
                 setPublishControlsDisabled(true);
-                startPublishStatusPolling();
                 return;
             }
 
@@ -2805,7 +2656,6 @@
                     : tr("publish.status.inProgress", "Publication en cours...");
                 setPublishStatus(workflowMessage, false);
                 setPublishControlsDisabled(true);
-                startPublishStatusPolling();
                 return;
             }
 
@@ -3032,16 +2882,17 @@
         if (data.immediate_schedule_cleared) {
             applyImmediateCancelUi();
         }
-        loadScheduledPublishJobs(data).catch(() => {
+        loadScheduledPublishJobs(data, false).catch(() => {
             // Ignore transient refresh failures.
         });
-        syncScheduledProcessingState(data).catch(() => {
+        syncScheduledProcessingState(data, false).catch(() => {
             // Ignore transient refresh failures.
         });
     }
 
-    async function handleRealtimePublishState(payload) {
+    async function handleRealtimePublishState(payload, options = {}) {
         const data = payload && typeof payload === "object" ? payload : {};
+        const fromBootstrap = Boolean(options && options.bootstrap);
         const progress = Number(data.progress || 0);
         const running = Boolean(data.running);
         const status = String(data.status || "idle").toLowerCase();
@@ -3108,10 +2959,12 @@
             }
             hidePublishProgress();
             setPublishFinishMessage("");
-            await showAlertMessage(
-                tr("publish.popup.completedText", "Publication terminee avec succes ({count} fichiers).", { count: filesCount }),
-                false
-            );
+            if (!fromBootstrap) {
+                await showAlertMessage(
+                    tr("publish.popup.completedText", "Publication terminee avec succes ({count} fichiers).", { count: filesCount }),
+                    false
+                );
+            }
             await loadActivePublishLogs();
             return;
         }
@@ -3250,6 +3103,30 @@
             const envelope = JSON.parse(dataLines.join("\n"));
             const type = String((envelope && envelope.type) || eventName || "message");
             const payload = envelope && typeof envelope.payload === "object" ? envelope.payload : {};
+            if (type === "workflow.connected") {
+                const schedulerStatus = payload && typeof payload.schedule_status === "object"
+                    ? payload.schedule_status
+                    : null;
+                const publishStatus = payload && typeof payload.publish_status === "object"
+                    ? payload.publish_status
+                    : null;
+                const indexingStatus = payload && typeof payload.indexing_status === "object"
+                    ? payload.indexing_status
+                    : null;
+
+                if (schedulerStatus) {
+                    handleRealtimeScheduleState(schedulerStatus);
+                }
+                if (publishStatus) {
+                    handleRealtimePublishState(publishStatus, { bootstrap: true }).catch(() => {
+                        // Ignore transient UI update failures.
+                    });
+                }
+                if (indexingStatus) {
+                    handleRealtimeIndexingState(indexingStatus);
+                }
+                return;
+            }
             if (type === "publish.state") {
                 handleRealtimePublishState(payload).catch(() => {
                     // Ignore transient UI update failures.
@@ -3264,11 +3141,36 @@
                 handleRealtimeScheduleState(payload);
                 return;
             }
+            if (type === "schedule.set") {
+                const messageKey = typeof payload.message_key === "string" && payload.message_key.trim()
+                    ? payload.message_key
+                    : "publish.schedule.saved";
+                const fallbackMessage = typeof payload.message === "string" && payload.message.trim()
+                    ? payload.message
+                    : tr("publish.schedule.saved", "Planification enregistrée.");
+                const provisionalSchedule = {
+                    status: "ok",
+                    processing_running: false,
+                    publish_running: false,
+                    indexing_running: false,
+                    transition_running: false,
+                    active_schedule: {
+                        id: String(payload.job_id || "active-publish-schedule"),
+                        job_id: String(payload.job_id || "active-publish-schedule"),
+                        recurrence: String(payload.recurrence || "once"),
+                        schedule: String(payload.schedule || ""),
+                        next_run_time: String(payload.schedule || ""),
+                        immediate: Boolean(payload.immediate),
+                    },
+                    has_active_schedule: true,
+                };
+                handleRealtimeScheduleState(provisionalSchedule);
+                setPublishStatus(localizeMessageWithKey(messageKey, fallbackMessage), false);
+                return;
+            }
             if (type === "schedule.cleared") {
                 applyImmediateCancelUi();
-                loadScheduledPublishJobs().catch(() => {
-                    // Ignore transient refresh failures.
-                });
+                return;
             }
         } catch (_) {
             // Ignore malformed event chunks.

@@ -33,6 +33,7 @@ from api.services.blob_storage_service import (  # noqa: E402
 from api.services.logging import configure_logging  # noqa: E402
 from api.services.llm_service import create_embeddings  # noqa: E402
 from api.services.indexation_service import _raise_if_cancel_requested, _write_progress_snapshot  # noqa: E402
+from api.services.query_chromadb import release_local_chroma_handles  # noqa: E402
 
 configure_logging()
 
@@ -97,22 +98,37 @@ def init_chromadb(kb_path):
         chroma_client.delete_collection(name=collection_name)
         logger.info("Deleted existing collection: %s", collection_name)
     except Exception:
-        pass
+        logger.info("Collection %s did not exist or could not be deleted before recreate.", collection_name)
 
-    collection = chroma_client.create_collection(
-        name=collection_name,
-        metadata={"description": f"Knowledge base: {kb_path.name}"},
-    )
+    try:
+        collection = chroma_client.create_collection(
+            name=collection_name,
+            metadata={"description": f"Knowledge base: {kb_path.name}"},
+        )
+    except Exception:
+        logger.warning(
+            "Unable to recreate collection %s; reusing existing collection and clearing entries in place.",
+            collection_name,
+        )
+        collection = chroma_client.get_or_create_collection(
+            name=collection_name,
+            metadata={"description": f"Knowledge base: {kb_path.name}"},
+        )
+        existing = collection.get(include=[], limit=100000)
+        existing_ids = existing.get("ids", []) if isinstance(existing, dict) else []
+        if existing_ids:
+            collection.delete(ids=existing_ids)
+            logger.info("Cleared %s existing vectors from collection %s.", len(existing_ids), collection_name)
 
     return chroma_client, collection
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
-def _reset_chroma_directory(kb_path: Path) -> None:
+def _reset_chroma_directory(kb_path: Path) -> bool:
     chroma_path = kb_path / "chroma_db"
     if not chroma_path.exists():
-        return
+        return True
 
     def _force_remove_readonly(func, path, _exc_info):
         try:
@@ -121,24 +137,40 @@ def _reset_chroma_directory(kb_path: Path) -> None:
             pass
         func(path)
 
+    def _is_lock_error(exc: Exception) -> bool:
+        if isinstance(exc, PermissionError):
+            return True
+        return getattr(exc, "winerror", None) == 32 or "used by another process" in str(exc).lower()
+
+    max_attempts = max(1, int(os.getenv("CHROMA_RESET_MAX_ATTEMPTS", "3")))
+    base_delay_seconds = max(0.01, float(os.getenv("CHROMA_RESET_RETRY_BASE_SECONDS", "0.05")))
+
+    release_local_chroma_handles()
     gc.collect()
     last_error: Exception | None = None
-    for attempt in range(1, 6):
+    for attempt in range(1, max_attempts + 1):
         try:
             shutil.rmtree(chroma_path, onerror=_force_remove_readonly)
         except Exception as exc:
             last_error = exc
 
         if not chroma_path.exists():
-            return
+            return True
 
-        gc.collect()
-        time.sleep(0.2 * attempt)
+        if last_error is not None and not _is_lock_error(last_error):
+            break
 
-    raise RuntimeError(
-        f"Unable to clear ChromaDB directory '{chroma_path}'. "
-        f"The directory appears to be locked by another process."
-    ) from last_error
+        # Retry briefly for transient lock windows; otherwise fail fast to in-place reset.
+        release_local_chroma_handles()
+        time.sleep(base_delay_seconds * attempt)
+
+    logger.warning(
+        "Unable to clear ChromaDB directory '%s' (locked by another process). "
+        "Falling back to in-place collection reset.",
+        chroma_path,
+        exc_info=last_error,
+    )
+    return False
 
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.

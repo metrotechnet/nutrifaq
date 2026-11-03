@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import gc
 import shutil
 import subprocess
 import sys
@@ -34,7 +35,7 @@ from api.services.blob_storage_service import (
     upload_file_to_blob,
 )
 from api.services.config import append_publish_log_entry
-from api.services.query_chromadb import get_debug_local_kb_root_folder
+from api.services.query_chromadb import get_debug_local_kb_root_folder, release_local_chroma_handles
 from api.services.workflow_events import emit_workflow_event
 
 
@@ -865,6 +866,10 @@ def _save_chromadb_to_blob_and_local_copy(
             "message": f"SQLite database file not found: {sqlite_path}",
         }
 
+    # Release cached Chroma handles before reading local files for upload.
+    release_local_chroma_handles()
+    gc.collect()
+
     blob_result: Dict[str, object]
     if has_blob_storage_config():
         resolved_root = (
@@ -1272,9 +1277,13 @@ def run_full_indexation(
                 }
                 return result
             if step_result.get("status") != "ok":
+                step_message = str(step_result.get("message") or "").strip()
+                failure_message = f"Pipeline stopped at step '{step_key}'."
+                if step_message:
+                    failure_message = f"{failure_message} {step_message}"
                 result = {
                     "status": "error",
-                    "message": f"Pipeline stopped at step '{step_key}'.",
+                    "message": failure_message,
                     "steps": results,
                 }
                 return result

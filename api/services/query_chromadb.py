@@ -3,6 +3,7 @@ import os
 import json
 import re
 import random
+import gc
 from typing import Any
 from pathlib import Path
 from dotenv import load_dotenv
@@ -225,6 +226,12 @@ def _local_chroma_client(
 def _invalidate_chroma_cache() -> None:
     _CHROMA_CLIENT_CACHE.clear()
     _CHROMA_COLLECTION_CACHE.clear()
+
+
+def release_local_chroma_handles() -> None:
+    """Drop cached Chroma clients/collections so indexing can recreate local DB files."""
+    _invalidate_chroma_cache()
+    gc.collect()
 
 
 # Purpose: Implement a focused unit of backend behavior used by routes or services.

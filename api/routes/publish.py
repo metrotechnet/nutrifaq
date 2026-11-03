@@ -151,7 +151,17 @@ async def workflow_events_stream(
 
     async def _stream():
         try:
-            hello = {"type": "workflow.connected", "ts": datetime.now(timezone.utc).isoformat(), "payload": {}}
+            hello_payload: dict[str, object] = {}
+            try:
+                publish_status_snapshot = get_publish_status()
+                hello_payload = {
+                    "schedule_status": get_publish_scheduler_status(),
+                    "publish_status": publish_status_snapshot,
+                    "indexing_status": publish_status_snapshot.get("indexation", {}),
+                }
+            except Exception:
+                hello_payload = {}
+            hello = {"type": "workflow.connected", "ts": datetime.now(timezone.utc).isoformat(), "payload": hello_payload}
             yield f"event: {hello['type']}\ndata: {json.dumps(hello, ensure_ascii=False)}\n\n"
             while True:
                 if await request.is_disconnected():

@@ -29,6 +29,8 @@ _PROD_CONFIG_LOCK = RLock()
 _GLOBAL_PROD_CONFIG: dict[str, Any] = {}
 _PUBLISH_LOG_LOCK = RLock()
 _PUBLISH_LOG_CACHE: list[dict[str, Any]] | None = None
+_PUBLISH_SCHEDULE_LOCK = RLock()
+_PUBLISH_SCHEDULE_CACHE: list[dict[str, Any]] | None = None
 _BLOB_SYNC_QUEUE: queue.Queue[tuple[str, str, bytes]] = queue.Queue()
 _BLOB_SYNC_WORKER_LOCK = threading.Lock()
 _BLOB_SYNC_WORKER: threading.Thread | None = None
@@ -398,13 +400,11 @@ def save_publish_log_entries(entries: list[dict[str, Any]]) -> list[dict[str, An
 
 
 def append_publish_log_entry(entry: dict[str, Any]) -> dict[str, Any]:
-    """Append one publish log entry and persist it in blob."""
+    """Append one publish log entry in memory."""
     global _PUBLISH_LOG_CACHE
 
     if not isinstance(entry, dict):
         raise TypeError("append_publish_log_entry expects a dictionary.")
-    if not has_blob_storage_config():
-        raise RuntimeError("Azure Blob Storage is required to save publish logs.")
 
     with _PUBLISH_LOG_LOCK:
         if _PUBLISH_LOG_CACHE is None:
@@ -413,78 +413,103 @@ def append_publish_log_entry(entry: dict[str, Any]) -> dict[str, Any]:
         _PUBLISH_LOG_CACHE.append(entry)
         cleaned_entries = [item for item in _PUBLISH_LOG_CACHE if isinstance(item, dict)]
         _PUBLISH_LOG_CACHE = list(cleaned_entries)
-        payload = {"entries": cleaned_entries}
-        blob_name = _publish_log_blob_name()
-        _enqueue_blob_sync_upload(
-            blob_name,
-            json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
-        )
     return entry
 
 
 def load_publish_schedule_entries() -> list[dict[str, Any]]:
     """Load persisted scheduler definitions from Azure Blob config storage."""
+    return load_publish_schedule_entries_cached(force_reload=False)
+
+
+def load_publish_schedule_entries_cached(force_reload: bool = False) -> list[dict[str, Any]]:
+    """Load persisted scheduler definitions with an in-memory cache."""
+    global _PUBLISH_SCHEDULE_CACHE
+
     if not has_blob_storage_config():
         raise RuntimeError("Azure Blob Storage is required to load publish schedules.")
 
-    blob_name = _publish_schedules_blob_name()
-    blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
-    try:
-        raw_content = blob_client.download_blob().readall()
-    except Exception as exc:
-        message = str(exc)
-        if "BlobNotFound" in message or "The specified blob does not exist" in message:
-            return []
-        raise
+    with _PUBLISH_SCHEDULE_LOCK:
+        if _PUBLISH_SCHEDULE_CACHE is not None and not force_reload:
+            return list(_PUBLISH_SCHEDULE_CACHE)
 
-    payload = json.loads(raw_content.decode("utf-8"))
-    if isinstance(payload, dict):
-        entries = payload.get("entries", [])
-    elif isinstance(payload, list):
-        entries = payload
-    else:
-        entries = []
-    return [item for item in entries if isinstance(item, dict)]
+        blob_name = _publish_schedules_blob_name()
+        blob_client = get_container_client(_config_blob_container_name()).get_blob_client(blob_name)
+        try:
+            raw_content = blob_client.download_blob().readall()
+        except Exception as exc:
+            message = str(exc)
+            if "BlobNotFound" in message or "The specified blob does not exist" in message:
+                _PUBLISH_SCHEDULE_CACHE = []
+                return []
+            raise
+
+        payload = json.loads(raw_content.decode("utf-8"))
+        if isinstance(payload, dict):
+            entries = payload.get("entries", [])
+        elif isinstance(payload, list):
+            entries = payload
+        else:
+            entries = []
+        _PUBLISH_SCHEDULE_CACHE = [item for item in entries if isinstance(item, dict)]
+        return list(_PUBLISH_SCHEDULE_CACHE)
 
 
 def save_publish_schedule_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Persist scheduler definitions to Azure Blob config storage."""
+    global _PUBLISH_SCHEDULE_CACHE
+
     if not has_blob_storage_config():
         raise RuntimeError("Azure Blob Storage is required to save publish schedules.")
 
-    cleaned_entries = [item for item in entries if isinstance(item, dict)]
-    payload = {"entries": cleaned_entries}
-    blob_name = _publish_schedules_blob_name()
-    _enqueue_blob_sync_upload(
-        blob_name,
-        json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
-    )
-    return cleaned_entries
+    with _PUBLISH_SCHEDULE_LOCK:
+        cleaned_entries = [item for item in entries if isinstance(item, dict)]
+        _PUBLISH_SCHEDULE_CACHE = list(cleaned_entries)
+        payload = {"entries": cleaned_entries}
+        blob_name = _publish_schedules_blob_name()
+        _enqueue_blob_sync_upload(
+            blob_name,
+            json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+        )
+        return list(cleaned_entries)
 
 
 def upsert_publish_schedule_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """Insert or replace a persisted schedule entry by its job id."""
+    global _PUBLISH_SCHEDULE_CACHE
+
     if not isinstance(entry, dict):
         raise TypeError("upsert_publish_schedule_entry expects a dictionary.")
 
-    job_id = str(entry.get("job_id") or entry.get("id") or "").strip()
-    entries = load_publish_schedule_entries()
-    if job_id:
-        entries = [item for item in entries if str(item.get("job_id") or item.get("id") or "").strip() != job_id]
-    entries.append(entry)
-    save_publish_schedule_entries(entries)
-    return entry
+    with _PUBLISH_SCHEDULE_LOCK:
+        job_id = str(entry.get("job_id") or entry.get("id") or "").strip()
+        if _PUBLISH_SCHEDULE_CACHE is None:
+            _PUBLISH_SCHEDULE_CACHE = load_publish_schedule_entries_cached(force_reload=False)
+        entries = list(_PUBLISH_SCHEDULE_CACHE)
+        if job_id:
+            entries = [item for item in entries if str(item.get("job_id") or item.get("id") or "").strip() != job_id]
+        entries.append(entry)
+        save_publish_schedule_entries(entries)
+        return entry
 
 
 def delete_publish_schedule_entry(job_id: str) -> list[dict[str, Any]]:
     """Delete a persisted schedule entry by its job id."""
-    target = str(job_id or "").strip()
-    if not target:
-        return load_publish_schedule_entries()
+    global _PUBLISH_SCHEDULE_CACHE
 
-    entries = [item for item in load_publish_schedule_entries() if str(item.get("job_id") or item.get("id") or "").strip() != target]
-    save_publish_schedule_entries(entries)
-    return entries
+    target = str(job_id or "").strip()
+    with _PUBLISH_SCHEDULE_LOCK:
+        if _PUBLISH_SCHEDULE_CACHE is None:
+            _PUBLISH_SCHEDULE_CACHE = load_publish_schedule_entries_cached(force_reload=False)
+        if not target:
+            return list(_PUBLISH_SCHEDULE_CACHE)
+
+        entries = [
+            item
+            for item in _PUBLISH_SCHEDULE_CACHE
+            if str(item.get("job_id") or item.get("id") or "").strip() != target
+        ]
+        save_publish_schedule_entries(entries)
+        return list(entries)
 
 
 def reset_publish_log_entries() -> list[dict[str, Any]]:

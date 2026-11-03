@@ -11,7 +11,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-from openai import AzureOpenAI, OpenAI
+from openai import APITimeoutError, APIConnectionError, AzureOpenAI, OpenAI
 
 
 PROMPTS_JSON: dict[str, Any] = {
@@ -290,6 +290,27 @@ def _is_rate_limit_error(exc: Exception) -> bool:
 
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
+def _is_timeout_error(exc: Exception) -> bool:
+    if isinstance(exc, APITimeoutError):
+        return True
+    return "request timed out" in str(exc).lower()
+
+
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
+def _is_transient_error(exc: Exception) -> bool:
+    if _is_rate_limit_error(exc) or _is_timeout_error(exc):
+        return True
+    if isinstance(exc, APIConnectionError):
+        return True
+    status_code = _status_code_from_error(exc)
+    if status_code is None:
+        return False
+    return status_code in {408, 409, 425} or status_code >= 500
+
+
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
 def _log_rate_limit_wait(kind: str, attempt: int, max_retries: int, delay: float, batch_size: int | None = None) -> None:
     if os.getenv("LLM_RETRY_VERBOSE", "true").strip().lower() not in {"1", "true", "yes", "on"}:
         return
@@ -297,6 +318,33 @@ def _log_rate_limit_wait(kind: str, attempt: int, max_retries: int, delay: float
     logger.warning(
         "[rate-limit] %s retry %s/%s, waiting %.1fs%s",
         kind,
+        attempt,
+        max_retries,
+        delay,
+        suffix,
+    )
+
+
+# Purpose: Internal helper used to keep the main workflow readable and maintainable.
+# Inputs/Outputs: See signature and return annotation for contract details.
+def _log_retry_wait(
+    kind: str,
+    reason: str,
+    attempt: int,
+    max_retries: int,
+    delay: float,
+    batch_size: int | None = None,
+) -> None:
+    if reason == "rate_limit":
+        _log_rate_limit_wait(kind, attempt, max_retries, delay, batch_size=batch_size)
+        return
+    if os.getenv("LLM_RETRY_VERBOSE", "true").strip().lower() not in {"1", "true", "yes", "on"}:
+        return
+    suffix = f", batch_size={batch_size}" if batch_size is not None else ""
+    logger.warning(
+        "[retry] %s reason=%s retry %s/%s, waiting %.1fs%s",
+        kind,
+        reason,
         attempt,
         max_retries,
         delay,
@@ -401,7 +449,7 @@ def create_chat_completion_stream(
             )
         except Exception as exc:
             last_error = exc
-            if not _is_rate_limit_error(exc):
+            if not _is_transient_error(exc):
                 raise
 
             if attempt >= max_retries:
@@ -409,7 +457,8 @@ def create_chat_completion_stream(
 
             retry_after = _retry_after_from_error(exc)
             delay = retry_after if retry_after is not None else min(max_delay, base_delay * (2 ** attempt))
-            _log_rate_limit_wait("chat", attempt + 1, max_retries, delay)
+            reason = "rate_limit" if _is_rate_limit_error(exc) else ("timeout" if _is_timeout_error(exc) else "transient")
+            _log_retry_wait("chat", reason, attempt + 1, max_retries, delay)
             time.sleep(delay)
 
     if last_error is not None:
@@ -475,7 +524,7 @@ def create_chat_completion_text(
             return str(content)
         except Exception as exc:
             last_error = exc
-            if not _is_rate_limit_error(exc):
+            if not _is_transient_error(exc):
                 raise
 
             if attempt >= max_retries:
@@ -483,7 +532,8 @@ def create_chat_completion_text(
 
             retry_after = _retry_after_from_error(exc)
             delay = retry_after if retry_after is not None else min(max_delay, base_delay * (2 ** attempt))
-            _log_rate_limit_wait("chat", attempt + 1, max_retries, delay)
+            reason = "rate_limit" if _is_rate_limit_error(exc) else ("timeout" if _is_timeout_error(exc) else "transient")
+            _log_retry_wait("chat", reason, attempt + 1, max_retries, delay)
             time.sleep(delay)
 
     if last_error is not None:
@@ -524,13 +574,14 @@ def create_embedding(
             return response.data[0].embedding
         except Exception as exc:
             last_error = exc
-            if not _is_rate_limit_error(exc):
+            if not _is_transient_error(exc):
                 raise
             if attempt >= max_retries:
                 break
             retry_after = _retry_after_from_error(exc)
             delay = retry_after if retry_after is not None else min(max_delay, base_delay * (2 ** attempt))
-            _log_rate_limit_wait("embedding", attempt + 1, max_retries, delay)
+            reason = "rate_limit" if _is_rate_limit_error(exc) else ("timeout" if _is_timeout_error(exc) else "transient")
+            _log_retry_wait("embedding", reason, attempt + 1, max_retries, delay)
             time.sleep(delay)
 
     if last_error is not None:
@@ -577,15 +628,16 @@ def create_embeddings(
                 return [item.embedding for item in response.data]
             except Exception as exc:
                 last_error = exc
-                if not _is_rate_limit_error(exc):
+                if not _is_transient_error(exc):
                     raise
                 if attempt >= max_retries:
                     break
-                if len(texts) > 1 and attempt + 1 >= split_after:
+                if len(texts) > 1 and attempt + 1 >= split_after and _is_rate_limit_error(exc):
                     break
                 retry_after = _retry_after_from_error(exc)
                 delay = retry_after if retry_after is not None else min(max_delay, base_delay * (2 ** attempt))
-                _log_rate_limit_wait("embeddings", attempt + 1, max_retries, delay, batch_size=len(texts))
+                reason = "rate_limit" if _is_rate_limit_error(exc) else ("timeout" if _is_timeout_error(exc) else "transient")
+                _log_retry_wait("embeddings", reason, attempt + 1, max_retries, delay, batch_size=len(texts))
                 time.sleep(delay)
 
         if len(texts) > 1 and last_error is not None and _is_rate_limit_error(last_error):
