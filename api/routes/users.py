@@ -189,6 +189,7 @@ async def create_user(
     """Create a local user and assign an application role."""
     normalized_role = _normalize_role(body.role)
     temporary_password = _generate_temporary_password()
+    body.password = (body.password or "").strip() or temporary_password
 
     user_create = UserCreate(
         email=str(body.email).strip().lower(),

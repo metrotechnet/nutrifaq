@@ -416,12 +416,20 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, role }),
             });
+            const temporaryPassword = String(
+                payload.temporary_password
+                || (payload.user && payload.user.temporary_password)
+                || ""
+            ).trim();
+            if (!temporaryPassword) {
+                throw new Error("Création réussie, mais aucun mot de passe temporaire n'a été retourné.");
+            }
             setStatus("Utilisateur créé avec succès.", false);
-            const temporaryPassword = String(payload.temporary_password || "");
+            const targetUser = escapeHtml(email);
             await window.Swal.fire({
                 icon: "success",
                 title: "Utilisateur créé",
-                html: `${escapeHtml(email)} a été ajouté avec succès.<br><br>Mot de passe temporaire: <strong>${escapeHtml(temporaryPassword)}</strong><br>Transmettez-le à l'utilisateur.`,
+                html: `Mot de passe temporaire: <br><br><strong>${escapeHtml(temporaryPassword)}</strong><br><br>Transmettez-le à ${targetUser}. L'utilisateur devra le changer à sa prochaine connexion.`,
                 confirmButtonColor: "#1d75c2",
             });
             await loadUsers();

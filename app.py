@@ -126,7 +126,8 @@ allowed_origins = [
     "http://localhost:5000",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8080",
-    "http://127.0.0.1:5000"
+    "http://127.0.0.1:5000",
+    "https://nutrifaqblobulaval.z27.web.core.windows.net",
 ]
 
 # Allow additional origins from ADDITIONAL_CORS_ORIGINS env var (comma-separated)
@@ -138,7 +139,7 @@ if additional_origins:
 allowed_origins = list(dict.fromkeys(allowed_origins))
 
 default_origin_regex = (
-    r"^https://nutrifaq[a-z0-9-]*\.z\d+\.web\.core\.windows\.net$"
+    r"^https://[a-z0-9-]+\.z\d+\.web\.core\.windows\.net$"
     r"|^http://(?:localhost|127\.0\.0\.1)(?::\d+)?$"
 )
 
