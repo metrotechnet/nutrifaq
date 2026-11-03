@@ -3,11 +3,9 @@ Report API Routes
 
 This module defines endpoints for logging user feedback (comments, likes) and serving log files in the Nutrifaq Agent backend.
 """
-from fastapi import APIRouter, Body, Depends, Query, Request
+from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from fastapi.templating import Jinja2Templates
 from pathlib import Path
-import os
 
 from api.services.entra_auth_service import EntraUser, require_admin, require_collaborator
 from api.services.logging import add_comment_to_question, add_like_to_question, _download_log_from_gcs, reset_question_log
@@ -16,7 +14,7 @@ from api.services.log_viewer_service import clear_log_file, get_log_metadata, re
 router = APIRouter()
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-templates = Jinja2Templates(directory=str(PROJECT_ROOT / "templates"))
+LOG_REPORT_TEMPLATE_PATH = PROJECT_ROOT / "templates" / "log_report.html"
 
 
 
@@ -127,11 +125,11 @@ def download_log_text(_: EntraUser = Depends(require_admin)):
 
 
 @router.get("/log_report", response_class=HTMLResponse)
-def serve_log_report(request: Request):
+def serve_log_report():
     """
     Serve the HTML log report page.
     
     The page itself is public, but all API calls from the page require a valid bearer token.
     The token is passed via URL query parameter and must be included in fetch Authorization headers.
     """
-    return templates.TemplateResponse("log_report.html", {"request": request})
+    return HTMLResponse(content=LOG_REPORT_TEMPLATE_PATH.read_text(encoding="utf-8"))

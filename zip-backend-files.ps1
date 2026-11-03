@@ -12,9 +12,11 @@ $zipDir = [System.IO.Path]::GetDirectoryName($ZipPath)
 if ([string]::IsNullOrWhiteSpace($zipDir)) {
     $zipDir = (Get-Location).Path
 }
+$packageVersion = "zip-$(Get-Date -Format "yyyyMMdd-HHmmss")"
 $zipArtifact = Join-Path $zipDir ("{0}-{1}.zip" -f $zipBaseName, (Get-Date -Format "yyyyMMdd-HHmmss"))
 
 Write-Host "Packaging project into '$zipArtifact'..."
+Write-Host "Package APP_VERSION: $packageVersion"
 
 $pythonExe = if (Test-Path -LiteralPath "$projectRoot\.venv\Scripts\python.exe") {
     "$projectRoot\.venv\Scripts\python.exe"
@@ -26,14 +28,17 @@ $pythonExe = if (Test-Path -LiteralPath "$projectRoot\.venv\Scripts\python.exe")
 
 $env:ZIP_PATH = $zipArtifact
 $env:PROJECT_ROOT = $projectRoot
+$env:PACKAGE_VERSION = $packageVersion
 $tempScript = Join-Path $env:TEMP "create_azure_zip_only.py"
 @'
 import os
+import re
 import zipfile
 from pathlib import Path
 
 root = Path(os.environ["PROJECT_ROOT"]).resolve()
 zip_path = Path(os.environ["ZIP_PATH"])
+package_version = os.environ["PACKAGE_VERSION"]
 include = {"app.py", "__init__.py", "requirements.txt", "startup.sh"}
 include_dirs = {"api"}
 exclude = {
@@ -54,7 +59,17 @@ with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
                     if path.is_file() and not any(part in exclude for part in path.relative_to(root).parts):
                         zf.write(path, arcname=path.relative_to(root).as_posix())
             else:
-                zf.write(entry, arcname=entry.name)
+                if entry.name == "app.py":
+                    app_text = entry.read_text(encoding="utf-8")
+                    app_text = re.sub(
+                        r'APP_VERSION\s*=\s*os\.getenv\("APP_VERSION",\s*"[^"]*"\)',
+                        f'APP_VERSION = os.getenv("APP_VERSION", "{package_version}")',
+                        app_text,
+                        count=1,
+                    )
+                    zf.writestr(entry.name, app_text.encode("utf-8"))
+                else:
+                    zf.write(entry, arcname=entry.name)
 '@ | Set-Content -Path $tempScript -Encoding UTF8
 
 & $pythonExe $tempScript

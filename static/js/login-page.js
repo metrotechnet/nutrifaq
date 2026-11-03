@@ -3,6 +3,8 @@
     const loginForm = document.getElementById("login-page-form");
     const emailInput = document.getElementById("login-page-email");
     const passwordInput = document.getElementById("login-page-password");
+    const passwordToggleBtn = document.getElementById("login-page-password-toggle");
+    const passwordToggleIcon = document.getElementById("login-page-password-toggle-icon");
     const signInBtn = document.getElementById("login-page-signin");
     const BACKEND_URL = window.BACKEND_URL || "";
     const LOCALES_BASE_URL = `${window.location.origin}/static/locales`;
@@ -120,6 +122,18 @@
         }
         statusEl.textContent = message;
         statusEl.classList.toggle("error", Boolean(isError));
+    }
+
+    function updatePasswordToggleState() {
+        if (!passwordInput || !passwordToggleBtn || !passwordToggleIcon) {
+            return;
+        }
+        const isVisible = passwordInput.type === "text";
+        const label = isVisible ? "Masquer le mot de passe" : "Afficher le mot de passe";
+        passwordToggleBtn.setAttribute("aria-label", label);
+        passwordToggleBtn.title = label;
+        passwordToggleIcon.classList.toggle("bi-eye-fill", !isVisible);
+        passwordToggleIcon.classList.toggle("bi-eye-slash-fill", isVisible);
     }
 
     function hasSwal() {
@@ -339,6 +353,14 @@
         if (!loginForm || !emailInput || !passwordInput) {
             setStatus(tr("statusFormMissing"), true);
             return;
+        }
+
+        if (passwordToggleBtn) {
+            updatePasswordToggleState();
+            passwordToggleBtn.addEventListener("click", () => {
+                passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+                updatePasswordToggleState();
+            });
         }
 
         loginForm.addEventListener("submit", async (event) => {

@@ -205,7 +205,7 @@
                             </svg>
                             <span data-i18n="sidebar.legal">Avertissements</span>
                         </a>
-            <a href="#" class="sidebar-link sidebar-footer-link" id="log-viewer-link" onclick="var token=localStorage.getItem('nutrifaq_admin_bearer_token'); if(!token){alert('Not authenticated. Please log in.');return false;} var backendUrl=(window.BACKEND_URL || 'http://localhost:8080'); window.open(backendUrl + '/log_report?token=' + encodeURIComponent(token), '_blank', 'noopener,noreferrer'); return false;">
+            <a href="#" class="sidebar-link sidebar-footer-link" id="log-viewer-link">
                 <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M5 3h10l6 6v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm8 1.5V9h5.5L13 4.5zM7 13h10v2H7v-2zm0 4h7v2H7v-2z"/>
                 </svg>

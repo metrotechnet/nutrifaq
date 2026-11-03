@@ -9,6 +9,7 @@
     const logoutBtn = document.getElementById("azure-logout-btn");
     const sidebarLogoutLink = document.getElementById("sidebar-logout-link");
     const sidebarManageUsersLink = document.getElementById("sidebar-manage-users-link");
+    const logViewerLink = document.getElementById("log-viewer-link");
     const startupLoginBtn = document.getElementById("startup-login-btn");
     const startupForgotPasswordBtn = document.getElementById("startup-forgot-password-btn");
     const authGateOverlay = document.getElementById("auth-gate-overlay");
@@ -711,6 +712,32 @@
                 }
                 showUsersNavLoadingOverlay();
                 window.location.assign(`/users.html?token=${encodeURIComponent(token)}`);
+            });
+        }
+
+        if (logViewerLink) {
+            logViewerLink.addEventListener("click", (event) => {
+                event.preventDefault();
+                const token = String(localStorage.getItem(TOKEN_KEY) || "").trim();
+                if (!token) {
+                    window.alert("Not authenticated. Please log in.");
+                    return;
+                }
+                const configuredBackendUrl = String(window.BACKEND_URL || "").trim().replace(/\/$/, "");
+                let backendHost = "";
+                try {
+                    backendHost = new URL(configuredBackendUrl).hostname.toLowerCase();
+                } catch (_) {
+                    backendHost = "";
+                }
+                const currentHost = String(window.location.hostname || "").toLowerCase();
+                const configuredIsLocalhost = backendHost === "localhost" || backendHost === "127.0.0.1";
+                const currentIsLocalhost = currentHost === "localhost" || currentHost === "127.0.0.1";
+                const baseUrl = configuredBackendUrl && (!configuredIsLocalhost || currentIsLocalhost)
+                    ? configuredBackendUrl
+                    : window.location.origin;
+                const target = `${baseUrl}/log_report?token=${encodeURIComponent(token)}`;
+                window.location.assign(target);
             });
         }
 
