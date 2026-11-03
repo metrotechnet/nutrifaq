@@ -46,9 +46,9 @@ import os
 async def lifespan(app: FastAPI):
     try:
         # Perform startup synchronization and initialization tasks
-        # sync_blob_databases_on_startup(app)
-        # # Initialize authentication system
-        # await initialize_auth()
+        await sync_blob_databases_on_startup(app)
+        # Initialize authentication system
+        await initialize_auth()
         # Initialize the publish scheduler
         from api.services.publish_scheduler import _ensure_scheduler
         _ensure_scheduler()
