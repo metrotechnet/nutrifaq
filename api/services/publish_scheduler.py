@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import os
 import re
@@ -19,7 +17,9 @@ from apscheduler.triggers.cron import CronTrigger
 from api.services.config import (
     append_publish_log_entry,
     delete_publish_schedule_entry,
+    load_publish_log_entries,
     load_publish_schedule_entries,
+    save_publish_log_entries,
     save_publish_schedule_entries,
     upsert_publish_schedule_entry,
 )
@@ -51,10 +51,16 @@ _schedule_cancel_latched_job_ids: set[str] = set()
 _schedule_persist_lock = threading.Lock()
 _schedule_persist_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="publish-schedule-persist")
 _schedule_persist_sequence_by_job: dict[str, int] = {}
+_schedule_log_load_lock = threading.Lock()
+_schedule_log_load_in_flight = False
+_schedule_log_load_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="publish-schedule-log-load")
+_schedule_log_save_lock = threading.Lock()
+_schedule_log_save_in_flight = False
+_schedule_log_save_requested = False
+_schedule_log_save_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="publish-schedule-log-save")
 _immediate_schedule_state_lock = threading.Lock()
 _immediate_schedule_cleared_at: str | None = None
 _immediate_schedule_cleared_job_id: str | None = None
-_FILE_CHANGE_SNAPSHOT_PATH = REPO_ROOT / ".publish_file_snapshot.json"
 
 
 def _set_schedule_transition_running(is_running: bool) -> None:
@@ -98,6 +104,7 @@ def _clear_schedule_cancel_requested(job_id: str | None) -> None:
 def _append_schedule_log(event: str, **details: Any) -> dict[str, Any]:
     """Persist a lightweight publish scheduler journal entry."""
     nested_result = details.get("result")
+    nested_publish_status = nested_result.get("publish_status") if isinstance(nested_result, dict) else None
     if isinstance(nested_result, dict):
         for key in ("scheduled_for", "run_at", "next_run_time", "triggered_at"):
             if key in nested_result and key not in details:
@@ -123,6 +130,9 @@ def _append_schedule_log(event: str, **details: Any) -> dict[str, Any]:
     if "files_count" not in details and "uploaded_files_count" in details:
         details["files_count"] = details["uploaded_files_count"]
 
+    # Prefer explicit values first, then scheduler/publish payloads used by this module.
+    details["files_count"] = nested_publish_status.get("uploaded_files_count") 
+
     if scheduled_for is not None:
         details["scheduled_for"] = scheduled_for
         details["run_at"] = details.get("run_at") or scheduled_for
@@ -135,14 +145,68 @@ def _append_schedule_log(event: str, **details: Any) -> dict[str, Any]:
         "status": details.get("status", event),
         "model": details.get("model") or details.get("model_used") or None,
         "provider": details.get("provider") or details.get("provider_used") or None,
-        "files_count": details.get("files_count") or details.get("uploaded_files_count") or 0,
+        "files_count": details.get("files_count"),
         "scheduled_for": scheduled_for or details.get("executed_at"),
         "executed_at": details.get("executed_at") or datetime.now().astimezone().isoformat(),
     }
     try:
-        return append_publish_log_entry(entry)
+        # Append the entry to the publish log and trigger a background save of the schedule log.
+        appended = append_publish_log_entry(entry)
+        # Trigger a background save of the schedule log to ensure the entry is persisted.
+        _save_schedule_log_entries()
+        return appended
     except Exception:
         return entry
+
+
+def _load_schedule_log_entries() -> None:
+    """Prime publish log cache in background without blocking scheduling."""
+    global _schedule_log_load_in_flight
+    with _schedule_log_load_lock:
+        if _schedule_log_load_in_flight:
+            return
+        _schedule_log_load_in_flight = True
+
+    def _run() -> None:
+        global _schedule_log_load_in_flight
+        try:
+            load_publish_log_entries()
+        except Exception:
+            logger.exception("Background publish log prefetch failed.")
+        finally:
+            with _schedule_log_load_lock:
+                _schedule_log_load_in_flight = False
+
+    _schedule_log_load_executor.submit(_run)
+
+
+def _save_schedule_log_entries() -> None:
+    """Persist publish log cache in background without blocking scheduler flow."""
+    global _schedule_log_save_in_flight, _schedule_log_save_requested
+    with _schedule_log_save_lock:
+        if _schedule_log_save_in_flight:
+            _schedule_log_save_requested = True
+            return
+        _schedule_log_save_in_flight = True
+        _schedule_log_save_requested = False
+
+    def _run() -> None:
+        global _schedule_log_save_in_flight, _schedule_log_save_requested
+        while True:
+            try:
+                entries = load_publish_log_entries()
+                save_publish_log_entries(entries)
+            except Exception:
+                logger.exception("Background publish log save failed.")
+
+            with _schedule_log_save_lock:
+                if _schedule_log_save_requested:
+                    _schedule_log_save_requested = False
+                    continue
+                _schedule_log_save_in_flight = False
+                break
+
+    _schedule_log_save_executor.submit(_run)
 
 
 def _mark_immediate_schedule_cleared(job_id: str | None) -> None:
@@ -175,57 +239,6 @@ def _reset_immediate_schedule_cleared_state() -> None:
 def _get_immediate_schedule_cleared_state() -> tuple[str | None, str | None]:
     with _immediate_schedule_state_lock:
         return _immediate_schedule_cleared_at, _immediate_schedule_cleared_job_id
-
-
-def _snapshot_kb_files(root: Path | str) -> dict[str, str]:
-    """Return a compact manifest of file paths and mtimes for change detection."""
-    root_path = Path(root)
-    if not root_path.exists():
-        return {}
-
-    snapshot: dict[str, str] = {}
-    for path in sorted(root_path.rglob("*")):
-        if not path.is_file():
-            continue
-        relative = path.relative_to(root_path).as_posix()
-        stat = path.stat()
-        digest = hashlib.sha256(path.read_bytes()).hexdigest() if path.stat().st_size > 0 else "empty"
-        snapshot[relative] = f"{stat.st_mtime_ns}:{stat.st_size}:{digest}"
-    return snapshot
-
-
-def _load_last_snapshot() -> dict[str, str]:
-    if not _FILE_CHANGE_SNAPSHOT_PATH.exists():
-        return {}
-    try:
-        with _FILE_CHANGE_SNAPSHOT_PATH.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-        if isinstance(payload, dict):
-            return {str(k): str(v) for k, v in payload.items()}
-    except Exception:
-        pass
-    return {}
-
-
-def _save_current_snapshot(root: Path | str) -> None:
-    try:
-        _FILE_CHANGE_SNAPSHOT_PATH.write_text(json.dumps(_snapshot_kb_files(root), ensure_ascii=False, sort_keys=True), encoding="utf-8")
-    except Exception:
-        pass
-
-
-def has_files_changed(root: Path | str | None = None) -> bool:
-    """Return True when the file set under the KB has changed since the last snapshot."""
-    root_path = Path(root or MAIN_KB_ROOT)
-    previous = _load_last_snapshot()
-    current = _snapshot_kb_files(root_path)
-    if not previous and current:
-        _save_current_snapshot(root_path)
-        return True
-    changed = previous != current
-    if changed:
-        _save_current_snapshot(root_path)
-    return changed
 
 
 def run_indexation_then_publish(
@@ -394,7 +407,17 @@ def run_indexation_then_publish(
             "provider": provider,
             "scheduled_for": planned_value,
         }
-        _append_schedule_log("publish_triggered", model=model, provider=provider, root=str(root_path), indexation=indexation_result, publish=publish_result, scheduled_for=planned_value, executed_at=_actual_now_iso())
+        _append_schedule_log(
+            "publish_succeeded",
+            model=model,
+            provider=provider,
+            root=str(root_path),
+            indexation=indexation_result,
+            publish=publish_result,
+            result=successful,
+            scheduled_for=planned_value,
+            executed_at=_actual_now_iso(),
+        )
         return successful
     finally:
         if immediate:
@@ -713,10 +736,6 @@ def configure_default_auto_publish() -> dict[str, Any]:
     return {"status": "not-configured", "message": "Automatic publish is enabled but no valid schedule was configured."}
 
 
-def _run_scheduled_publish(model: str, provider: str = "azure") -> dict[str, Any]:
-    """Trigger indexing then publish only when files changed; otherwise report no-op."""
-    return run_indexation_then_publish(model=model, provider=provider)
-
 
 def schedule_publish(
     *,
@@ -770,6 +789,9 @@ def schedule_publish(
         run_date = datetime.now(timezone.utc)
         _reset_immediate_schedule_cleared_state()
 
+    # Load publish log entries to ensure the cache is populated before scheduling a new job.
+    _load_schedule_log_entries()
+
     scheduler = _ensure_scheduler()
     resolved_job_id = str(job_id or _build_job_id())
     _clear_schedule_cancel_requested(resolved_job_id)
@@ -786,13 +808,15 @@ def schedule_publish(
         },
     }
     if cron:
+        # effective_cron = "* * * * *" 
+        effective_cron = cron 
         normalized_recurrence = str(recurrence or "").strip().lower()
         scheduler.add_job(
             run_indexation_then_publish,
-            trigger=CronTrigger.from_crontab(cron, timezone=timezone_name),
+            trigger=CronTrigger.from_crontab(effective_cron, timezone=timezone_name),
             **job_kwargs,
         )
-        when_value = cron
+        when_value = effective_cron
         recurrence_kind = normalized_recurrence if normalized_recurrence in {"daily", "weekly"} else "cron"
     elif interval_minutes is not None:
         scheduler.add_job(
@@ -814,6 +838,10 @@ def schedule_publish(
         recurrence_kind = "one_time"
     else:
         raise ValueError("A valid publish time, cron schedule, or interval must be provided.")
+
+    scheduled_job = scheduler.get_job(resolved_job_id)
+    next_run_dt = getattr(scheduled_job, "next_run_time", None) if scheduled_job is not None else None
+    next_run_display = _format_report_datetime(next_run_dt, timezone_name) if next_run_dt is not None else None
 
     persisted_record = _build_saved_schedule_record(
         job_id=resolved_job_id,
@@ -838,6 +866,7 @@ def schedule_publish(
         "model": str(model),
         "provider": str(provider or "azure"),
         "schedule": when_value,
+        "next_run_time": next_run_display,
         "recurrence": recurrence_kind,
         "message": "Schedule saved.",
         "persisted": persisted_record,
@@ -850,6 +879,7 @@ def schedule_publish(
                 "immediate": bool(immediate_mode),
                 "recurrence": recurrence_kind,
                 "schedule": when_value,
+                "next_run_time": next_run_display,
                 "message": "Schedule saved.",
                 "message_key": "publish.schedule.saved",
             },
@@ -857,24 +887,6 @@ def schedule_publish(
     except Exception:
         pass
     return schedule_result
-
-
-def schedule_file_change_publish(
-    *,
-    model: str,
-    provider: str = "azure",
-    user_time: str | None = None,
-    recurrence: str = "once",
-    timezone_name: str = "UTC",
-) -> dict[str, Any]:
-    """Convenience helper for scheduling a publish after a file add/delete event."""
-    return schedule_publish(
-        model=model,
-        provider=provider,
-        user_time=user_time,
-        recurrence=recurrence,
-        timezone_name=timezone_name,
-    )
 
 
 def list_scheduled_publish_jobs() -> list[dict[str, Any]]:
@@ -941,8 +953,25 @@ def list_scheduled_publish_jobs() -> list[dict[str, Any]]:
             persisted_by_id.pop(item_id)
 
     for entry in persisted_by_id.values():
-        next_run_text = entry.get("run_at") or entry.get("schedule")
         recurrence = str(entry.get("recurrence") or "one_time").strip().lower()
+        timezone_name = str(entry.get("timezone_name") or AUTO_PUBLISH_TIMEZONE or "UTC").strip() or "UTC"
+        cron_expression = str(entry.get("cron") or "").strip()
+        next_run_text: str | None = None
+
+        if cron_expression:
+            try:
+                cron_trigger = CronTrigger.from_crontab(cron_expression, timezone=timezone_name)
+                next_fire = cron_trigger.get_next_fire_time(None, datetime.now(timezone.utc))
+                next_run_text = _format_report_datetime(next_fire, timezone_name) if next_fire is not None else None
+            except Exception:
+                next_run_text = None
+        if not next_run_text:
+            run_at_value = _normalize_datetime(entry.get("run_at"), default_tz=_resolve_timezone(timezone_name))
+            if run_at_value is not None:
+                next_run_text = _format_report_datetime(run_at_value, timezone_name)
+            else:
+                next_run_text = entry.get("run_at") or entry.get("schedule")
+
         if recurrence in {"manual", "immediate"}:
             recurrence = "one_time"
         jobs.append({
@@ -1070,7 +1099,10 @@ def cancel_scheduled_publish(job_id: str) -> dict[str, Any]:
         result["status"] = job_status if job_status == "cancelled" else "not_found"
         result["message"] = job_message
 
-    _append_schedule_log("publish_schedule_cancelled", job_id=job_id, publish=publish_cancel_result, indexation=indexation_cancel_result)
+    _append_schedule_log("publish_schedule_cancelled", 
+                         job_id=job_id, 
+                         publish=publish_cancel_result, 
+                         indexation=indexation_cancel_result)
     _emit_scheduler_status_event()
     return result
 
@@ -1108,9 +1140,7 @@ def clear_active_publish_schedule_on_cancel() -> dict[str, Any]:
 
 __all__ = [
     "schedule_publish",
-    "schedule_file_change_publish",
     "run_indexation_then_publish",
-    "has_files_changed",
     "list_scheduled_publish_jobs",
     "get_publish_scheduler_status",
     "cancel_scheduled_publish",

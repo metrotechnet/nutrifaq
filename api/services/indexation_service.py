@@ -1167,10 +1167,7 @@ def run_full_indexation(
         "container_name": (container_name or "").strip() or os.getenv("AZURE_KB_DEBUG_BLOB_CONTAINER", "").strip() or "nutrifaq-dbase-main",
         "llm_model": llm_model or os.getenv("CHAT_MODEL") or os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT") or os.getenv("LLM_MODEL") or "",
     }
-    try:
-        append_publish_log_entry(indexation_start_log)
-    except Exception:
-        pass
+
 
     resolved_root_folder = (
         (root_folder or "").strip()
@@ -1311,18 +1308,6 @@ def run_full_indexation(
         try:
             from api.services.logging import sync_log_file_to_azure
             sync_log_file_to_azure()
-        except Exception:
-            pass
-        try:
-            append_publish_log_entry({
-                "timestamp": datetime.now().astimezone().isoformat(),
-                "operation": "indexation",
-                "status": str(result.get("status", "unknown")),
-                "message": str(result.get("message") or "Database indexing finished."),
-                "root_folder": resolved_root_folder,
-                "container_name": resolved_container_name,
-                "process_only_new_files": bool(process_only_new_files),
-            })
         except Exception:
             pass
         _finish_indexation()

@@ -886,7 +886,8 @@
                     const confirmed = await confirmAction({
                         title: tr("publish.schedule.delete.title", "Supprimer la planification ?"),
                         text: tr("publish.schedule.delete.text", "Voulez-vous vraiment supprimer cette planification automatique ?"),
-                        confirmText: tr("publish.schedule.delete.action", "Supprimer")
+                        confirmText: tr("publish.schedule.delete.action", "Supprimer"),
+                        cancelText: tr("publish.schedule.delete.cancel", "Non")
                     });
                     if (!confirmed) {
                         return;
@@ -1010,7 +1011,9 @@
             } else if (recurrence === "weekly") {
                 const [hour, minute] = String(timeValue).split(":").map((part) => Number(part) || 0);
                 const dayOfWeek = Number(weekdayValue) || 0;
-                body.cron = `${minute} ${hour} * * ${dayOfWeek}`;
+                const weekdayCronTokens = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+                const dayOfWeekToken = weekdayCronTokens[dayOfWeek] || "sun";
+                body.cron = `${minute} ${hour} * * ${dayOfWeekToken}`;
                 body.recurrence = "weekly";
             } else if (recurrence === "once") {
                 const scheduledDate = dateValue || new Date().toISOString().slice(0, 10);
@@ -1524,7 +1527,7 @@
         return Boolean(window.Swal && typeof window.Swal.fire === "function");
     }
 
-    async function confirmAction({ title, text, confirmText }) {
+    async function confirmAction({ title, text, confirmText, cancelText }) {
         if (hasSweetAlert()) {
             const result = await window.Swal.fire({
                 title,
@@ -1532,7 +1535,7 @@
                 icon: "warning",
                 showCancelButton: true,
                 confirmButtonText: confirmText || tr("downloadManager.confirm.default", "Confirmer"),
-                cancelButtonText: tr("downloadManager.confirm.cancel", "Annuler"),
+                cancelButtonText: cancelText || tr("downloadManager.confirm.cancel", "Annuler"),
                 reverseButtons: true,
             });
             return Boolean(result.isConfirmed);
@@ -2959,12 +2962,6 @@
             }
             hidePublishProgress();
             setPublishFinishMessage("");
-            if (!fromBootstrap) {
-                await showAlertMessage(
-                    tr("publish.popup.completedText", "Publication terminee avec succes ({count} fichiers).", { count: filesCount }),
-                    false
-                );
-            }
             await loadActivePublishLogs();
             return;
         }
@@ -3159,7 +3156,7 @@
                         job_id: String(payload.job_id || "active-publish-schedule"),
                         recurrence: String(payload.recurrence || "once"),
                         schedule: String(payload.schedule || ""),
-                        next_run_time: String(payload.schedule || ""),
+                        next_run_time: String(payload.next_run_time || payload.schedule || ""),
                         immediate: Boolean(payload.immediate),
                     },
                     has_active_schedule: true,
@@ -3835,11 +3832,9 @@
             if (finalStatus === "cancelled") {
                 setStatus(tr("downloadManager.status.indexingCancelled", "Indexage annulé."), true);
                 finishIndexingProgress(false);
-                showAlertMessage(tr("downloadManager.status.indexingCancelled", "Indexage annulé."), false);
             } else if (finalStatus === "success" || finalStatus === "completed") {
                 setStatus(tr("downloadManager.status.indexingDone", "Indexage terminé."), false);
                 finishIndexingProgress(true);
-                showAlertMessage(tr("downloadManager.status.indexingDone", "Indexage terminé."), false);
             } else if (finalStatus === "error") {
                 const detail = (result && (result.message || result.detail)) ? String(result.message || result.detail) : "unknown";
                 throw new Error(detail);

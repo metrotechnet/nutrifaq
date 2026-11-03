@@ -417,7 +417,8 @@
       "delete": {
         "title": "Cancel schedule?",
         "text": "Do you really want to cancel this automatic schedule?",
-        "action": "Cancel"
+        "action": "Yes",
+        "cancel": "No"
       },
       "deleteError": "Unable to cancel the schedule.",
       "immediate": "Immediate",

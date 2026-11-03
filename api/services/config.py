@@ -408,7 +408,7 @@ def append_publish_log_entry(entry: dict[str, Any]) -> dict[str, Any]:
 
     with _PUBLISH_LOG_LOCK:
         if _PUBLISH_LOG_CACHE is None:
-            _PUBLISH_LOG_CACHE = load_publish_log_entries_cached(force_reload=False)
+            _PUBLISH_LOG_CACHE = []
 
         _PUBLISH_LOG_CACHE.append(entry)
         cleaned_entries = [item for item in _PUBLISH_LOG_CACHE if isinstance(item, dict)]

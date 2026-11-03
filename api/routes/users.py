@@ -119,7 +119,7 @@ def _normalize_role(value: str) -> str:
     return role
 
 
-def _generate_temporary_password(length: int = 14) -> str:
+def _generate_temporary_password(length: int = 6) -> str:
     alphabet = string.ascii_letters + string.digits + "!@#$%*_-"
     while True:
         candidate = "".join(secrets.choice(alphabet) for _ in range(length))

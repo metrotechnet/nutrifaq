@@ -74,6 +74,15 @@
         return Boolean(window.Swal && typeof window.Swal.fire === "function");
     }
 
+    function escapeHtml(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
     async function showPopup(icon, title, text) {
         if (!hasSwal()) {
             return;
@@ -273,11 +282,13 @@
                     applyResetStateBadge(resetStateLabel, true);
                     inlineStatus.textContent = "Réinitialisation requise au prochain login.";
                     const temporaryPassword = String(payload.temporary_password || "");
-                    await showPopup(
-                        "success",
-                        "Réinitialisation activée",
-                        `Mot de passe temporaire: ${temporaryPassword}\n\nTransmettez-le à ${user.email || user.object_id}. L'utilisateur devra le changer à sa prochaine connexion.`
-                    );
+                    const targetUser = escapeHtml(user.email || user.object_id);
+                    await window.Swal.fire({
+                        icon: "success",
+                        title: "Réinitialisation activée",
+                        html: `Mot de passe temporaire: <br><br><strong>${escapeHtml(temporaryPassword)}</strong><br><br>Transmettez-le à ${targetUser}. L'utilisateur devra le changer à sa prochaine connexion.`,
+                        confirmButtonColor: "#1d75c2",
+                    });
                 } catch (error) {
                     inlineStatus.textContent = `Erreur: ${error.message}`;
                     await showPopup("error", "Échec de l'opération", error.message || "Une erreur est survenue.");
@@ -407,11 +418,12 @@
             });
             setStatus("Utilisateur créé avec succès.", false);
             const temporaryPassword = String(payload.temporary_password || "");
-            await showPopup(
-                "success",
-                "Utilisateur créé",
-                `${email} a été ajouté avec succès.\n\nMot de passe temporaire: ${temporaryPassword}\nTransmettez-le à l'utilisateur.`
-            );
+            await window.Swal.fire({
+                icon: "success",
+                title: "Utilisateur créé",
+                html: `${escapeHtml(email)} a été ajouté avec succès.<br><br>Mot de passe temporaire: <strong>${escapeHtml(temporaryPassword)}</strong><br>Transmettez-le à l'utilisateur.`,
+                confirmButtonColor: "#1d75c2",
+            });
             await loadUsers();
         } catch (error) {
             setStatus(`Création échouée: ${error.message}`, true);

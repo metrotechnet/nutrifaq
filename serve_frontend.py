@@ -7,12 +7,8 @@ import http.server
 import socketserver
 import os
 import socket
-import json
-import re
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
 from pathlib import Path
-from urllib.parse import unquote, urlparse, parse_qs
+from urllib.parse import unquote
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -26,22 +22,6 @@ logger = logging.getLogger(__name__)
 
 PORT = 3000
 BASE_DIR = Path(__file__).parent
-
-
-def _backend_base_url() -> str:
-    frontend_config = BASE_DIR / "static" / "js" / "auth-config.js"
-    try:
-        raw_config = frontend_config.read_text(encoding="utf-8")
-        for line in raw_config.splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("//"):
-                continue
-            match = re.search(r'window\.BACKEND_URL\s*=\s*"([^"]+)"', stripped)
-            if match and match.group(1).strip():
-                return match.group(1).strip().rstrip("/")
-    except Exception:
-        pass
-    return (os.getenv("BACKEND_URL", "http://localhost:8080") or "http://localhost:8080").rstrip("/")
 
 
 def _first_available_port(candidates: list[int]) -> int:
@@ -138,36 +118,6 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             except Exception as e:
                 self.send_error(500, f"Error processing template: {str(e)}")
         elif path == 'SERVE_USERS_TEMPLATE':
-            token = ""
-            auth_header = self.headers.get("Authorization", "").strip()
-            if auth_header.lower().startswith("bearer "):
-                token = auth_header[7:].strip()
-            if not token:
-                query = parse_qs(urlparse(self.path).query)
-                token = (query.get("token") or [""])[0].strip()
-
-            if not token:
-                self._redirect("/login.html")
-                return
-
-            me_req = Request(
-                url=f"{_backend_base_url()}/api/users/me",
-                method="GET",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-            try:
-                with urlopen(me_req, timeout=15) as me_response:
-                    raw_body = me_response.read().decode("utf-8", errors="replace")
-                    me_payload = json.loads(raw_body) if raw_body else {}
-            except (HTTPError, URLError, json.JSONDecodeError):
-                self._redirect("/login.html")
-                return
-
-            role = str(me_payload.get("role", "")).strip().lower()
-            if role != "admin":
-                self._redirect("/index.html")
-                return
-
             template_path = BASE_DIR / 'templates' / 'users.html'
             try:
                 with open(template_path, 'r', encoding='utf-8') as f:

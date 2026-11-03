@@ -188,14 +188,7 @@ def _clear_blob_destination(container_name: str, prefix: str = "") -> int:
 def _run_publish_job(model: str, provider: str) -> None:
     try:
         _publish_cancel_event.clear()
-        append_publish_log_entry({
-            "timestamp": datetime.now().astimezone().isoformat(),
-            "operation": "publish",
-            "status": "started",
-            "model": model,
-            "provider": provider,
-            "message": "Publication started.",
-        })
+
         _set_publish_state(
             status="running",
             step="preparing",
@@ -346,8 +339,12 @@ def _run_publish_job(model: str, provider: str) -> None:
             "main_container": main_container,
             "prev_container": prev_container,
         }
-        append_publish_log_entry(publish_entry)
 
+        # Keep rich publish execution details attached to the final result payload,
+        # but do not emit this intermediate structure as a standalone log entry.
+        # A separate append here would create a near-duplicate timeline item just
+        # before the terminal "completed" entry below, which is the single
+        # canonical completion record shown in publication history.
         result = {
             "status": "ok",
             "message": "Publication completed.",
@@ -380,16 +377,7 @@ def _run_publish_job(model: str, provider: str) -> None:
                 "backup_failed_count": backup_result.get("failed_count", 0),
             },
         )
-        append_publish_log_entry({
-            "timestamp": datetime.now().astimezone().isoformat(),
-            "operation": "publish",
-            "status": "completed",
-            "model": model,
-            "provider": provider,
-            "message": "Publication completed.",
-            "files_count": documents_file_count,
-            "result": result,
-        })
+
         return result
     except Exception as exc:
         cancelled = _is_publish_cancel_requested()
@@ -411,15 +399,7 @@ def _run_publish_job(model: str, provider: str) -> None:
                 "error": None if cancelled else str(exc),
             },
         )
-        append_publish_log_entry({
-            "timestamp": datetime.now().astimezone().isoformat(),
-            "operation": "publish",
-            "status": "cancelled" if cancelled else "error",
-            "model": model,
-            "provider": provider,
-            "message": "Publication cancelled." if cancelled else f"Unable to publish: {exc}",
-            "error": None if cancelled else str(exc),
-        })
+
         _publish_cancel_event.clear()
 
 

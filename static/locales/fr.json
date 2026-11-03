@@ -417,7 +417,8 @@
       "delete": {
         "title": "Annuler la planification ?",
         "text": "Voulez-vous vraiment supprimer cette planification automatique ?",
-        "action": "Annuler"
+        "action": "Oui",
+        "cancel": "Non"
       },
       "deleteError": "Impossible d'annuler la planification.",
       "immediate": "Immédiate",
