@@ -345,7 +345,12 @@ def sync_local_directory_to_blob(
             raise RuntimeError("Operation cancelled by user.")
         relative = path.relative_to(source_root).as_posix()
         blob_name = f"{prefix_clean}/{relative}" if prefix_clean else relative
-        upload_file_to_blob(blob_name, path, overwrite=overwrite, container_name=container_name)
+        _upload_file_to_blob_blocking(
+            blob_name=blob_name,
+            source_path=path,
+            overwrite=overwrite,
+            container_name=container_name,
+        )
         uploaded.append(blob_name)
         if callable(on_file_transferred):
             on_file_transferred(

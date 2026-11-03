@@ -315,6 +315,7 @@
       "selectLocalFile": "Sélectionnez un fichier local.",
       "uploading": "Téléversement en cours...",
       "uploaded": "Fichier téléversé : {name}",
+      "uploadedCount": "{count} fichiers téléversés.",
       "uploadError": "Erreur de téléversement : {error}",
       "fileSelected": "Fichier sélectionné : {name}",
       "indexingInProgress": "Indexation en cours... cela peut prendre plusieurs minutes.",

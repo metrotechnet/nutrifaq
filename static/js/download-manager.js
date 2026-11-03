@@ -3574,6 +3574,7 @@
 
     async function loadFiles() {
         try {
+            showIndexingActionLoading();
             setStatus(tr("downloadManager.status.loadingFiles", "Chargement des fichiers Azure..."), false);
             if (els.filesTbody) {
                 els.filesTbody.innerHTML = `<tr><td colspan="5">${escapeHtml(tr("downloadManager.table.loading", "Chargement..."))}</td></tr>`;
@@ -3592,6 +3593,8 @@
                 els.filesTbody.innerHTML = `<tr><td colspan="5">${escapeHtml(tr("downloadManager.table.errorPrefix", "Erreur: "))}${escapeHtml(error.message)}</td></tr>`;
             }
             setStatus(tr("downloadManager.status.loadError", "Erreur de chargement: {error}", { error: error.message }), true);
+        } finally {
+            hideIndexingActionLoading();
         }
     }
 
@@ -3703,10 +3706,11 @@
         }
     }
 
-    async function uploadFile(inputFile) {
+    async function uploadFile(inputFile, options = {}) {
+        const suppressSuccessStatus = Boolean(options && options.suppressSuccessStatus);
         if (!inputFile) {
             setStatus(tr("downloadManager.status.selectLocalFile", "Sélectionnez un fichier local."), true);
-            return;
+            return false;
         }
 
         const safeFileName = (inputFile.name || "").split(/[\\/]/).pop() || "upload.bin";
@@ -3739,9 +3743,13 @@
             });
             refreshLocalFilesTable();
 
-            setStatus(tr("downloadManager.status.uploaded", "Fichier téléversé: {name}", { name: resolvedBlobName }), false);
+            if (!suppressSuccessStatus) {
+                setStatus(tr("downloadManager.status.uploaded", "Fichier téléversé: {name}", { name: resolvedBlobName }), false);
+            }
+            return true;
         } catch (error) {
             setStatus(tr("downloadManager.status.uploadError", "Erreur upload: {error}", { error: error.message }), true);
+            return false;
         }
     }
 
@@ -3789,8 +3797,24 @@
                 }
             }
 
-            for (const file of selectedFiles) {
-                await uploadFile(file);
+            showIndexingActionLoading();
+            try {
+                let uploadedCount = 0;
+                for (const file of selectedFiles) {
+                    const uploaded = await uploadFile(file, { suppressSuccessStatus: selectedFiles.length > 1 });
+                    if (uploaded) {
+                        uploadedCount += 1;
+                    }
+                }
+
+                if (selectedFiles.length > 1) {
+                    setStatus(
+                        tr("downloadManager.status.uploadedCount", "{count} fichiers téléversés.", { count: uploadedCount }),
+                        uploadedCount === 0
+                    );
+                }
+            } finally {
+                hideIndexingActionLoading();
             }
 
             fileInput.value = "";

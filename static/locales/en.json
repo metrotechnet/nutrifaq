@@ -315,6 +315,7 @@
       "selectLocalFile": "Select a local file.",
       "uploading": "Uploading...",
       "uploaded": "File uploaded: {name}",
+      "uploadedCount": "{count} files uploaded.",
       "uploadError": "Upload error: {error}",
       "fileSelected": "Selected file: {name}",
       "indexingInProgress": "Indexing in progress... this may take several minutes.",
