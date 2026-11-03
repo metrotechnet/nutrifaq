@@ -127,6 +127,7 @@ allowed_origins = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8080",
     "http://127.0.0.1:5000",
+    "null",
     "https://nutrifaqblobulaval.z27.web.core.windows.net",
 ]
 
@@ -140,6 +141,7 @@ allowed_origins = list(dict.fromkeys(allowed_origins))
 
 default_origin_regex = (
     r"^https://[a-z0-9-]+\.z\d+\.web\.core\.windows\.net$"
+    r"|^null$"
     r"|^http://(?:localhost|127\.0\.0\.1)(?::\d+)?$"
 )
 
