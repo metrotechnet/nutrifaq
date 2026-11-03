@@ -106,8 +106,10 @@
         publishScheduleRefresh: document.getElementById("publish-schedule-refresh"),
         publishScheduleList: document.getElementById("publish-schedule-list"),
         publishScheduleDateField: document.getElementById("publish-schedule-date-field"),
-        publishScheduleWeekdayField: document.getElementById("publish-schedule-weekday-field")
+        publishScheduleWeekdayField: document.getElementById("publish-schedule-weekday-field"),
+        indexingActionLoadingOverlay: document.getElementById("indexing-action-loading-overlay")
     };
+    let indexingActionLoadingCount = 0;
 
     // Purpose: Implements a focused frontend behavior used by this module.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
@@ -2388,6 +2390,24 @@
         els.statusMessage.classList.toggle("error", Boolean(isError));
     }
 
+    function showIndexingActionLoading() {
+        if (!els.indexingActionLoadingOverlay) {
+            return;
+        }
+        indexingActionLoadingCount += 1;
+        els.indexingActionLoadingOverlay.hidden = false;
+    }
+
+    function hideIndexingActionLoading() {
+        if (!els.indexingActionLoadingOverlay) {
+            return;
+        }
+        indexingActionLoadingCount = Math.max(0, indexingActionLoadingCount - 1);
+        if (indexingActionLoadingCount === 0) {
+            els.indexingActionLoadingOverlay.hidden = true;
+        }
+    }
+
     // Purpose: Keeps frontend state synchronized with server or shared UI state.
     // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
     function syncPublishReadyLabelWithTranslations() {
@@ -2533,18 +2553,37 @@
 
         const rows = logs.slice().reverse().map((entry, index) => {
             const details = entry && typeof entry.details === "object" ? entry.details : {};
-            const resultDetails = entry && typeof entry.result === "object" ? entry.result : {};
+            const resultDetails = details && typeof details.result === "object"
+                ? details.result
+                : (entry && typeof entry.result === "object" ? entry.result : {});
             const scheduledFor = details.scheduled_for || details.run_at || details.triggered_at || entry.scheduled_for || resultDetails.scheduled_for || resultDetails.run_at || resultDetails.triggered_at || entry.timestamp || "-";
             const timestampRaw = String(scheduledFor);
-            // console.log("Scheduled for raw value:", scheduledFor);
             const modelRaw = String(entry.model_used || entry.model || details.model_used || details.model || tr("publish.logs.modelUnknown", "inconnu"));
             const providerRaw = String(entry.provider_used || entry.provider || details.provider_used || details.provider || tr("publish.logs.providerUnknown", "inconnu"));
             const filesCountRaw = Number(entry.files_count || details.files_count || details.uploaded_files_count || 0);
+            const statusRaw = String(entry.status || details.status || resultDetails.status || entry.event || tr("publish.logs.statusUnknown", "inconnu"));
+            const errorRaw = String(
+                entry.error
+                || details.error
+                || resultDetails.error
+                || (details.publish_status && details.publish_status.error)
+                || (resultDetails.publish_status && resultDetails.publish_status.error)
+                || ""
+            ).trim();
 
             const ts = escapeHtml(formatDate(timestampRaw));
             const model = escapeHtml(modelRaw);
             const provider = escapeHtml(providerRaw);
+            const status = escapeHtml(statusRaw);
             const filesCount = Number.isFinite(filesCountRaw) ? filesCountRaw : 0;
+            const errorHtml = errorRaw
+                ? `
+                    <div class="publish-log-block">
+                        <p class="publish-log-label">${escapeHtml(tr("publish.logs.errorDetailsLabel", "Détail de l'erreur"))}</p>
+                        <p class="publish-log-response">${escapeHtml(errorRaw)}</p>
+                    </div>
+                `
+                : "";
 
             return `
                 <article class="publish-log-item">
@@ -2553,7 +2592,9 @@
                         <span><strong>${escapeHtml(tr("publish.logs.providerLabel", "Fournisseur"))}:</strong> ${provider}</span>
                         <span><strong>${escapeHtml(tr("publish.logs.modelLabel", "Modèle"))}:</strong> ${model}</span>
                         <span><strong>${escapeHtml(tr("publish.logs.filesLabel", "Fichiers"))}:</strong> ${filesCount}</span>
+                        <span><strong>${escapeHtml(tr("publish.logs.statusLabel", "Statut"))}:</strong> ${status}</span>
                     </div>
+                    ${errorHtml}
                 </article>
             `;
         });
@@ -3499,6 +3540,7 @@
         }
 
         try {
+            showIndexingActionLoading();
             setStatus(tr("downloadManager.status.deletingSelected", "Suppression des fichiers sélectionnés..."), false);
             for (const blobName of [...selected]) {
                 await fetchJson(withContainerQuery(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}`), {
@@ -3514,6 +3556,8 @@
             setStatus(tr("downloadManager.status.deletedSelected", "Fichiers supprimés: {count}", { count: selected.length }), false);
         } catch (error) {
             setStatus(tr("downloadManager.status.deleteError", "Erreur suppression: {error}", { error: error.message }), true);
+        } finally {
+            hideIndexingActionLoading();
         }
     }
 
@@ -3565,6 +3609,7 @@
         }
 
         try {
+            showIndexingActionLoading();
             setStatus(tr("downloadManager.status.deleting", "Suppression de {name}...", { name: blobName }), false);
             await fetchJson(withContainerQuery(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}`), {
                 method: "DELETE",
@@ -3581,6 +3626,8 @@
             }
         } catch (error) {
             setStatus(tr("downloadManager.status.deleteError", "Erreur suppression: {error}", { error: error.message }), true);
+        } finally {
+            hideIndexingActionLoading();
         }
     }
 
@@ -3591,6 +3638,7 @@
         }
 
         try {
+            showIndexingActionLoading();
             const response = await fetch(withContainerQuery(`${BACKEND_URL}/api/blob/files/download-all`), {
                 method: "POST",
                 headers: {
@@ -3617,6 +3665,8 @@
             setStatus(tr("downloadManager.status.downloadStarted", "Téléchargement lancé: {count} fichier(s)", { count: names.length }), false);
         } catch (error) {
             setStatus(tr("downloadManager.status.downloadError", "Erreur téléchargement: {error}", { error: error.message }), true);
+        } finally {
+            hideIndexingActionLoading();
         }
     }
 
@@ -3626,6 +3676,7 @@
         }
 
         try {
+            showIndexingActionLoading();
             const headers = authHeaders();
             const url = withContainerQuery(`${BACKEND_URL}/api/blob/files/${encodeURI(blobName)}/download`);
             const response = await fetch(url, { headers });
@@ -3647,6 +3698,8 @@
             setStatus(tr("downloadManager.status.downloadStarted", "Téléchargement lancé: {name}", { name: blobName }), false);
         } catch (error) {
             setStatus(tr("downloadManager.status.downloadError", "Erreur téléchargement: {error}", { error: error.message }), true);
+        } finally {
+            hideIndexingActionLoading();
         }
     }
 

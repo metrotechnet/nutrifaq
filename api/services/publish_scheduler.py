@@ -104,6 +104,7 @@ def _clear_schedule_cancel_requested(job_id: str | None) -> None:
 def _append_schedule_log(event: str, **details: Any) -> dict[str, Any]:
     """Persist a lightweight publish scheduler journal entry."""
     nested_result = details.get("result")
+    publish_status = details.get("publish_status")
     nested_publish_status = nested_result.get("publish_status") if isinstance(nested_result, dict) else None
     if isinstance(nested_result, dict):
         for key in ("scheduled_for", "run_at", "next_run_time", "triggered_at"):
@@ -130,8 +131,36 @@ def _append_schedule_log(event: str, **details: Any) -> dict[str, Any]:
     if "files_count" not in details and "uploaded_files_count" in details:
         details["files_count"] = details["uploaded_files_count"]
 
-    # Prefer explicit values first, then scheduler/publish payloads used by this module.
-    details["files_count"] = nested_publish_status.get("uploaded_files_count") 
+    if "error" not in details:
+        error_candidate = (
+            (nested_result.get("error") if isinstance(nested_result, dict) else None)
+            or (nested_publish_status.get("error") if isinstance(nested_publish_status, dict) else None)
+            or (publish_status.get("error") if isinstance(publish_status, dict) else None)
+        )
+        if error_candidate:
+            details["error"] = str(error_candidate)
+
+    # Prefer uploaded_files_count from publish status, then explicit/fallback values.
+    files_count_candidates = [
+        details.get("uploaded_files_count"),
+        nested_result.get("uploaded_files_count") if isinstance(nested_result, dict) else None,
+        nested_publish_status.get("uploaded_files_count") if isinstance(nested_publish_status, dict) else None,
+        publish_status.get("uploaded_files_count") if isinstance(publish_status, dict) else None,
+        details.get("files_count"),
+        nested_result.get("files_count") if isinstance(nested_result, dict) else None,
+        nested_publish_status.get("files_count") if isinstance(nested_publish_status, dict) else None,
+        publish_status.get("files_count") if isinstance(publish_status, dict) else None,
+    ]
+    normalized_files_count = 0
+    for candidate in files_count_candidates:
+        if candidate is None:
+            continue
+        try:
+            normalized_files_count = int(candidate)
+            break
+        except (TypeError, ValueError):
+            continue
+    details["files_count"] = normalized_files_count
 
     if scheduled_for is not None:
         details["scheduled_for"] = scheduled_for
@@ -145,7 +174,8 @@ def _append_schedule_log(event: str, **details: Any) -> dict[str, Any]:
         "status": details.get("status", event),
         "model": details.get("model") or details.get("model_used") or None,
         "provider": details.get("provider") or details.get("provider_used") or None,
-        "files_count": details.get("files_count"),
+        "files_count": normalized_files_count,
+        "error": details.get("error"),
         "scheduled_for": scheduled_for or details.get("executed_at"),
         "executed_at": details.get("executed_at") or datetime.now().astimezone().isoformat(),
     }

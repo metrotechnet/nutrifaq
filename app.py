@@ -45,6 +45,7 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
+        logger.info("Starting application (APP_VERSION=%s)", APP_VERSION)
         # Perform startup synchronization and initialization tasks
         sync_blob_databases_on_startup(app)
         # Initialize authentication system
