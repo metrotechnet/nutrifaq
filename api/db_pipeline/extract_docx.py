@@ -4,8 +4,6 @@ import os
 import sys
 from pathlib import Path
 
-from docx import Document
-
 logger = logging.getLogger(__name__)
 
 # Resolve repo and nutrifaq-dbase roots from api/db_pipeline/
@@ -21,7 +19,7 @@ from api.services.indexation_service import _raise_if_cancel_requested, _write_p
 configure_logging()
 
 
-SUPPORTED_SUFFIXES = (".docx", ".md", ".markdown")
+SUPPORTED_SUFFIXES = (".md", ".markdown")
 
 
 def _new_file_only_enabled() -> bool:
@@ -83,16 +81,6 @@ def resolve_kb_root() -> Path:
     return DEFAULT_KB_ROOT
 
 
-def extract_text_from_docx(docx_path):
-    """Extract text from a Word document."""
-    doc = Document(docx_path)
-    full_text = []
-    for para in doc.paragraphs:
-        if para.text.strip():
-            full_text.append(para.text)
-    return "\n".join(full_text)
-
-
 def extract_text_from_markdown(markdown_path):
     """Read a Markdown file as UTF-8 text."""
     try:
@@ -142,10 +130,7 @@ def extract_all_documents(folder_path, output_folder=None):
         filename = file_path.name
 
         try:
-            if file_path.suffix.lower() == ".docx":
-                text = extract_text_from_docx(file_path)
-            else:
-                text = extract_text_from_markdown(file_path)
+            text = extract_text_from_markdown(file_path)
 
             if not text.strip():
                 continue

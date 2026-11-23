@@ -62,6 +62,9 @@ def save_uploaded_file(filename: str, content: bytes) -> dict[str, str | bool]:
     docs_dir = documents_dir()
 
     final_filename = _safe_filename(filename)
+    if Path(final_filename).suffix.lower() not in {".md", ".markdown"}:
+        raise HTTPException(status_code=400, detail="Only Markdown (.md or .markdown) files are accepted.")
+
     destination = docs_dir / final_filename
     destination.write_bytes(content)
 
@@ -98,6 +101,8 @@ def list_uploaded_files() -> dict[str, object]:
     files: list[dict[str, object]] = []
     for path in sorted(docs_dir.glob("*")):
         if not path.is_file():
+            continue
+        if path.suffix.lower() not in {".md", ".markdown"}:
             continue
 
         stat = path.stat()

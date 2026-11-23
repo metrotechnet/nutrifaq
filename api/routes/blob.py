@@ -162,6 +162,8 @@ def _list_local_debug_files(prefix: str | None = None, root_folder: str | None =
     for path in sorted(documents_root.rglob("*")):
         if not path.is_file():
             continue
+        if path.suffix.lower() not in {".md", ".markdown"}:
+            continue
 
         relative_name = path.relative_to(documents_root).as_posix()
         if requested_prefix and not relative_name.startswith(requested_prefix):
@@ -270,6 +272,8 @@ async def upload_file(
     """Upload a file into the local debug KB working directory."""
     try:
         target_relative_name = _resolve_upload_target(blob_name, root_folder)
+        if Path(target_relative_name).suffix.lower() not in {".md", ".markdown"}:
+            raise HTTPException(status_code=400, detail="Only Markdown (.md or .markdown) files are accepted.")
         target_path = _debug_local_root(root_folder) / target_relative_name
         target_path.parent.mkdir(parents=True, exist_ok=True)
 

@@ -198,7 +198,7 @@ Success response example:
 			"last_modified": 1790784000.123
 		},
 		{
-			"filename": "doc-2.docx",
+			"filename": "doc-2.md",
 			"size": 48211,
 			"last_modified": 1790784021.456
 		}

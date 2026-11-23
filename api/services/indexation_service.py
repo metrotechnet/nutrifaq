@@ -608,7 +608,7 @@ def _step_definitions() -> Dict[str, StepDefinition]:
     return {
         "extract_docx": StepDefinition(
             key="extract_docx",
-            description="Extract text from DOCX files into nutrifaq-dbase/transcripts.",
+            description="Extract text from Markdown files into nutrifaq-dbase/transcripts.",
             script_name="extract_docx.py",
             cwd=KB_ROOT,
             args=[str(KB_ROOT)],  # Pass KB_ROOT as first arg to subprocess
@@ -775,7 +775,7 @@ def _run_step_with_env(
 
 
 def run_extract_docx_step() -> Dict[str, object]:
-    """Run DOCX to transcript extraction."""
+    """Run Markdown to transcript extraction (legacy step name)."""
     return _run_step("extract_docx")
 
 
@@ -965,7 +965,7 @@ def _has_readable_documents(local_kb_root: Path) -> bool:
     if not documents_dir.exists() or not documents_dir.is_dir():
         return False
 
-    allowed_extensions = {".docx", ".json", ".txt", ".md"}
+    allowed_extensions = {".md", ".markdown"}
 
     for path in documents_dir.rglob("*"):
         if not path.is_file():
@@ -1029,7 +1029,7 @@ def _invoke_pipeline_step(
             return {
                 "status": "ok",
                 "step": step_key,
-                "description": "Extract text from DOCX files into transcripts.",
+                "description": "Extract text from Markdown files into transcripts.",
                 "result": result,
             }
         if step_key == "extract_references":

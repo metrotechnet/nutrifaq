@@ -1,7 +1,7 @@
 """
 Extract references from Nutrifaq documents.
 
-Reads all supported document files in nutrifaq-dbase/documents and extracts:
+Reads Markdown document files in nutrifaq-dbase/documents and extracts:
 - Inline PMID references (PMID: 12345678)
 - Numbered reference sections (References)
 - Markdown metadata and cleaned text for .md files
@@ -15,11 +15,13 @@ import os
 import re
 import sys
 import unicodedata
+from html import unescape
 from pathlib import Path
+from urllib.parse import urldefrag
+
+import requests
 
 logger = logging.getLogger(__name__)
-
-import docx
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
@@ -32,7 +34,7 @@ from api.services.indexation_service import _raise_if_cancel_requested, _write_p
 
 configure_logging()
 
-SUPPORTED_SUFFIXES = (".docx", ".md", ".markdown")
+SUPPORTED_SUFFIXES = (".md", ".markdown")
 
 
 def _new_file_only_enabled() -> bool:
@@ -66,7 +68,7 @@ def _filter_new_files(kb_root: Path, candidates: list[Path]) -> list[Path]:
     if not _new_file_only_enabled():
         return candidates
     state = _load_pipeline_state(kb_root)
-    processed = state.get("extract_docx", {})
+    processed = state.get("extract_references", {})
     if not isinstance(processed, dict):
         return candidates
     allowed = set(processed.keys())
@@ -84,12 +86,6 @@ def resolve_kb_path() -> Path:
         return Path(kb_root_env).resolve()
 
     return SCRIPT_DIR.parents[1] / "nutrifaq-dbase"
-
-
-def read_docx(path):
-    """Read a .docx file and return full text."""
-    doc = docx.Document(path)
-    return "\n".join(p.text for p in doc.paragraphs)
 
 
 def read_markdown(path):
@@ -270,10 +266,98 @@ def extract_bibliography(text):
     return entries
 
 
+_PARENT_PAGE_TITLES: dict[str, tuple[str, str]] = {}
+
+
+def _clean_html_text(value: str) -> str:
+    value = re.sub(r"<[^>]+>", " ", value)
+    value = unescape(value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def extract_titles_from_url(full_url: str) -> tuple[str, str]:
+    """Extract the parent page title and fragment/panel title from a NutriFAQ URL."""
+    if not full_url:
+        return "", ""
+
+    parent_url, fragment = urldefrag(full_url)
+    parent_url = parent_url.strip()
+    fragment = fragment.strip()
+    if not parent_url:
+        return "", ""
+
+    cached = _PARENT_PAGE_TITLES.get(parent_url)
+    if cached is not None:
+        parent_title, html = cached
+    else:
+        try:
+            timeout_seconds = float(os.getenv("NUTRIFAQ_URL_TITLE_TIMEOUT_SECONDS", "10"))
+            response = requests.get(parent_url, timeout=max(timeout_seconds, 1))
+            response.raise_for_status()
+            html = response.text
+            parent_title = ""
+
+            h1_match = re.search(r"<h1\b[^>]*>(.*?)</h1\s*>", html, re.IGNORECASE | re.DOTALL)
+            if h1_match:
+                parent_title = _clean_html_text(h1_match.group(1))
+
+            if not parent_title:
+                og_match = re.search(
+                    r"<meta\b[^>]*(?:property|name)=['\"](?:og:title|twitter:title)['\"][^>]*content=['\"]([^'\"]+)['\"]",
+                    html,
+                    re.IGNORECASE,
+                )
+                if not og_match:
+                    og_match = re.search(
+                        r"<meta\b[^>]*content=['\"]([^'\"]+)['\"][^>]*(?:property|name)=['\"](?:og:title|twitter:title)['\"]",
+                        html,
+                        re.IGNORECASE,
+                    )
+                if og_match:
+                    parent_title = unescape(og_match.group(1)).strip()
+
+            if not parent_title:
+                title_match = re.search(r"<title\b[^>]*>(.*?)</title\s*>", html, re.IGNORECASE | re.DOTALL)
+                if title_match:
+                    parent_title = _clean_html_text(title_match.group(1))
+
+            _PARENT_PAGE_TITLES[parent_url] = (parent_title, html)
+        except requests.RequestException as exc:
+            logger.warning("Unable to extract titles from %s: %s", parent_url, exc)
+            return "", ""
+
+    panel_title = ""
+    if fragment:
+        panel_match = re.search(
+            rf"<[^>]+\bid=['\"]{re.escape(fragment)}['\"][^>]*>",
+            html,
+            re.IGNORECASE,
+        )
+        if panel_match:
+            preceding_html = html[:panel_match.start()]
+            heading_matches = list(
+                re.finditer(r"<h2\b[^>]*>(.*?)</h2\s*>", preceding_html, re.IGNORECASE | re.DOTALL)
+            )
+            if heading_matches:
+                panel_title = _clean_html_text(heading_matches[-1].group(1))
+
+    return parent_title, panel_title
+
+
 def extract_markdown_document(file_path: Path):
     """Process a Markdown document and return text, metadata, and references."""
     raw_text = read_markdown(file_path)
     metadata, remaining_text = parse_markdown_metadata(raw_text)
+    full_url = str(metadata.get("url") or metadata.get("source_url") or "").strip()
+    parent_title, panel_title = extract_titles_from_url(full_url)
+
+    metadata["parent_url"] = urldefrag(full_url)[0] if full_url else ""
+    metadata["panel_id"] = urldefrag(full_url)[1] if full_url else ""
+    metadata["parent_title"] = parent_title
+    metadata["page_title"] = parent_title
+    metadata["panel_title"] = panel_title
+    metadata["current_title"] = panel_title or str(metadata.get("title") or "").strip()
+
     cleaned_text = cleanup_markdown_text(remaining_text)
     pmids = extract_pmids(cleaned_text)
     markdown_references = extract_markdown_references(remaining_text)
@@ -337,23 +421,9 @@ def process_documents(documents_dir: Path):
     for fpath in files:
         _raise_if_cancel_requested("extract_references")
         try:
-            if fpath.suffix.lower() == ".docx":
-                text = read_docx(str(fpath))
-                pmids = extract_pmids(text)
-                bibliography = extract_bibliography(text)
-                doc_entry = {
-                    "filename": fpath.name,
-                    "metadata": {},
-                    "text": text,
-                    "references": {
-                        "pmids": pmids,
-                        "bibliography": bibliography,
-                    },
-                }
-            else:
-                doc_entry = extract_markdown_document(fpath)
-                if doc_entry.get("references", {}).get("markdown_references"):
-                    doc_entry["references"]["bibliography"] = []
+            doc_entry = extract_markdown_document(fpath)
+            if doc_entry.get("references", {}).get("markdown_references"):
+                doc_entry["references"]["bibliography"] = []
 
             results.append(doc_entry)
 

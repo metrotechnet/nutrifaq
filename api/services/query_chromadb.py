@@ -31,6 +31,7 @@ load_dotenv(dotenv_path=REPO_ROOT / '.env')
 
 DEFAULT_PROJECT_NAME = os.getenv("KNOWLEDGE_BASE_NAME", "nutrifaq")
 DEFAULT_COLLECTION_NAME = os.getenv("DEFAULT_COLLECTION_NAME", "nutrifaq-collection")
+REFERENCE_LINK_MIN_SCORE = 0.5
 
 AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT")
@@ -291,6 +292,9 @@ def query_chromadb(
             query_kwargs["where"] = payload.get("where")
 
         results = collection.query(**query_kwargs)
+        results["_distance_metric"] = str(
+            (collection.metadata or {}).get("hnsw:space") or "l2"
+        ).lower()
         return results
 
     except Exception as e:
@@ -378,21 +382,59 @@ def extract_pmids_from_text(text):
 
 
 def get_best_source_metadata(results):
-    """Return the best available metadata block for a relevant source page."""
+    """Return the best source title, URL, and similarity score."""
     raw_metadatas = results.get("metadatas") if isinstance(results, dict) else None
     if not isinstance(raw_metadatas, list):
-        return None, None
+        return None, None, None
 
-    for metadata_group in raw_metadatas:
+    raw_distances = results.get("distances") if isinstance(results, dict) else None
+    for group_index, metadata_group in enumerate(raw_metadatas):
         if not isinstance(metadata_group, list):
             continue
-        for metadata in metadata_group:
+        distance_group = (
+            raw_distances[group_index]
+            if isinstance(raw_distances, list)
+            and group_index < len(raw_distances)
+            and isinstance(raw_distances[group_index], list)
+            else []
+        )
+        for result_index, metadata in enumerate(metadata_group):
             if isinstance(metadata, dict):
-                title = str(metadata.get("title") or metadata.get("page_title") or "").strip()
+                source_title = str(
+                    metadata.get("panel_title")
+                    or metadata.get("current_title")
+                    or metadata.get("title")
+                    or ""
+                ).strip()
+                parent_title = str(
+                    metadata.get("parent_title")
+                    or metadata.get("page_title")
+                    or ""
+                ).strip()
+
+                if parent_title:
+                    parent_title = parent_title[0].upper() + parent_title[1:]
+                if source_title:
+                    source_title = source_title[0].upper() + source_title[1:]
+
+                if parent_title and source_title and parent_title.casefold() != source_title.casefold():
+                    title = f"{parent_title} - {source_title}"
+                else:
+                    title = source_title or parent_title
+
                 url = str(metadata.get("url") or metadata.get("source_url") or "").strip()
                 if title or url:
-                    return title or None, url or None
-    return None, None
+                    distance = distance_group[result_index] if result_index < len(distance_group) else None
+                    match_score = None
+                    if isinstance(distance, (int, float)):
+                        normalized_distance = max(0.0, float(distance))
+                        distance_metric = str(results.get("_distance_metric") or "l2").lower()
+                        if distance_metric == "cosine":
+                            match_score = max(0.0, min(1.0, 1.0 - normalized_distance))
+                        else:
+                            match_score = 1.0 / (1.0 + normalized_distance)
+                    return title or None, url or None, match_score
+    return None, None, None
 
 
 def get_links_from_contexts(contexts, metadatas=None, agent=None):
@@ -485,7 +527,7 @@ def ask_question_stream(
         query_params = {
             "query_embedding": query_emb,
             "n_results": top_k,
-            "include": ['documents', 'metadatas']
+            "include": ['documents', 'metadatas', 'distances']
         }
             
         # Ensure query_params is JSON serializable
@@ -523,10 +565,16 @@ def ask_question_stream(
             contexts.append(doc)
         context = "\n\n".join(contexts)
 
+        source_title, source_url, match_score = get_best_source_metadata(results)
+        has_reference_match = (
+            isinstance(match_score, (int, float))
+            and match_score >= REFERENCE_LINK_MIN_SCORE
+        )
+
         # Extraire les liens du contexte (with source metadata lookup)
         # Only extract links for substantial questions (not for generic/short questions)
         links = []
-        if is_substantial_question(question):
+        if has_reference_match and is_substantial_question(question):
             raw_metadatas = results.get("metadatas")
             metadatas = raw_metadatas[0] if isinstance(raw_metadatas, list) and len(raw_metadatas) > 0 else []
             links = get_links_from_contexts(contexts, metadatas=metadatas, agent=agent)
@@ -538,7 +586,9 @@ def ask_question_stream(
             session['links'][question_id] = links
 
         # Build prompt using template from JSON
-        source_title, source_url = get_best_source_metadata(results)
+        if session is not None and question_id is not None:
+            session.setdefault("match_scores", {})[question_id] = match_score
+
         prompt = build_prompt_from_template(
             language,
             context,
@@ -585,7 +635,7 @@ def ask_question_stream(
                 yield content
 
         final_answer = _strip_inline_reference("".join(answer_parts))
-        if source_title and source_url:
+        if has_reference_match and source_title and source_url:
             has_follow_up_link = (
                 "Pour aller plus loin" in final_answer.lower()
                 or "Pour en savoir plus" in final_answer.lower()
@@ -599,10 +649,6 @@ def ask_question_stream(
                 # The model may inject a website reference inline; remove it and replace with the backend footer.
                 footer = f"\n\n{_format_follow_up_footer(source_title, source_url)}"
                 yield footer
-        elif final_answer:
-            yield final_answer
-        elif source_title:
-            yield final_answer
 
   
 

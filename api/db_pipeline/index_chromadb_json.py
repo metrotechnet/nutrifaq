@@ -103,7 +103,10 @@ def init_chromadb(kb_path):
     try:
         collection = chroma_client.create_collection(
             name=collection_name,
-            metadata={"description": f"Knowledge base: {kb_path.name}"},
+            metadata={
+                "description": f"Knowledge base: {kb_path.name}",
+                "hnsw:space": "cosine",
+            },
         )
     except Exception:
         logger.warning(
@@ -112,7 +115,10 @@ def init_chromadb(kb_path):
         )
         collection = chroma_client.get_or_create_collection(
             name=collection_name,
-            metadata={"description": f"Knowledge base: {kb_path.name}"},
+            metadata={
+                "description": f"Knowledge base: {kb_path.name}",
+                "hnsw:space": "cosine",
+            },
         )
         existing = collection.get(include=[], limit=100000)
         existing_ids = existing.get("ids", []) if isinstance(existing, dict) else []

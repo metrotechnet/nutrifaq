@@ -273,6 +273,17 @@
             editRoleBtn.classList.add("users-admin-btn-role");
 
             const forceResetBtn = createIconButton("bi bi-key-fill", "Forcer la réinitialisation du mot de passe", async () => {
+                const targetUser = user.email || user.object_id;
+                const confirmed = await confirmPopup(
+                    "Confirmer la réinitialisation",
+                    `Voulez-vous réinitialiser le mot de passe de ${targetUser} ? L'utilisateur devra choisir un nouveau mot de passe à sa prochaine connexion.`,
+                    "Réinitialiser"
+                );
+                if (!confirmed) {
+                    inlineStatus.textContent = "Réinitialisation annulée.";
+                    return;
+                }
+
                 inlineStatus.textContent = "Activation de la réinitialisation du mot de passe...";
                 try {
                     const payload = await apiRequest(`/api/users/${encodeURIComponent(user.object_id)}/password/reset-required`, {
@@ -282,11 +293,11 @@
                     applyResetStateBadge(resetStateLabel, true);
                     inlineStatus.textContent = "Réinitialisation requise au prochain login.";
                     const temporaryPassword = String(payload.temporary_password || "");
-                    const targetUser = escapeHtml(user.email || user.object_id);
+                    const escapedTargetUser = escapeHtml(targetUser);
                     await window.Swal.fire({
                         icon: "success",
                         title: "Réinitialisation activée",
-                        html: `Mot de passe temporaire: <br><br><strong>${escapeHtml(temporaryPassword)}</strong><br><br>Transmettez-le à ${targetUser}. L'utilisateur devra le changer à sa prochaine connexion.`,
+                        html: `Mot de passe temporaire: <br><br><strong>${escapeHtml(temporaryPassword)}</strong><br><br>Transmettez-le à ${escapedTargetUser}. L'utilisateur devra le changer à sa prochaine connexion.`,
                         confirmButtonColor: "#1d75c2",
                     });
                 } catch (error) {

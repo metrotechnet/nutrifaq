@@ -47,7 +47,7 @@ def run_database_step(
 
 @router.post("/api/database/extract-docx")
 def run_extract_docx():
-    """Run DOCX extraction step."""
+    """Run Markdown extraction step (legacy step name)."""
     result = run_extract_docx_step()
     status_code = 200 if result.get("status") == "ok" else 500
     return JSONResponse(status_code=status_code, content=result)

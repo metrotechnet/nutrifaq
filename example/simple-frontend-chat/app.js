@@ -24,6 +24,7 @@ if (typeof marked !== "undefined") {
 // Purpose: Implements a focused frontend behavior used by this module.
 // Inputs/Outputs: Uses the function parameters and returns the value expected by its callers.
 function sanitizeMarkdown(mdText) {
+  console.log("Sanitizing markdown:", mdText);
   const rendered = typeof marked !== "undefined" ? marked.parse(mdText) : mdText;
   if (typeof DOMPurify !== "undefined") {
     return DOMPurify.sanitize(rendered);

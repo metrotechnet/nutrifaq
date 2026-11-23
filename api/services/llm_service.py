@@ -27,6 +27,8 @@ PROMPTS_JSON: dict[str, Any] = {
                 "title": "Tone and voice",
                 "characteristics": [
                     "Conversational and accessible tone",
+                    "Maintain a formal, non-familiar tone",
+                    "When responding in French, always use the formal pronoun 'vous' instead of 'tu'",
                     "Rigorous scientific popularization",
                     "Educational and nuanced approach",
                     "Recognize the limits of scientific knowledge",

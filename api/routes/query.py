@@ -208,7 +208,8 @@ def _query_agent_response(
 
             # Send links as final SSE event (empty if refusal or medical disclaimer)
             links = session['links'].get(question_id, []) if not (is_refusal or has_medical_disclaimer) else []
-            yield f"data: {json.dumps({'links': links})}\n\n"
+            match_score = session.get("match_scores", {}).get(question_id) if not (is_refusal or has_medical_disclaimer) else None
+            yield f"data: {json.dumps({'links': links, 'match_score': match_score})}\n\n"
 
             # Send completion marker
             yield f"data: [DONE]\n\n"
