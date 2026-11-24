@@ -35,7 +35,11 @@ from api.services.blob_storage_service import (
     upload_file_to_blob,
 )
 from api.services.config import append_publish_log_entry
-from api.services.query_chromadb import get_debug_local_kb_root_folder, release_local_chroma_handles
+from api.services.query_chromadb import (
+    chroma_access_guard,
+    get_debug_local_kb_root_folder,
+    release_local_chroma_handles,
+)
 from api.services.workflow_events import emit_workflow_event
 
 
@@ -658,6 +662,9 @@ def list_indexation_steps() -> List[Dict[str, str]]:
 # Purpose: Internal helper used to keep the main workflow readable and maintainable.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def _run_step(step_key: str) -> Dict[str, object]:
+    if step_key == "index_chromadb_json":
+        with chroma_access_guard():
+            return _run_step_with_env(step_key)
     return _run_step_with_env(step_key)
 
 
@@ -1264,7 +1271,11 @@ def run_full_indexation(
                 }
                 return result
 
-            step_result = step_services[step_key]()
+            if step_key == "index_chromadb_json":
+                with chroma_access_guard():
+                    step_result = step_services[step_key]()
+            else:
+                step_result = step_services[step_key]()
             results.append(step_result)
             if step_result.get("status") == "cancelled":
                 result = {

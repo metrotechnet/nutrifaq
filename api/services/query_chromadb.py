@@ -4,6 +4,8 @@ import json
 import re
 import random
 import gc
+import threading
+from contextlib import contextmanager
 from typing import Any
 from pathlib import Path
 from dotenv import load_dotenv
@@ -48,6 +50,14 @@ ROOT_BLOB_CACHE_ROOT = REPO_ROOT / "nutrifaq-dbase" / "chroma_db"
 _CHROMA_CLIENT_CACHE: dict[str, Any] = {}
 _CHROMA_COLLECTION_CACHE: dict[tuple[str, str], Any] = {}
 _CHROMA_SIGNATURE_CACHE: str | None = None
+_CHROMA_ACCESS_LOCK = threading.RLock()
+
+
+@contextmanager
+def chroma_access_guard():
+    """Serialize Chroma reads with mutations of the same local database files."""
+    with _CHROMA_ACCESS_LOCK:
+        yield
 
 
 def _follow_up_variants() -> list[str]:
@@ -235,6 +245,15 @@ def release_local_chroma_handles() -> None:
     gc.collect()
 
 
+def _is_missing_segment_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return (
+        isinstance(exc, FileNotFoundError)
+        or "no such file or directory" in message
+        or "data_level0.bin" in message
+    )
+
+
 # Purpose: Implement a focused unit of backend behavior used by routes or services.
 # Inputs/Outputs: See signature and return annotation for contract details.
 def query_chromadb(
@@ -272,17 +291,6 @@ def query_chromadb(
                 "details": "query_embedding must be a non-empty list-like vector",
             }
 
-        client = _local_chroma_client(
-            project_name,
-            root_folder=root_folder,
-            chroma_db_path=chroma_db_path,
-        )
-        cache_key = (str(local_chroma_path), collection_name)
-        collection = _CHROMA_COLLECTION_CACHE.get(cache_key)
-        if collection is None:
-            collection = client.get_collection(name=collection_name)
-            _CHROMA_COLLECTION_CACHE[cache_key] = collection
-
         query_kwargs = {
             "query_embeddings": [query_embedding],
             "n_results": int(payload.get("n_results", 10)),
@@ -291,11 +299,33 @@ def query_chromadb(
         if payload.get("where") is not None:
             query_kwargs["where"] = payload.get("where")
 
-        results = collection.query(**query_kwargs)
-        results["_distance_metric"] = str(
-            (collection.metadata or {}).get("hnsw:space") or "l2"
-        ).lower()
-        return results
+        for attempt in range(2):
+            try:
+                with chroma_access_guard():
+                    client = _local_chroma_client(
+                        project_name,
+                        root_folder=root_folder,
+                        chroma_db_path=chroma_db_path,
+                    )
+                    cache_key = (str(local_chroma_path), collection_name)
+                    collection = _CHROMA_COLLECTION_CACHE.get(cache_key)
+                    if collection is None:
+                        collection = client.get_collection(name=collection_name)
+                        _CHROMA_COLLECTION_CACHE[cache_key] = collection
+
+                    results = collection.query(**query_kwargs)
+                    results["_distance_metric"] = str(
+                        (collection.metadata or {}).get("hnsw:space") or "l2"
+                    ).lower()
+                    return results
+            except Exception as exc:
+                if attempt == 0 and _is_missing_segment_error(exc):
+                    logger.warning(
+                        "ChromaDB segment moved during query; invalidating cached clients and retrying."
+                    )
+                    release_local_chroma_handles()
+                    continue
+                raise
 
     except Exception as e:
         return {

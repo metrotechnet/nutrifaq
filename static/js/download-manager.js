@@ -2130,14 +2130,12 @@
             emptyState.style.display = "none";
         }
         startPublishScheduleAutoRefresh();
-        if (!USE_WORKFLOW_EVENTS) {
-            loadScheduledPublishJobs(null, true).catch(() => {
-                // Ignore transient refresh failures.
-            });
-            syncScheduledProcessingState(null, true).catch(() => {
-                // Ignore transient refresh failures.
-            });
-        }
+        loadScheduledPublishJobs(null, true).catch(() => {
+            // Ignore transient refresh failures.
+        });
+        syncScheduledProcessingState(null, true).catch(() => {
+            // Ignore transient refresh failures.
+        });
     }
 
     // Purpose: Keeps frontend state synchronized with server or shared UI state.
